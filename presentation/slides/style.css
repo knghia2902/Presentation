@@ -1184,3 +1184,113 @@ body.in-present-mode .prezi-present-right-controls {
   border-color: #ff8787;
 }
 
+/* ==========================================================================
+   PREZI FLOATING TOOLBARS (Text: Hình 2 & Image: Hình 1)
+   ========================================================================== */
+.prezi-floating-text-toolbar,
+.prezi-floating-image-toolbar {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.16), 0 1px 4px rgba(0,0,0,0.08);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  z-index: 5000;
+  transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1);
+  user-select: none;
+}
+
+.prezi-floating-text-toolbar.show,
+.prezi-floating-image-toolbar.show {
+  display: flex;
+}
+
+body.in-present-mode .prezi-floating-text-toolbar,
+body.in-present-mode .prezi-floating-image-toolbar {
+  display: none !important;
+}
+
+.fl-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 500;
+  color: #303133;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.fl-btn:hover {
+  background: #f2f3f5;
+  border-color: #e4e7ed;
+}
+
+.fl-btn.active {
+  background: #e6f7ff;
+  border-color: #91d5ff;
+  color: #1890ff;
+}
+
+.fl-btn.font-ask-ai {
+  background: #fdf2ff;
+  color: #a825ba;
+  font-weight: 600;
+  border-color: #f0c9ff;
+}
+
+.fl-divider {
+  width: 1px;
+  height: 18px;
+  background: #e4e7ed;
+  margin: 0 4px;
+}
+
+.fl-select {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.82rem;
+  background: #ffffff;
+  color: #303133;
+  outline: none;
+  font-family: inherit;
+}
+
+.fl-size-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.fl-color-input {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* Selection bounding boxes (Viền xanh chọn khung giống ảnh mẫu) */
+.prezi-selected-el {
+  outline: 2px solid #1890ff !important;
+  outline-offset: 3px;
+  position: relative;
+}
+
+.prezi-selected-img {
+  outline: 2px solid #1890ff !important;
+  outline-offset: 2px;
+}
+
+

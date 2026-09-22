@@ -423,9 +423,51 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================================================
-  // 8. INTERACTIVE EDITING & COPY-PASTE IMAGE ENGINE
-  // Allows user to edit text, paste images from clipboard, and persist changes
+  // 8. ADVANCED PREZI EDITING & IMAGE CLIPBOARD ENGINE (WITH INDEXEDDB)
+  // Handles all image paste formats (Blob, HTML img, files), selection toolbars,
+  // inline styling, and unlimited local persistence.
   // ==========================================================================
+  let selectedTextEl = null;
+  let selectedImgEl = null;
+
+  // IndexedDB setup for storing high-res pasted images without size limit
+  const DB_NAME = 'PreziCanvasDB';
+  const DB_STORE = 'canvas_state';
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore(DB_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveToIndexedDB(key, val) {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put(val, key);
+      return new Promise(res => { tx.oncomplete = () => res(true); });
+    } catch (e) {
+      console.warn('IDB Save error', e);
+      return false;
+    }
+  }
+
+  async function loadFromIndexedDB(key) {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get(key);
+      return new Promise(res => { req.onsuccess = () => res(req.result); });
+    } catch (e) {
+      console.warn('IDB Load error', e);
+      return null;
+    }
+  }
+
   function showToast(message) {
     let toast = document.querySelector('.prezi-toast');
     if (!toast) {
@@ -437,32 +479,199 @@ document.addEventListener('DOMContentLoaded', () => {
     toast.classList.add('show');
     setTimeout(() => {
       toast.classList.remove('show');
-    }, 2800);
+    }, 3200);
   }
 
   function setupEditingEngine() {
     const saveIndicator = document.getElementById('save-status-indicator');
+    const textToolbar = document.getElementById('text-floating-toolbar');
+    const imgToolbar = document.getElementById('image-floating-toolbar');
 
-    // 1. Enable ContentEditable on all titles, subtitles, body text, cards
+    // Make ALL text elements across cards editable
     const editableSelectors = [
       '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
       '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
-      '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote'
+      '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote',
+      '.img-caption-tag', '.card-micro-quote', 'h1', 'h2', 'h3', 'h4', 'h5', 'p'
     ];
 
-    document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
+    function makeElementEditable(el) {
+      if (el.closest('.prezi-topbar') || el.closest('.prezi-sidebar') || el.closest('.prezi-bottom-bar') || el.closest('.prezi-floating-text-toolbar') || el.closest('.prezi-floating-image-toolbar')) return;
+      
       el.setAttribute('contenteditable', 'true');
       el.setAttribute('spellcheck', 'false');
 
+      el.addEventListener('focus', () => {
+        selectedTextEl = el;
+        document.querySelectorAll('.prezi-selected-el').forEach(e => e.classList.remove('prezi-selected-el'));
+        el.classList.add('prezi-selected-el');
+        positionTextToolbar(el);
+      });
+
       el.addEventListener('input', () => {
         if (saveIndicator) {
-          saveIndicator.textContent = 'Đang có thay đổi...';
+          saveIndicator.textContent = 'Đang chỉnh sửa...';
           saveIndicator.className = 'save-status-indicator saving';
         }
       });
+
       el.addEventListener('blur', () => {
         saveEditsToStorage();
       });
+    }
+
+    document.querySelectorAll(editableSelectors.join(',')).forEach(makeElementEditable);
+
+    // Click outside to hide toolbars
+    document.addEventListener('mousedown', (e) => {
+      if (textToolbar && !textToolbar.contains(e.target) && !e.target.isContentEditable) {
+        textToolbar.classList.remove('show');
+        if (selectedTextEl) selectedTextEl.classList.remove('prezi-selected-el');
+        selectedTextEl = null;
+      }
+      if (imgToolbar && !imgToolbar.contains(e.target) && !e.target.classList.contains('prezi-selected-img') && !e.target.classList.contains('card-portrait-img') && !e.target.classList.contains('user-placed-image')) {
+        imgToolbar.classList.remove('show');
+        if (selectedImgEl) selectedImgEl.classList.remove('prezi-selected-img');
+        selectedImgEl = null;
+      }
+    });
+
+    // Positioning Floating Text Toolbar (Hình 2)
+    function positionTextToolbar(targetEl) {
+      if (!textToolbar || document.body.classList.contains('in-present-mode')) return;
+      const rect = targetEl.getBoundingClientRect();
+      textToolbar.style.top = `${Math.max(rect.top - 54, 56)}px`;
+      textToolbar.style.left = `${Math.max(rect.left, 240)}px`;
+      textToolbar.classList.add('show');
+    }
+
+    // Positioning Floating Image Toolbar (Hình 1)
+    function positionImageToolbar(imgEl) {
+      if (!imgToolbar || document.body.classList.contains('in-present-mode')) return;
+      const rect = imgEl.getBoundingClientRect();
+      imgToolbar.style.top = `${Math.max(rect.top - 48, 56)}px`;
+      imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
+      imgToolbar.classList.add('show');
+    }
+
+    // Bind existing images for selection & replacement (Hình 1)
+    function bindImageSelection(img) {
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedImgEl = img;
+        document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
+        img.classList.add('prezi-selected-img');
+        positionImageToolbar(img);
+      });
+    }
+
+    document.querySelectorAll('.canvas-card img, .user-placed-image').forEach(bindImageSelection);
+
+    // Floating Text Toolbar Actions
+    const btnBold = document.getElementById('btn-format-bold');
+    if (btnBold) btnBold.addEventListener('click', () => { document.execCommand('bold', false, null); saveEditsToStorage(); });
+    
+    const btnItalic = document.getElementById('btn-format-italic');
+    if (btnItalic) btnItalic.addEventListener('click', () => { document.execCommand('italic', false, null); saveEditsToStorage(); });
+    
+    const btnUnderline = document.getElementById('btn-format-underline');
+    if (btnUnderline) btnUnderline.addEventListener('click', () => { document.execCommand('underline', false, null); saveEditsToStorage(); });
+
+    const fontSelect = document.getElementById('text-font-select');
+    if (fontSelect) fontSelect.addEventListener('change', (e) => {
+      if (selectedTextEl) {
+        selectedTextEl.style.fontFamily = e.target.value;
+        saveEditsToStorage();
+      }
+    });
+
+    const colorPicker = document.getElementById('text-color-picker');
+    if (colorPicker) colorPicker.addEventListener('input', (e) => {
+      if (selectedTextEl) {
+        selectedTextEl.style.color = e.target.value;
+        saveEditsToStorage();
+      }
+    });
+
+    const btnFontInc = document.getElementById('btn-font-inc');
+    if (btnFontInc) btnFontInc.addEventListener('click', () => {
+      if (selectedTextEl) {
+        const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 16;
+        selectedTextEl.style.fontSize = `${cur + 2}px`;
+        document.getElementById('fl-font-size').textContent = `${cur + 2}`;
+        saveEditsToStorage();
+      }
+    });
+
+    const btnFontDec = document.getElementById('btn-font-dec');
+    if (btnFontDec) btnFontDec.addEventListener('click', () => {
+      if (selectedTextEl) {
+        const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 16;
+        if (cur > 10) {
+          selectedTextEl.style.fontSize = `${cur - 2}px`;
+          document.getElementById('fl-font-size').textContent = `${cur - 2}`;
+          saveEditsToStorage();
+        }
+      }
+    });
+
+    const btnDelText = document.getElementById('btn-del-text-el');
+    if (btnDelText) btnDelText.addEventListener('click', () => {
+      if (selectedTextEl) {
+        selectedTextEl.remove();
+        if (textToolbar) textToolbar.classList.remove('show');
+        saveEditsToStorage();
+        showToast('Đã xóa khối văn bản.');
+      }
+    });
+
+    // Floating Image Toolbar Actions (Hình 1: Replace, Edit, Crop, Delete)
+    const replaceInput = document.getElementById('replace-file-input');
+    if (replaceInput) {
+      replaceInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file || !selectedImgEl) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          selectedImgEl.src = ev.target.result;
+          saveEditsToStorage();
+          showToast('Đã thay thế hình ảnh thành công!');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const btnImgFlip = document.getElementById('btn-img-flip');
+    if (btnImgFlip) btnImgFlip.addEventListener('click', () => {
+      if (selectedImgEl) {
+        const curTrans = selectedImgEl.style.transform || '';
+        selectedImgEl.style.transform = curTrans.includes('scaleX(-1)') ? curTrans.replace('scaleX(-1)', '').trim() : `${curTrans} scaleX(-1)`.trim();
+        saveEditsToStorage();
+      }
+    });
+
+    const btnImgRadius = document.getElementById('btn-img-radius');
+    if (btnImgRadius) btnImgRadius.addEventListener('click', () => {
+      if (selectedImgEl) {
+        const curR = selectedImgEl.style.borderRadius;
+        selectedImgEl.style.borderRadius = curR === '50%' ? '8px' : '50%';
+        saveEditsToStorage();
+      }
+    });
+
+    const btnImgDel = document.getElementById('btn-img-delete');
+    if (btnImgDel) btnImgDel.addEventListener('click', () => {
+      if (selectedImgEl) {
+        const wrapper = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl.parentElement;
+        if (wrapper && wrapper.classList.contains('user-image-wrapper')) {
+          wrapper.remove();
+        } else {
+          selectedImgEl.remove();
+        }
+        if (imgToolbar) imgToolbar.classList.remove('show');
+        saveEditsToStorage();
+        showToast('Đã xóa hình ảnh.');
+      }
     });
 
     // 2. Add New Text box button
@@ -472,11 +681,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeCard = document.querySelector('.canvas-card.current-active') || document.getElementById('stop-01');
         const p = document.createElement('p');
         p.className = 'card-body-text';
-        p.setAttribute('contenteditable', 'true');
         p.textContent = 'Nhập nội dung mới tại đây...';
         activeCard.appendChild(p);
+        makeElementEditable(p);
         p.focus();
-        showToast('Đã thêm khối văn bản mới. Nhập trực tiếp để chỉnh sửa!');
+        showToast('Đã tạo khối văn bản mới. Bạn có thể gõ nội dung trực tiếp.');
       });
     }
 
@@ -494,23 +703,59 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // 4. COPY - PASTE (CTRL+V) IMAGE FROM ANYWHERE DIRECTLY ONTO CANVAS
-    window.addEventListener('paste', (e) => {
-      // If user is editing text and pasting plain text, let default behavior run
-      if (e.clipboardData && e.clipboardData.items) {
-        for (let i = 0; i < e.clipboardData.items.length; i++) {
-          const item = e.clipboardData.items[i];
+    // 4. ROBUST MULTI-SOURCE CLIPBOARD PASTE (CTRL+V)
+    // Supports Image files, System Screenshots, Browser Image Copies, HTML <img> tags, and Data URLs
+    window.addEventListener('paste', async (e) => {
+      const clipboard = e.clipboardData;
+      if (!clipboard) return;
+
+      let handled = false;
+
+      // Check 1: Clipboard Files & Items (Snipping Tool, PrintScreen, Copy Image from web)
+      if (clipboard.items) {
+        for (let i = 0; i < clipboard.items.length; i++) {
+          const item = clipboard.items[i];
           if (item.type.indexOf('image') !== -1) {
             e.preventDefault();
             const blob = item.getAsFile();
-            const reader = new FileReader();
-            reader.onload = (event) => {
-              placeImageOnCanvas(event.target.result);
-              showToast('Đã dán hình ảnh vào bản đồ thành công! Bạn có thể kéo thả để đổi vị trí.');
-            };
-            reader.readAsDataURL(blob);
-            return;
+            if (blob) {
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                placeImageOnCanvas(ev.target.result);
+                showToast('Đã dán hình ảnh trực tiếp từ bộ nhớ đệm (Clipboard)!');
+              };
+              reader.readAsDataURL(blob);
+              handled = true;
+              return;
+            }
           }
+        }
+      }
+
+      // Check 2: HTML Image paste (Copy image in Chrome/Edge often pastes <img src="...">)
+      if (!handled && clipboard.types.includes('text/html')) {
+        const html = clipboard.getData('text/html');
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const img = doc.querySelector('img');
+        if (img && img.src) {
+          e.preventDefault();
+          placeImageOnCanvas(img.src);
+          showToast('Đã chèn hình ảnh sao chép từ trình duyệt thành công!');
+          handled = true;
+          return;
+        }
+      }
+
+      // Check 3: Raw image URL paste
+      if (!handled && clipboard.types.includes('text/plain')) {
+        const text = clipboard.getData('text/plain').trim();
+        if (text.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i) || text.startsWith('data:image/')) {
+          e.preventDefault();
+          placeImageOnCanvas(text);
+          showToast('Đã dán hình ảnh từ đường dẫn URL!');
+          handled = true;
+          return;
         }
       }
     });
@@ -520,38 +765,37 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnSave) {
       btnSave.addEventListener('click', () => {
         saveEditsToStorage();
-        showToast('Đã lưu toàn bộ bản thảo vào trình duyệt!');
+        showToast('Đã lưu toàn bộ bản thảo thành công!');
       });
     }
 
-    // Load previously saved edits if any
     loadEditsFromStorage();
   }
 
-  // Helper to place and make image draggable on canvas
-  function placeImageOnCanvas(srcDataUrl, posX = null, posY = null) {
+  // Place and attach draggable listeners to an image
+  function placeImageOnCanvas(srcDataUrl) {
     const activeCard = document.querySelector('.canvas-card.current-active');
     const container = activeCard || world;
 
     const wrapper = document.createElement('div');
     wrapper.className = 'user-image-wrapper';
 
-    // Position near current focus or center of card
-    if (posX !== null && posY !== null) {
-      wrapper.style.left = `${posX}px`;
-      wrapper.style.top = `${posY}px`;
-    } else if (activeCard) {
+    if (activeCard) {
       wrapper.style.position = 'relative';
-      wrapper.style.marginTop = '14px';
+      wrapper.style.margin = '14px 0';
     } else {
-      wrapper.style.left = '1200px';
-      wrapper.style.top = '600px';
+      // Place near center of current camera
+      const vpRect = viewport.getBoundingClientRect();
+      const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
+      const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
+      wrapper.style.left = `${Math.round(centerX - 150)}px`;
+      wrapper.style.top = `${Math.round(centerY - 100)}px`;
     }
 
     const img = document.createElement('img');
     img.src = srcDataUrl;
     img.className = 'user-placed-image';
-    img.alt = 'User added image';
+    img.alt = 'Hình ảnh chèn';
 
     const btnDel = document.createElement('button');
     btnDel.className = 'btn-del-img';
@@ -567,6 +811,21 @@ document.addEventListener('DOMContentLoaded', () => {
     wrapper.appendChild(img);
     wrapper.appendChild(btnDel);
     container.appendChild(wrapper);
+
+    // Bind toolbar selection for newly placed image
+    img.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedImgEl = img;
+      document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
+      img.classList.add('prezi-selected-img');
+      const imgToolbar = document.getElementById('image-floating-toolbar');
+      if (imgToolbar && !document.body.classList.contains('in-present-mode')) {
+        const rect = img.getBoundingClientRect();
+        imgToolbar.style.top = `${Math.max(rect.top - 48, 56)}px`;
+        imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
+        imgToolbar.classList.add('show');
+      }
+    });
 
     // Make Draggable
     let isDraggingImg = false;
@@ -602,37 +861,63 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  function saveEditsToStorage() {
+  // Persistence with both LocalStorage & IndexedDB (Zero loss for heavy images)
+  async function saveEditsToStorage() {
     const saveIndicator = document.getElementById('save-status-indicator');
+    const content = world.innerHTML;
     try {
-      localStorage.setItem('prezi_saved_world_content', world.innerHTML);
-      if (saveIndicator) {
-        saveIndicator.textContent = 'Đã lưu tự động';
-        saveIndicator.className = 'save-status-indicator saved';
-      }
+      localStorage.setItem('prezi_saved_world_content', content);
     } catch (err) {
-      console.warn('LocalStorage limit exceeded or private mode', err);
+      // LocalStorage hit 5MB limit, fallback seamlessly to IndexedDB
+    }
+    await saveToIndexedDB('world_backup', content);
+    if (saveIndicator) {
+      saveIndicator.textContent = 'Đã lưu tự động';
+      saveIndicator.className = 'save-status-indicator saved';
     }
   }
 
-  function loadEditsFromStorage() {
-    const saved = localStorage.getItem('prezi_saved_world_content');
+  async function loadEditsFromStorage() {
+    let saved = localStorage.getItem('prezi_saved_world_content');
+    if (!saved) {
+      saved = await loadFromIndexedDB('world_backup');
+    }
+
     if (saved) {
-      // Re-hydrate saved content
       world.innerHTML = saved;
-      // Rebind card clicks
       setupClickableCards();
-      // Rebind editable attributes
+      
+      // Re-enable ContentEditable
       const editableSelectors = [
         '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
         '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
-        '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote'
+        '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote',
+        '.img-caption-tag', '.card-micro-quote', 'h1', 'h2', 'h3', 'h4', 'h5', 'p'
       ];
       document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
-        el.setAttribute('contenteditable', 'true');
-        el.setAttribute('spellcheck', 'false');
+        if (!el.closest('.prezi-topbar') && !el.closest('.prezi-sidebar') && !el.closest('.prezi-bottom-bar')) {
+          el.setAttribute('contenteditable', 'true');
+          el.setAttribute('spellcheck', 'false');
+        }
       });
-      // Re-bind delete buttons for user images
+
+      // Re-bind image click & delete
+      document.querySelectorAll('.canvas-card img, .user-placed-image').forEach(img => {
+        img.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedImgEl = img;
+          document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
+          img.classList.add('prezi-selected-img');
+          const imgToolbar = document.getElementById('image-floating-toolbar');
+          if (imgToolbar && !document.body.classList.contains('in-present-mode')) {
+            const rect = img.getBoundingClientRect();
+            imgToolbar.style.top = `${Math.max(rect.top - 48, 56)}px`;
+            imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
+            imgToolbar.classList.add('show');
+          }
+        });
+      });
+
       document.querySelectorAll('.btn-del-img').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -642,6 +927,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
   }
+
 
   // Initialize
   buildSidebar();

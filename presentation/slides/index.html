@@ -430,6 +430,46 @@
       </button>
     </div>
 
+    <!-- PREZI FLOATING TEXT TOOLBAR (Hình 2: Xuất hiện khi click chọn bất kỳ văn bản nào) -->
+    <div class="prezi-floating-text-toolbar" id="text-floating-toolbar">
+      <button class="fl-btn font-ask-ai" title="Gợi ý AI">✨ Ask AI ▾</button>
+      <div class="fl-divider"></div>
+      <select class="fl-select" id="text-tag-select" title="Định dạng tiêu đề/nội dung">
+        <option value="p">Body</option>
+        <option value="h1">Title</option>
+        <option value="h3">Subtitle</option>
+      </select>
+      <select class="fl-select" id="text-font-select" title="Chọn Font chữ">
+        <option value="'Playfair Display', serif">Playfair Display</option>
+        <option value="'Be Vietnam Pro', sans-serif">Be Vietnam Pro</option>
+        <option value="'Caveat', cursive">Caveat</option>
+      </select>
+      <div class="fl-divider"></div>
+      <button class="fl-btn font-size-dec" id="btn-font-dec" title="Giảm cỡ chữ">－</button>
+      <span class="fl-size-label" id="fl-font-size">24</span>
+      <button class="fl-btn font-size-inc" id="btn-font-inc" title="Tăng cỡ chữ">＋</button>
+      <div class="fl-divider"></div>
+      <button class="fl-btn fl-bold" id="btn-format-bold" title="In đậm (Ctrl+B)"><strong>B</strong></button>
+      <button class="fl-btn fl-italic" id="btn-format-italic" title="In nghiêng (Ctrl+I)"><em>I</em></button>
+      <button class="fl-btn fl-underline" id="btn-format-underline" title="Gạch chân (Ctrl+U)"><u>U</u></button>
+      <div class="fl-divider"></div>
+      <input type="color" id="text-color-picker" class="fl-color-input" title="Đổi màu chữ" value="#1a1a24">
+      <button class="fl-btn btn-del-text" id="btn-del-text-el" title="Xóa đoạn này">🗑️</button>
+    </div>
+
+    <!-- PREZI FLOATING IMAGE TOOLBAR (Hình 1: Xuất hiện khi click chọn bất kỳ hình ảnh nào) -->
+    <div class="prezi-floating-image-toolbar" id="image-floating-toolbar">
+      <label class="fl-btn btn-img-replace" title="Thay thế ảnh này bằng ảnh khác từ máy">
+        <span>Replace</span>
+        <input type="file" id="replace-file-input" accept="image/*" style="display:none;">
+      </label>
+      <div class="fl-divider"></div>
+      <button class="fl-btn btn-img-edit" id="btn-img-flip" title="Lật ảnh ngang / xoay ảnh">✏ Edit</button>
+      <button class="fl-btn btn-img-crop" id="btn-img-radius" title="Bo tròn góc ảnh">⛶ Bo góc</button>
+      <div class="fl-divider"></div>
+      <button class="fl-btn btn-img-del" id="btn-img-delete" title="Xóa hình ảnh này">🗑️ Xóa</button>
+    </div>
+
   </div>
 
   <script src="script.js"></script>
