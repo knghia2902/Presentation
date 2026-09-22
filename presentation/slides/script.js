@@ -1,6 +1,6 @@
 /**
- * PREZI SPATIAL CAMERA ENGINE
- * Provides authentic Prezi experience:
+ * PREZI SPATIAL CAMERA ENGINE (Updated with full stops & rich thumbnails)
+ * Provides authentic Prezi experience matching user screenshot & link:
  * - Dynamic Infinite 2D/3D Canvas Navigation
  * - Fluid Zoom-In, Zoom-Out & Pan to Topic Clusters and Cards
  * - Interactive Click-to-Zoom on any element
@@ -28,73 +28,99 @@ document.addEventListener('DOMContentLoaded', () => {
       id: 'stop-01',
       title: '01. Tựa Đề: Quy Luật Phủ Định Của Phủ Định',
       targetId: 'stop-01',
-      scaleOffset: 1.05
+      scaleOffset: 1.05,
+      previewImg: 'assets/images/thumb_overview.png'
     },
     {
       id: 'stop-02',
-      title: '02. Dẫn Nhập: Vì Sao Thế Giới Luôn Đổi Mới?',
+      title: '02. Vị Trí Quy Luật & Karl Marx',
       targetId: 'stop-02',
-      scaleOffset: 1.15
+      scaleOffset: 1.15,
+      previewImg: 'assets/images/karl_marx.jpg'
     },
     {
       id: 'stop-03',
       title: '03. Khái Niệm Phủ Định Biện Chứng',
       targetId: 'stop-03',
-      scaleOffset: 1.25
+      scaleOffset: 1.25,
+      previewImg: 'assets/images/bust_portrait_card.png'
     },
     {
       id: 'stop-04',
-      title: '04. Hai Đặc Trưng: Khách Quan & Kế Thừa',
+      title: '04. Tiến Trình Phát Triển Tự Nhiên & Tư Duy',
       targetId: 'stop-04',
-      scaleOffset: 1.15
+      scaleOffset: 1.2,
+      previewImg: 'assets/images/thumb_evolution_card.png'
     },
     {
       id: 'stop-05',
-      title: '05. Biện Chứng vs. Siêu Hình',
+      title: '05. Các Nguyên Lý Cơ Bản',
       targetId: 'stop-05',
-      scaleOffset: 1.2
+      scaleOffset: 1.15,
+      previewImg: 'assets/images/antique_book.jpg'
     },
     {
       id: 'stop-06',
-      title: '06. Chu Kỳ: A → B → A\'',
+      title: '06. Kế Thừa: Biện Chứng vs. Siêu Hình',
       targetId: 'stop-06',
-      scaleOffset: 1.1
+      scaleOffset: 1.25,
+      previewImg: 'assets/images/thumb_overview.png'
     },
     {
       id: 'stop-07',
-      title: '07. Sơ Đồ Xoáy Ốc Không Gian 3D',
+      title: '07. Phân Tích & Chu Kỳ Phát Triển',
       targetId: 'stop-07',
-      scaleOffset: 1.15
+      scaleOffset: 1.15,
+      previewImg: 'assets/images/thumb_overview.png'
     },
     {
       id: 'stop-08',
-      title: '08. Thực Tiễn: Hạt Thóc & Cây Lúa (§755)',
+      title: '08. Sơ Đồ Xoáy Ốc Không Gian 3D',
       targetId: 'stop-08',
-      scaleOffset: 1.15
+      scaleOffset: 1.15,
+      previewImg: 'assets/images/thumb_overview.png'
     },
     {
       id: 'stop-09',
-      title: '09. Đời Sống Hiện Đại: Smartphone & AI',
+      title: '09. Ứng Dụng Trong Triết Học & Hegel',
       targetId: 'stop-09',
-      scaleOffset: 1.2
+      scaleOffset: 1.2,
+      previewImg: 'assets/images/hegel.jpg'
     },
     {
       id: 'stop-10',
-      title: '10. 4 Ý Nghĩa Phương Pháp Luận',
+      title: '10. Ví Dụ Sinh Học: Hạt Lúa (§755)',
       targetId: 'stop-10',
-      scaleOffset: 1.1
+      scaleOffset: 1.2,
+      previewImg: 'assets/images/rice_field.jpg'
     },
     {
       id: 'stop-11',
-      title: '11. Tổng Kết: Triết Lý Sự Tiến Bộ',
+      title: '11. Ví Dụ Công Nghệ: Điện Thoại Thông Minh',
       targetId: 'stop-11',
-      scaleOffset: 1.25
+      scaleOffset: 1.2,
+      previewImg: 'assets/images/smartphone_tech.jpg'
     },
     {
       id: 'stop-12',
-      title: '12. Thảo Luận & Mini Game Quiz QR',
+      title: '12. Kết Luận & Triết Lý Tiến Bộ',
       targetId: 'stop-12',
-      scaleOffset: 1.25
+      scaleOffset: 1.15,
+      previewImg: 'assets/images/greek_statue.jpg'
+    },
+    {
+      id: 'stop-13',
+      title: '13. 4 Ý Nghĩa Phương Pháp Luận',
+      targetId: 'stop-13',
+      scaleOffset: 1.25,
+      previewImg: 'assets/images/vintage_note_paper.png'
+    },
+    {
+      id: 'stop-14',
+      title: '14. Giao Lưu & Mini Game Quiz QR',
+      targetId: 'stop-14',
+      scaleOffset: 1.25,
+      previewImg: 'assets/images/thumb_overview.png'
     }
   ];
 
@@ -105,16 +131,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. Generate Sidebar items
   function buildSidebar() {
-    // Keep overview item, add rest
     STOPS.slice(1).forEach((stop, index) => {
       const item = document.createElement('div');
       item.className = 'frame-thumb-item';
       item.dataset.index = index + 1;
       item.innerHTML = `
-        <div class="thumb-num">${index + 1}</div>
-        <div class="thumb-preview">
-          <span class="thumb-label">${stop.title}</span>
+        <div class="thumb-card-preview">
+          <img src="${stop.previewImg || 'assets/images/thumb_overview.png'}" alt="Thumb" class="thumb-img-card">
+          <div class="thumb-badge-index">${index + 1}</div>
         </div>
+        <span class="thumb-caption">${stop.title.split(':')[0]}</span>
       `;
       item.addEventListener('click', () => goToStop(index + 1));
       framesList.appendChild(item);
@@ -137,12 +163,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Calculate Overview position to fit entire World on screen
   function getOverviewTransform() {
     const vpRect = viewport.getBoundingClientRect();
-    const worldWidth = 3200;
-    const worldHeight = 2200;
+    const worldWidth = 3400;
+    const worldHeight = 2400;
 
-    // Margin around overview
-    const scaleX = (vpRect.width * 0.92) / worldWidth;
-    const scaleY = (vpRect.height * 0.92) / worldHeight;
+    const scaleX = (vpRect.width * 0.94) / worldWidth;
+    const scaleY = (vpRect.height * 0.94) / worldHeight;
     const fitScale = Math.min(scaleX, scaleY);
 
     const targetX = (vpRect.width - worldWidth * fitScale) / 2 - vpRect.width / 2;
@@ -155,19 +180,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function getElementFocusTransform(el, scaleMultiplier = 1.0) {
     const vpRect = viewport.getBoundingClientRect();
     
-    // Get target coordinates relative to prezi-world
     const elLeft = el.offsetLeft;
     const elTop = el.offsetTop;
     const elW = el.offsetWidth;
     const elH = el.offsetHeight;
 
-    // Calculate ideal zoom scale to fit element nicely in center of viewport
-    const scaleX = (vpRect.width * 0.8) / elW;
-    const scaleY = (vpRect.height * 0.8) / elH;
+    const scaleX = (vpRect.width * 0.82) / elW;
+    const scaleY = (vpRect.height * 0.82) / elH;
     let targetScale = Math.min(scaleX, scaleY) * scaleMultiplier;
-    targetScale = Math.min(Math.max(targetScale, 0.6), 1.6); // Clamp scale
+    targetScale = Math.min(Math.max(targetScale, 0.6), 1.6);
 
-    // Calculate translate so center of element lands at center of viewport
     const targetX = -(elLeft + elW / 2) * targetScale;
     const targetY = -(elTop + elH / 2) * targetScale;
 
@@ -180,7 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
     currentStopIndex = index;
     const stop = STOPS[index];
 
-    // Remove active class from cards
     document.querySelectorAll('.canvas-card').forEach(c => c.classList.remove('current-active'));
 
     if (stop.type === 'overview') {
@@ -195,11 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Update UI indicator
     currentStopTitle.textContent = stop.title;
     stopCounter.textContent = `Trạm ${index} / ${STOPS.length - 1}`;
 
-    // Update Sidebar active state
     document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
       item.classList.toggle('active', i === index);
       if (i === index) {
@@ -207,8 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // If stop 7 (spiral diagram), animate spiral paths
-    if (stop.id === 'stop-07') {
+    if (stop.id === 'stop-08') {
       animateSpiralOnPrezi();
     }
   }
@@ -225,9 +243,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Clicking blank viewport resets to Overview
     viewport.addEventListener('click', (e) => {
-      if (e.target === viewport || e.target === world || e.target.classList.contains('manuscript-watermark')) {
+      if (e.target === viewport || e.target === world || e.target.classList.contains('bg-manuscript-layer') || e.target.classList.contains('bg-splash-layer')) {
         goToStop(0);
       }
     });
@@ -257,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Mouse Wheel Zoom
     viewport.addEventListener('wheel', (e) => {
       e.preventDefault();
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -269,12 +285,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // 6. SVG Spiral Generator
   function generatePreziSpiral() {
     const turns = [
-      { id: 'pz-turn-1', startY: 400, endY: 280, startRX: 170, endRX: 140, startRY: 45, endRY: 38 },
-      { id: 'pz-turn-2', startY: 280, endY: 160, startRX: 140, endRX: 110, startRY: 38, endRY: 30 },
-      { id: 'pz-turn-3', startY: 160, endY: 70,  startRX: 110, endRX: 85,  startRY: 30, endRY: 22 }
+      { id: 'pz-turn-1', startY: 380, endY: 260, startRX: 165, endRX: 135, startRY: 45, endRY: 36 },
+      { id: 'pz-turn-2', startY: 260, endY: 150, startRX: 135, endRX: 105, startRY: 36, endRY: 28 },
+      { id: 'pz-turn-3', startY: 150, endY: 65,  startRX: 105, endRX: 80,  startRY: 28, endRY: 20 }
     ];
 
-    const centerX = 350;
+    const centerX = 340;
     const numPoints = 60;
 
     turns.forEach((turn) => {
@@ -308,18 +324,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const t2 = document.getElementById('pz-turn-2');
     const t3 = document.getElementById('pz-turn-3');
 
-    if (t1) {
-      setTimeout(() => { t1.style.strokeDashoffset = 0; }, 200);
-    }
-    if (t2) {
-      setTimeout(() => { t2.style.strokeDashoffset = 0; }, 800);
-    }
-    if (t3) {
-      setTimeout(() => { t3.style.strokeDashoffset = 0; }, 1400);
-    }
+    if (t1) setTimeout(() => { t1.style.strokeDashoffset = 0; }, 200);
+    if (t2) setTimeout(() => { t2.style.strokeDashoffset = 0; }, 800);
+    if (t3) setTimeout(() => { t3.style.strokeDashoffset = 0; }, 1400);
   }
 
-  // 7. Keyboard & Button Event Handlers
+  // 7. Keyboard & Controls
   function setupControls() {
     document.getElementById('btn-next').addEventListener('click', () => {
       if (currentStopIndex < STOPS.length - 1) goToStop(currentStopIndex + 1);
@@ -341,14 +351,12 @@ document.addEventListener('DOMContentLoaded', () => {
       applyCamera(currentCamera.x, currentCamera.y, currentCamera.scale * 0.8, true);
     });
 
-    // Toggle Sidebar
     const sidebar = document.getElementById('prezi-sidebar');
     document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
       sidebar.classList.toggle('collapsed');
       setTimeout(() => goToStop(currentStopIndex, true), 300);
     });
 
-    // Present Fullscreen Mode
     document.getElementById('btn-present-mode').addEventListener('click', () => {
       document.body.classList.toggle('in-present-mode');
       if (document.documentElement.requestFullscreen) {
@@ -365,7 +373,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault();
@@ -379,7 +386,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Auto-fit overview on window resize
     window.addEventListener('resize', () => {
       if (currentStopIndex === 0) {
         const ov = getOverviewTransform();
