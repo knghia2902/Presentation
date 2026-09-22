@@ -311,9 +311,9 @@ html, body {
   position: relative;
   overflow: hidden;
   cursor: grab;
-  /* Exact Prezi Dot Grid Pattern (Mật độ dày 11px x 11px chuẩn như ảnh người dùng gửi) */
+  /* Prezi Dot Grid Pattern: Chấm mờ tinh tế, thanh thoát, không bị đậm */
   background-color: #ffffff;
-  background-image: radial-gradient(rgba(45, 55, 72, 0.22) 1.1px, transparent 1.1px);
+  background-image: radial-gradient(rgba(30, 40, 55, 0.075) 1px, transparent 1px);
   background-size: 11px 11px;
 }
 
@@ -968,6 +968,12 @@ body.in-present-mode .prezi-main-container {
   right: 0;
   bottom: 0;
   height: 100vh;
+}
+
+/* Khi trình chiếu: Bỏ hoàn toàn lưới chấm, nền trắng tinh khôi chuẩn Hình 2 */
+body.in-present-mode .prezi-viewport {
+  background-image: none !important;
+  background-color: #ffffff !important;
 }
 
 /* RIGHT FLOATING BUTTONS (Hai nút tròn đen Home & Next/Prev ở cạnh phải như Hình 2) */
