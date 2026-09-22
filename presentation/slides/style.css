@@ -96,6 +96,55 @@ html, body {
   border-radius: 12px;
 }
 
+/* TOPBAR CENTER EDITING TOOLS */
+.topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-tool {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  font-weight: 600;
+  color: #495057;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.btn-tool:hover {
+  background: #edf2ff;
+  border-color: #74c0fc;
+  color: #1864ab;
+}
+
+.btn-tool:active {
+  transform: translateY(1px);
+}
+
+.save-status-indicator {
+  font-size: 0.75rem;
+  color: #868e96;
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+.save-status-indicator.saving {
+  color: #f59f00;
+}
+
+.save-status-indicator.saved {
+  color: #2b8a3e;
+}
+
 .topbar-right {
   display: flex;
   align-items: center;
@@ -621,6 +670,109 @@ html, body {
   color: #212529;
   margin-bottom: 10px;
   line-height: 1.35;
+}
+
+/* ==========================================================================
+   INTERACTIVE INLINE EDITING & IMAGE PASTING STYLES
+   ========================================================================== */
+[contenteditable="true"] {
+  outline: none;
+  border-radius: 4px;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  cursor: text;
+}
+
+[contenteditable="true"]:hover {
+  background-color: rgba(24, 100, 171, 0.04);
+}
+
+[contenteditable="true"]:focus {
+  background-color: rgba(24, 100, 171, 0.08);
+  box-shadow: 0 0 0 2px rgba(24, 100, 171, 0.25);
+}
+
+body.in-present-mode [contenteditable="true"] {
+  cursor: inherit !important;
+}
+
+body.in-present-mode [contenteditable="true"]:hover,
+body.in-present-mode [contenteditable="true"]:focus {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* User Inserted Floating Images */
+.user-placed-image {
+  position: absolute;
+  max-width: 320px;
+  max-height: 240px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border: 2px solid #ffffff;
+  cursor: move;
+  z-index: 50;
+  transition: box-shadow 0.2s;
+}
+
+.user-placed-image:hover {
+  box-shadow: 0 12px 32px rgba(24, 100, 171, 0.3);
+}
+
+.user-image-wrapper {
+  position: absolute;
+  display: inline-block;
+  z-index: 50;
+}
+
+.user-image-wrapper .btn-del-img {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e03131;
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+
+.user-image-wrapper:hover .btn-del-img {
+  display: flex;
+}
+
+body.in-present-mode .user-image-wrapper .btn-del-img {
+  display: none !important;
+}
+
+/* Paste Notification Toast */
+.prezi-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: #1f242e;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  z-index: 10000;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.prezi-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .card-body-text {

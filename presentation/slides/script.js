@@ -422,12 +422,234 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ==========================================================================
+  // 8. INTERACTIVE EDITING & COPY-PASTE IMAGE ENGINE
+  // Allows user to edit text, paste images from clipboard, and persist changes
+  // ==========================================================================
+  function showToast(message) {
+    let toast = document.querySelector('.prezi-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.className = 'prezi-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2800);
+  }
+
+  function setupEditingEngine() {
+    const saveIndicator = document.getElementById('save-status-indicator');
+
+    // 1. Enable ContentEditable on all titles, subtitles, body text, cards
+    const editableSelectors = [
+      '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
+      '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
+      '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote'
+    ];
+
+    document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
+      el.setAttribute('contenteditable', 'true');
+      el.setAttribute('spellcheck', 'false');
+
+      el.addEventListener('input', () => {
+        if (saveIndicator) {
+          saveIndicator.textContent = 'Đang có thay đổi...';
+          saveIndicator.className = 'save-status-indicator saving';
+        }
+      });
+      el.addEventListener('blur', () => {
+        saveEditsToStorage();
+      });
+    });
+
+    // 2. Add New Text box button
+    const btnAddText = document.getElementById('btn-tool-text');
+    if (btnAddText) {
+      btnAddText.addEventListener('click', () => {
+        const activeCard = document.querySelector('.canvas-card.current-active') || document.getElementById('stop-01');
+        const p = document.createElement('p');
+        p.className = 'card-body-text';
+        p.setAttribute('contenteditable', 'true');
+        p.textContent = 'Nhập nội dung mới tại đây...';
+        activeCard.appendChild(p);
+        p.focus();
+        showToast('Đã thêm khối văn bản mới. Nhập trực tiếp để chỉnh sửa!');
+      });
+    }
+
+    // 3. Insert Image from File Upload
+    const fileInput = document.getElementById('file-input-image');
+    if (fileInput) {
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          placeImageOnCanvas(event.target.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // 4. COPY - PASTE (CTRL+V) IMAGE FROM ANYWHERE DIRECTLY ONTO CANVAS
+    window.addEventListener('paste', (e) => {
+      // If user is editing text and pasting plain text, let default behavior run
+      if (e.clipboardData && e.clipboardData.items) {
+        for (let i = 0; i < e.clipboardData.items.length; i++) {
+          const item = e.clipboardData.items[i];
+          if (item.type.indexOf('image') !== -1) {
+            e.preventDefault();
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              placeImageOnCanvas(event.target.result);
+              showToast('Đã dán hình ảnh vào bản đồ thành công! Bạn có thể kéo thả để đổi vị trí.');
+            };
+            reader.readAsDataURL(blob);
+            return;
+          }
+        }
+      }
+    });
+
+    // 5. Manual Save Button
+    const btnSave = document.getElementById('btn-tool-save');
+    if (btnSave) {
+      btnSave.addEventListener('click', () => {
+        saveEditsToStorage();
+        showToast('Đã lưu toàn bộ bản thảo vào trình duyệt!');
+      });
+    }
+
+    // Load previously saved edits if any
+    loadEditsFromStorage();
+  }
+
+  // Helper to place and make image draggable on canvas
+  function placeImageOnCanvas(srcDataUrl, posX = null, posY = null) {
+    const activeCard = document.querySelector('.canvas-card.current-active');
+    const container = activeCard || world;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'user-image-wrapper';
+
+    // Position near current focus or center of card
+    if (posX !== null && posY !== null) {
+      wrapper.style.left = `${posX}px`;
+      wrapper.style.top = `${posY}px`;
+    } else if (activeCard) {
+      wrapper.style.position = 'relative';
+      wrapper.style.marginTop = '14px';
+    } else {
+      wrapper.style.left = '1200px';
+      wrapper.style.top = '600px';
+    }
+
+    const img = document.createElement('img');
+    img.src = srcDataUrl;
+    img.className = 'user-placed-image';
+    img.alt = 'User added image';
+
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-del-img';
+    btnDel.innerHTML = '✕';
+    btnDel.title = 'Xóa ảnh này';
+    btnDel.addEventListener('click', (e) => {
+      e.stopPropagation();
+      wrapper.remove();
+      saveEditsToStorage();
+      showToast('Đã xóa hình ảnh.');
+    });
+
+    wrapper.appendChild(img);
+    wrapper.appendChild(btnDel);
+    container.appendChild(wrapper);
+
+    // Make Draggable
+    let isDraggingImg = false;
+    let dragStartX = 0, dragStartY = 0;
+    let imgInitX = 0, imgInitY = 0;
+
+    img.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      isDraggingImg = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      imgInitX = wrapper.offsetLeft;
+      imgInitY = wrapper.offsetTop;
+      wrapper.style.position = 'absolute';
+      wrapper.style.zIndex = 100;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingImg) return;
+      const dx = (e.clientX - dragStartX) / (currentCamera.scale || 1);
+      const dy = (e.clientY - dragStartY) / (currentCamera.scale || 1);
+      wrapper.style.left = `${imgInitX + dx}px`;
+      wrapper.style.top = `${imgInitY + dy}px`;
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDraggingImg) {
+        isDraggingImg = false;
+        saveEditsToStorage();
+      }
+    });
+
+    saveEditsToStorage();
+  }
+
+  function saveEditsToStorage() {
+    const saveIndicator = document.getElementById('save-status-indicator');
+    try {
+      localStorage.setItem('prezi_saved_world_content', world.innerHTML);
+      if (saveIndicator) {
+        saveIndicator.textContent = 'Đã lưu tự động';
+        saveIndicator.className = 'save-status-indicator saved';
+      }
+    } catch (err) {
+      console.warn('LocalStorage limit exceeded or private mode', err);
+    }
+  }
+
+  function loadEditsFromStorage() {
+    const saved = localStorage.getItem('prezi_saved_world_content');
+    if (saved) {
+      // Re-hydrate saved content
+      world.innerHTML = saved;
+      // Rebind card clicks
+      setupClickableCards();
+      // Rebind editable attributes
+      const editableSelectors = [
+        '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
+        '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
+        '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote'
+      ];
+      document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
+        el.setAttribute('contenteditable', 'true');
+        el.setAttribute('spellcheck', 'false');
+      });
+      // Re-bind delete buttons for user images
+      document.querySelectorAll('.btn-del-img').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          btn.parentElement.remove();
+          saveEditsToStorage();
+        });
+      });
+    }
+  }
+
   // Initialize
   buildSidebar();
   setupClickableCards();
   setupPanning();
   generatePreziSpiral();
   setupControls();
+  setupEditingEngine();
 
   // Initial state: Show Overview
   setTimeout(() => {

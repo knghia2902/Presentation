@@ -28,6 +28,25 @@
       <div class="presentation-title">Quy Luật Phủ Định Của Phủ Định — Triết Học Mác-Lênin</div>
       <span class="badge-public">Public</span>
     </div>
+    
+    <!-- EDITING TOOLBAR (Thanh công cụ chỉnh sửa chuẩn Prezi) -->
+    <div class="topbar-center">
+      <button class="btn-tool" id="btn-tool-text" title="Thêm đoạn văn bản mới">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
+        <span>Text</span>
+      </button>
+      <label class="btn-tool" id="label-tool-media" title="Chèn ảnh từ máy tính (hoặc dán Ctrl+V trực tiếp)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+        <span>Chèn ảnh</span>
+        <input type="file" id="file-input-image" accept="image/*" style="display:none;">
+      </label>
+      <button class="btn-tool" id="btn-tool-save" title="Lưu lại các thay đổi đã chỉnh sửa">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+        <span>Lưu bản thảo</span>
+      </button>
+      <span class="save-status-indicator" id="save-status-indicator">Đã lưu tự động</span>
+    </div>
+
     <div class="topbar-right">
       <button class="btn-topbar" id="btn-fullscreen" title="Toàn màn hình">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
