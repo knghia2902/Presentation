@@ -311,10 +311,10 @@ html, body {
   position: relative;
   overflow: hidden;
   cursor: grab;
-  /* Authentic Dot Grid Pattern */
-  background-color: var(--bg-canvas);
-  background-image: radial-gradient(var(--grid-dot-color) 1.6px, transparent 1.6px);
-  background-size: 26px 26px;
+  /* Exact Prezi Dot Grid Pattern (Mật độ dày 11px x 11px chuẩn như ảnh người dùng gửi) */
+  background-color: #ffffff;
+  background-image: radial-gradient(rgba(45, 55, 72, 0.22) 1.1px, transparent 1.1px);
+  background-size: 11px 11px;
 }
 
 .prezi-viewport:active {
@@ -948,17 +948,81 @@ html, body {
 }
 
 /* ==========================================================================
-   PRESENTATION FULLSCREEN OVERRIDE
+   PRESENTATION FULLSCREEN OVERRIDE (Giống hệt Hình 2 người dùng cung cấp)
    ========================================================================== */
 body.in-present-mode .prezi-topbar {
-  opacity: 0;
-  pointer-events: none;
+  display: none !important;
 }
 
 body.in-present-mode .prezi-sidebar {
-  transform: translateX(calc(-1 * var(--sidebar-width)));
+  display: none !important;
+}
+
+body.in-present-mode .prezi-bottom-bar {
+  display: none !important;
 }
 
 body.in-present-mode .prezi-main-container {
   top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100vh;
 }
+
+/* RIGHT FLOATING BUTTONS (Hai nút tròn đen Home & Next/Prev ở cạnh phải như Hình 2) */
+.prezi-present-right-controls {
+  display: none;
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+}
+
+body.in-present-mode .prezi-present-right-controls {
+  display: flex;
+}
+
+.present-circle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #18191c;
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+  outline: none;
+}
+
+.present-circle-btn:hover {
+  background: #2b2d33;
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.present-circle-btn:active {
+  transform: scale(0.95);
+}
+
+.present-circle-btn.btn-present-exit {
+  background: rgba(30, 32, 38, 0.7);
+  width: 36px;
+  height: 36px;
+  margin-top: 8px;
+  align-self: center;
+}
+
+.present-circle-btn.btn-present-exit:hover {
+  background: #c92a2a;
+  border-color: #ff8787;
+}
+

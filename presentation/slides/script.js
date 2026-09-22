@@ -373,6 +373,34 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Event listeners cho các nút tròn bên phải lúc trình chiếu (Hình 2)
+    const btnPresentHome = document.getElementById('btn-present-home');
+    if (btnPresentHome) {
+      btnPresentHome.addEventListener('click', () => goToStop(0));
+    }
+    const btnPresentNext = document.getElementById('btn-present-next');
+    if (btnPresentNext) {
+      btnPresentNext.addEventListener('click', () => {
+        if (currentStopIndex < STOPS.length - 1) goToStop(currentStopIndex + 1);
+      });
+    }
+    const btnPresentPrev = document.getElementById('btn-present-prev');
+    if (btnPresentPrev) {
+      btnPresentPrev.addEventListener('click', () => {
+        if (currentStopIndex > 0) goToStop(currentStopIndex - 1);
+      });
+    }
+    const btnPresentExit = document.getElementById('btn-present-exit');
+    if (btnPresentExit) {
+      btnPresentExit.addEventListener('click', () => {
+        document.body.classList.remove('in-present-mode');
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+        setTimeout(() => goToStop(currentStopIndex, true), 300);
+      });
+    }
+
     window.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault();
