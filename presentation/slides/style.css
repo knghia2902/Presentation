@@ -372,8 +372,8 @@ html, body {
 
 .prezi-world {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 0;
+  left: 0;
   width: 3400px;
   height: 2400px;
   transform-origin: 0 0;
@@ -493,43 +493,48 @@ html, body {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 50px;
   z-index: 5;
 }
 
 /* Topic Cluster 1: Intro (Center-Left) */
 .cluster-intro {
-  top: 880px;
-  left: 240px;
-  width: 620px;
+  top: 860px;
+  left: 220px;
+  width: 640px;
+  gap: 45px;
 }
 
 /* Topic Cluster 2: Principles (Top-Right, on top of Watercolor) */
 .cluster-principles {
-  top: 240px;
-  left: 1540px;
-  width: 740px;
+  top: 220px;
+  left: 1520px;
+  width: 760px;
+  gap: 45px;
 }
 
 /* Topic Cluster 3: Spiral Process (Middle Center) */
 .cluster-spiral-process {
   top: 920px;
-  left: 1080px;
-  width: 840px;
+  left: 1040px;
+  width: 880px;
+  gap: 65px;
 }
 
 /* Topic Cluster 4: Examples (Far-Right Top) */
 .cluster-examples {
-  top: 380px;
+  top: 360px;
   left: 2460px;
-  width: 660px;
+  width: 680px;
+  gap: 45px;
 }
 
 /* Topic Cluster 5: Conclusion & Q&A (Bottom-Right, on Vintage Paper) */
 .cluster-conclusion {
-  top: 1280px;
+  top: 1260px;
   left: 2150px;
-  width: 740px;
+  width: 760px;
+  gap: 45px;
 }
 
 /* Common Card Styling */
@@ -539,20 +544,134 @@ html, body {
   border-radius: 12px;
   padding: 26px 30px;
   box-shadow: var(--frame-shadow);
-  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
   cursor: pointer;
   position: relative;
+  box-sizing: border-box;
+  min-width: 280px;
+  min-height: 120px;
 }
 
 .canvas-card:hover {
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12);
   border-color: #adb5bd;
-  transform: translateY(-2px);
 }
 
 .canvas-card.current-active {
   box-shadow: var(--frame-shadow-active);
   border-color: var(--primary-accent);
+}
+
+/* Card Selection Frame (Edit Mode) */
+.canvas-card.card-selected,
+.canvas-item.card-selected {
+  outline: 2px solid #1971c2 !important;
+  outline-offset: 4px;
+  box-shadow: 0 16px 40px rgba(25, 113, 194, 0.25) !important;
+  z-index: 60 !important;
+}
+
+/* 8 Resize Handles */
+.card-resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border: 2px solid #1971c2;
+  border-radius: 2px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  z-index: 70;
+  display: none;
+  box-sizing: border-box;
+}
+
+.canvas-card.card-selected .card-resize-handle,
+.canvas-item.card-selected .card-resize-handle {
+  display: block;
+}
+
+.card-resize-handle.handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.card-resize-handle.handle-n  { top: -6px; left: calc(50% - 6px); cursor: ns-resize; }
+.card-resize-handle.handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.card-resize-handle.handle-e  { top: calc(50% - 6px); right: -6px; cursor: ew-resize; }
+.card-resize-handle.handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.card-resize-handle.handle-s  { bottom: -6px; left: calc(50% - 6px); cursor: ns-resize; }
+.card-resize-handle.handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.card-resize-handle.handle-w  { top: calc(50% - 6px); left: -6px; cursor: ew-resize; }
+
+/* Floating Card Action Bar (Appears right above selected card) */
+.card-action-bar {
+  position: absolute;
+  top: -46px;
+  left: 0;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: #1e2430;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  z-index: 80;
+  font-size: 0.78rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.canvas-card.card-selected .card-action-bar,
+.canvas-item.card-selected .card-action-bar {
+  display: flex;
+}
+
+.card-action-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #f1f3f5;
+  border-radius: 4px;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.card-action-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+}
+
+.card-action-btn.btn-drag-handle {
+  cursor: grab;
+  background: #1971c2;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.card-action-btn.btn-drag-handle:active {
+  cursor: grabbing;
+}
+
+.card-action-btn.btn-del {
+  color: #ff8787;
+}
+
+.card-action-btn.btn-del:hover {
+  background: rgba(235, 77, 75, 0.35);
+  color: #ffc9c9;
+}
+
+/* Hide handles and action bar during Present Mode */
+body.in-present-mode .card-resize-handle,
+body.in-present-mode .card-action-bar,
+body.in-present-mode .canvas-card.card-selected,
+body.in-present-mode .canvas-item.card-selected {
+  display: none !important;
+  outline: none !important;
+  box-shadow: var(--frame-shadow) !important;
 }
 
 /* Card Inner Flex Layout with Photos */
@@ -701,27 +820,53 @@ body.in-present-mode [contenteditable="true"]:focus {
   box-shadow: none !important;
 }
 
-/* User Inserted Floating Images */
+/* User Inserted Floating Images & Resizable Cards */
 .user-placed-image {
-  position: absolute;
-  max-width: 320px;
-  max-height: 240px;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   border: 2px solid #ffffff;
-  cursor: move;
-  z-index: 50;
-  transition: box-shadow 0.2s;
-}
-
-.user-placed-image:hover {
-  box-shadow: 0 12px 32px rgba(24, 100, 171, 0.3);
+  pointer-events: none;
 }
 
 .user-image-wrapper {
   position: absolute;
+  width: 280px;
+  height: 200px;
+  min-width: 80px;
+  min-height: 60px;
   display: inline-block;
+  cursor: move;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   z-index: 50;
+  transition: box-shadow 0.2s;
+}
+
+.user-image-wrapper:hover {
+  box-shadow: 0 12px 32px rgba(24, 100, 171, 0.3);
+}
+
+/* Resize corner handle (Góc kéo giãn kích thước ảnh) */
+.user-image-wrapper .img-resize-handle {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  background: #1890ff;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  cursor: se-resize;
+  display: none;
+  z-index: 60;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.user-image-wrapper:hover .img-resize-handle,
+.user-image-wrapper.selected .img-resize-handle {
+  display: block;
 }
 
 .user-image-wrapper .btn-del-img {
@@ -741,10 +886,17 @@ body.in-present-mode [contenteditable="true"]:focus {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  z-index: 60;
 }
 
-.user-image-wrapper:hover .btn-del-img {
+.user-image-wrapper:hover .btn-del-img,
+.user-image-wrapper.selected .btn-del-img {
   display: flex;
+}
+
+body.in-present-mode .user-image-wrapper .btn-del-img,
+body.in-present-mode .user-image-wrapper .img-resize-handle {
+  display: none !important;
 }
 
 body.in-present-mode .user-image-wrapper .btn-del-img {

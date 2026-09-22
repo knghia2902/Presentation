@@ -170,31 +170,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const scaleY = (vpRect.height * 0.94) / worldHeight;
     const fitScale = Math.min(scaleX, scaleY);
 
-    const targetX = (vpRect.width - worldWidth * fitScale) / 2 - vpRect.width / 2;
-    const targetY = (vpRect.height - worldHeight * fitScale) / 2 - vpRect.height / 2;
+    const targetX = (vpRect.width - worldWidth * fitScale) / 2;
+    const targetY = (vpRect.height - worldHeight * fitScale) / 2;
 
     return { x: targetX, y: targetY, scale: fitScale };
   }
 
-  // Focus camera into a specific HTML element
+  // Focus camera into a specific HTML element using exact coordinates relative to #prezi-world
   function getElementFocusTransform(el, scaleMultiplier = 1.0) {
     const vpRect = viewport.getBoundingClientRect();
-    
-    const elLeft = el.offsetLeft;
-    const elTop = el.offsetTop;
+    const wRect = world.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const currentScale = currentCamera.scale || 1;
+
+    // Element's unscaled world coordinates relative to (0,0) of #prezi-world
+    const elWorldX = (elRect.left - wRect.left) / currentScale;
+    const elWorldY = (elRect.top - wRect.top) / currentScale;
     const elW = el.offsetWidth;
     const elH = el.offsetHeight;
 
     const scaleX = (vpRect.width * 0.82) / elW;
     const scaleY = (vpRect.height * 0.82) / elH;
     let targetScale = Math.min(scaleX, scaleY) * scaleMultiplier;
-    targetScale = Math.min(Math.max(targetScale, 0.6), 1.6);
+    // Allow zoom range from 0.4 up to 2.4 so cards comfortably fill the viewport
+    targetScale = Math.min(Math.max(targetScale, 0.4), 2.4);
 
-    const targetX = -(elLeft + elW / 2) * targetScale;
-    const targetY = -(elTop + elH / 2) * targetScale;
+    // Target (X, Y) centers the specific element in viewport
+    const targetX = vpRect.width / 2 - (elWorldX + elW / 2) * targetScale;
+    const targetY = vpRect.height / 2 - (elWorldY + elH / 2) * targetScale;
 
     return { x: targetX, y: targetY, scale: targetScale };
   }
+  window.getElementFocusTransform = getElementFocusTransform;
+  window.goToStop = goToStop;
+  window.applyCamera = applyCamera;
 
   // 3. Navigation controller
   function goToStop(index, smooth = true) {
@@ -231,36 +240,258 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 4. Interactive Click-to-Zoom on any Card
-  function setupClickableCards() {
-    STOPS.slice(1).forEach((stop, index) => {
-      const el = document.getElementById(stop.targetId);
-      if (el) {
-        el.addEventListener('click', (e) => {
-          // If user clicked inside an editable text element or an image, DO NOT zoom/jump camera, allow editing directly!
-          if (e.target.isContentEditable || e.target.tagName === 'IMG' || e.target.closest('[contenteditable="true"]')) {
-            return;
-          }
-          // If already focused on this card, do nothing
-          if (currentStopIndex === index + 1) {
-            return;
-          }
-          // If clicking card background/padding or title when at overview, zoom into card
-          e.stopPropagation();
-          goToStop(index + 1);
-        });
+  // 4. Card Selection, 8-Direction Resizing, Drag & Drop, and Action Bar Engine
+  function saveCardsLayout() {
+    const layout = {};
+    document.querySelectorAll('.canvas-card, .canvas-item').forEach(c => {
+      if (c.id && (c.style.width || c.style.height || c.style.transform)) {
+        layout[c.id] = {
+          w: c.style.width || '',
+          h: c.style.height || '',
+          t: c.style.transform || ''
+        };
+      }
+    });
+    try {
+      localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(layout));
+    } catch (e) {
+      console.warn('Storage error', e);
+    }
+  }
 
-        // Double click card always zooms into it
-        el.addEventListener('dblclick', (e) => {
-          e.stopPropagation();
-          goToStop(index + 1);
-        });
+  function restoreCardsLayout() {
+    try {
+      const raw = localStorage.getItem('prezi_cards_layout_v2');
+      if (!raw) return;
+      const layout = JSON.parse(raw);
+      Object.keys(layout).forEach(id => {
+        const c = document.getElementById(id);
+        if (c) {
+          if (layout[id].w) c.style.width = layout[id].w;
+          if (layout[id].h) c.style.height = layout[id].h;
+          if (layout[id].t) c.style.transform = layout[id].t;
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to restore card layout', e);
+    }
+  }
+
+  function setupCardInteractions() {
+    const cards = document.querySelectorAll('.canvas-card, .canvas-item');
+    
+    // Inject 8 resize handles & floating action bar to every card
+    cards.forEach(card => {
+      const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+      handles.forEach(h => {
+        if (!card.querySelector(`.card-resize-handle.handle-${h}`)) {
+          const handleEl = document.createElement('div');
+          handleEl.className = `card-resize-handle handle-${h}`;
+          handleEl.dataset.handle = h;
+          card.appendChild(handleEl);
+        }
+      });
+
+      if (!card.querySelector('.card-action-bar')) {
+        const bar = document.createElement('div');
+        bar.className = 'card-action-bar';
+        bar.innerHTML = `
+          <button type="button" class="card-action-btn btn-drag-handle" title="Bấm giữ và kéo để di chuyển thẻ">⋮⋮ Kéo di chuyển</button>
+          <button type="button" class="card-action-btn btn-focus-card" title="Phóng to thẻ này">🎯 Focus</button>
+          <button type="button" class="card-action-btn btn-reset-card" title="Khôi phục kích thước & vị trí ban đầu">↺ Reset</button>
+        `;
+        card.appendChild(bar);
       }
     });
 
+    restoreCardsLayout();
+
+    // Card Selection & Button clicks (DO NOT JUMP CAMERA ON EDIT CLICK)
+    cards.forEach(card => {
+      card.addEventListener('click', (e) => {
+        // If in present mode, ignore edit selection
+        if (document.body.classList.contains('in-present-mode')) return;
+
+        // If clicking on resize handle, handled by resize mousedown
+        if (e.target.classList.contains('card-resize-handle')) return;
+
+        // Action Bar: Focus button
+        if (e.target.closest('.btn-focus-card')) {
+          e.stopPropagation();
+          const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
+          if (stopIdx >= 0) {
+            goToStop(stopIdx);
+          } else {
+            const focus = getElementFocusTransform(card, 1.15);
+            applyCamera(focus.x, focus.y, focus.scale, true);
+          }
+          return;
+        }
+
+        // Action Bar: Reset size & position
+        if (e.target.closest('.btn-reset-card')) {
+          e.stopPropagation();
+          card.style.width = '';
+          card.style.height = '';
+          card.style.transform = '';
+          saveCardsLayout();
+          showToast('Đã khôi phục kích thước và vị trí ban đầu của thẻ.');
+          return;
+        }
+
+        // Action Bar: Drag handle click
+        if (e.target.closest('.btn-drag-handle')) return;
+
+        // Select this card for editing and resizing
+        document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => {
+          if (c !== card) c.classList.remove('card-selected');
+        });
+        card.classList.add('card-selected');
+
+        // Highlight corresponding stop in sidebar without moving camera!
+        const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
+        if (stopIdx >= 0) {
+          currentStopIndex = stopIdx;
+          currentStopTitle.textContent = STOPS[stopIdx].title;
+          stopCounter.textContent = `Trạm ${stopIdx} / ${STOPS.length - 1}`;
+          document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
+            item.classList.toggle('active', i === stopIdx);
+          });
+        }
+      });
+
+      // Double-click to zoom camera into card or deep-zoom into sub-item
+      card.addEventListener('dblclick', (e) => {
+        // If double clicked on a cycle-box or s-cap, deep zoom into that sub-item!
+        const subBox = e.target.closest('.cycle-box, .s-cap, .cmp-box, .card-media-col');
+        if (subBox) {
+          e.stopPropagation();
+          const focus = getElementFocusTransform(subBox, 1.4);
+          applyCamera(focus.x, focus.y, focus.scale, true);
+          return;
+        }
+
+        e.stopPropagation();
+        const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
+        if (stopIdx >= 0) {
+          goToStop(stopIdx);
+        } else {
+          const focus = getElementFocusTransform(card, 1.15);
+          applyCamera(focus.x, focus.y, focus.scale, true);
+        }
+      });
+    });
+
+    // Deselect cards when clicking on canvas background
     viewport.addEventListener('click', (e) => {
       if (e.target === viewport || e.target === world || e.target.classList.contains('bg-manuscript-layer') || e.target.classList.contains('bg-splash-layer')) {
+        document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => c.classList.remove('card-selected'));
         goToStop(0);
+      }
+    });
+
+    // 8-Direction Card Resizing Engine
+    let activeResizeCard = null;
+    let resizeHandleType = null;
+    let rStartX = 0, rStartY = 0;
+    let rStartW = 0, rStartH = 0;
+    let rStartTransX = 0, rStartTransY = 0;
+
+    world.addEventListener('mousedown', (e) => {
+      const handle = e.target.closest('.card-resize-handle');
+      if (!handle) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      activeResizeCard = handle.closest('.canvas-card, .canvas-item');
+      if (!activeResizeCard) return;
+
+      resizeHandleType = handle.dataset.handle;
+      rStartX = e.clientX;
+      rStartY = e.clientY;
+      rStartW = activeResizeCard.offsetWidth;
+      rStartH = activeResizeCard.offsetHeight;
+
+      const curTrans = activeResizeCard.style.transform || '';
+      const match = curTrans.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+      rStartTransX = match ? parseFloat(match[1]) : 0;
+      rStartTransY = match ? parseFloat(match[2]) : 0;
+    });
+
+    // Card Dragging Engine
+    let activeDragCard = null;
+    let dStartX = 0, dStartY = 0;
+    let dStartTransX = 0, dStartTransY = 0;
+
+    world.addEventListener('mousedown', (e) => {
+      const dragBtn = e.target.closest('.btn-drag-handle');
+      if (!dragBtn) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      activeDragCard = dragBtn.closest('.canvas-card, .canvas-item');
+      if (!activeDragCard) return;
+
+      dStartX = e.clientX;
+      dStartY = e.clientY;
+
+      const curTrans = activeDragCard.style.transform || '';
+      const match = curTrans.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+      dStartTransX = match ? parseFloat(match[1]) : 0;
+      dStartTransY = match ? parseFloat(match[2]) : 0;
+    });
+
+    // Global MouseMove for Resize & Drag
+    window.addEventListener('mousemove', (e) => {
+      const scale = currentCamera.scale || 1;
+
+      if (activeResizeCard) {
+        const dx = (e.clientX - rStartX) / scale;
+        const dy = (e.clientY - rStartY) / scale;
+
+        let newW = rStartW;
+        let newH = rStartH;
+        let newTransX = rStartTransX;
+        let newTransY = rStartTransY;
+
+        // Width adjustment
+        if (['e', 'se', 'ne'].includes(resizeHandleType)) {
+          newW = Math.max(280, rStartW + dx);
+        } else if (['w', 'sw', 'nw'].includes(resizeHandleType)) {
+          const possibleW = rStartW - dx;
+          if (possibleW >= 280) {
+            newW = possibleW;
+            newTransX = rStartTransX + dx;
+          }
+        }
+
+        // Height adjustment
+        if (['s', 'se', 'sw'].includes(resizeHandleType)) {
+          newH = Math.max(120, rStartH + dy);
+        } else if (['n', 'ne', 'nw'].includes(resizeHandleType)) {
+          const possibleH = rStartH - dy;
+          if (possibleH >= 120) {
+            newH = possibleH;
+            newTransY = rStartTransY + dy;
+          }
+        }
+
+        activeResizeCard.style.width = `${newW}px`;
+        activeResizeCard.style.height = `${newH}px`;
+        activeResizeCard.style.transform = `translate(${newTransX}px, ${newTransY}px)`;
+      } else if (activeDragCard) {
+        const dx = (e.clientX - dStartX) / scale;
+        const dy = (e.clientY - dStartY) / scale;
+        activeDragCard.style.transform = `translate(${dStartTransX + dx}px, ${dStartTransY + dy}px)`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (activeResizeCard || activeDragCard) {
+        activeResizeCard = null;
+        activeDragCard = null;
+        saveCardsLayout();
+        showToast('Đã lưu vị trí & kích thước thẻ.');
       }
     });
   }
@@ -268,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Drag/Pan Canvas Engine
   function setupPanning() {
     viewport.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.canvas-card') || e.target.closest('.nav-btn')) return;
+      if (e.target.closest('.canvas-card') || e.target.closest('.canvas-item') || e.target.closest('.nav-btn') || e.target.closest('.card-action-bar') || e.target.closest('.card-resize-handle')) return;
       isPanning = true;
       startX = e.clientX - currentCamera.x;
       startY = e.clientY - currentCamera.y;
@@ -506,12 +737,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const editableSelectors = [
       '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
       '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
-      '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote',
-      '.img-caption-tag', '.card-micro-quote', 'h1', 'h2', 'h3', 'h4', 'h5', 'p'
+      '.cycle-box p', '.cycle-box h5', '.cycle-box', '.cy-badge', '.lenin-quote-strip p', '.spiral-quote',
+      '.img-caption-tag', '.card-micro-quote', '.card-step-badge', '.card-header-badge', '.axis-svg-label',
+      '.principles-dual-list strong', '.cmp-box strong', '.s-cap strong',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'p'
     ];
 
     function makeElementEditable(el) {
-      if (el.closest('.prezi-topbar') || el.closest('.prezi-sidebar') || el.closest('.prezi-bottom-bar') || el.closest('.prezi-floating-text-toolbar') || el.closest('.prezi-floating-image-toolbar')) return;
+      if (el.closest('.prezi-topbar') || el.closest('.prezi-sidebar') || el.closest('.prezi-bottom-bar') || el.closest('.prezi-floating-text-toolbar') || el.closest('.prezi-floating-image-toolbar') || el.closest('.card-action-bar')) return;
       
       el.setAttribute('contenteditable', 'true');
       el.setAttribute('spellcheck', 'false');
@@ -823,19 +1056,26 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Đã xóa hình ảnh.');
     });
 
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'img-resize-handle';
+    resizeHandle.title = 'Kéo để co giãn kích thước ảnh';
+
     wrapper.appendChild(img);
     wrapper.appendChild(btnDel);
+    wrapper.appendChild(resizeHandle);
     container.appendChild(wrapper);
 
     // Bind toolbar selection for newly placed image
-    img.addEventListener('click', (e) => {
+    wrapper.addEventListener('click', (e) => {
       e.stopPropagation();
       selectedImgEl = img;
+      document.querySelectorAll('.user-image-wrapper').forEach(w => w.classList.remove('selected'));
+      wrapper.classList.add('selected');
       document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
       img.classList.add('prezi-selected-img');
       const imgToolbar = document.getElementById('image-floating-toolbar');
       if (imgToolbar && !document.body.classList.contains('in-present-mode')) {
-        const rect = img.getBoundingClientRect();
+        const rect = wrapper.getBoundingClientRect();
         imgToolbar.style.top = `${Math.max(rect.top - 48, 56)}px`;
         imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
         imgToolbar.classList.add('show');
@@ -847,7 +1087,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let dragStartX = 0, dragStartY = 0;
     let imgInitX = 0, imgInitY = 0;
 
-    img.addEventListener('mousedown', (e) => {
+    wrapper.addEventListener('mousedown', (e) => {
+      if (e.target === resizeHandle || e.target === btnDel) return;
       e.stopPropagation();
       isDraggingImg = true;
       dragStartX = e.clientX;
@@ -858,22 +1099,49 @@ document.addEventListener('DOMContentLoaded', () => {
       wrapper.style.zIndex = 100;
     });
 
+    // Make Resizable
+    let isResizing = false;
+    let resizeStartX = 0, resizeStartY = 0;
+    let initW = 0, initH = 0;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      isResizing = true;
+      resizeStartX = e.clientX;
+      resizeStartY = e.clientY;
+      initW = wrapper.offsetWidth;
+      initH = wrapper.offsetHeight;
+    });
+
     window.addEventListener('mousemove', (e) => {
-      if (!isDraggingImg) return;
-      const dx = (e.clientX - dragStartX) / (currentCamera.scale || 1);
-      const dy = (e.clientY - dragStartY) / (currentCamera.scale || 1);
-      wrapper.style.left = `${imgInitX + dx}px`;
-      wrapper.style.top = `${imgInitY + dy}px`;
+      if (isDraggingImg) {
+        const dx = (e.clientX - dragStartX) / (currentCamera.scale || 1);
+        const dy = (e.clientY - dragStartY) / (currentCamera.scale || 1);
+        wrapper.style.left = `${imgInitX + dx}px`;
+        wrapper.style.top = `${imgInitY + dy}px`;
+      } else if (isResizing) {
+        const dx = (e.clientX - resizeStartX) / (currentCamera.scale || 1);
+        const dy = (e.clientY - resizeStartY) / (currentCamera.scale || 1);
+        wrapper.style.width = `${Math.max(initW + dx, 60)}px`;
+        wrapper.style.height = `${Math.max(initH + dy, 40)}px`;
+      }
     });
 
     window.addEventListener('mouseup', () => {
-      if (isDraggingImg) {
+      if (isDraggingImg || isResizing) {
         isDraggingImg = false;
+        isResizing = false;
         saveEditsToStorage();
       }
     });
 
     saveEditsToStorage();
+  }
+
+  const PREZI_APP_VERSION = '2026.09.22_v4_fixed';
+  if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
+    localStorage.removeItem('prezi_saved_world_content');
+    localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
   }
 
   // Persistence with both LocalStorage & IndexedDB (Zero loss for heavy images)
@@ -900,17 +1168,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (saved) {
       world.innerHTML = saved;
-      setupClickableCards();
+      setupCardInteractions();
       
       // Re-enable ContentEditable
       const editableSelectors = [
         '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
         '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
-        '.cycle-box p', '.cycle-box h5', '.lenin-quote-strip p', '.spiral-quote',
-        '.img-caption-tag', '.card-micro-quote', 'h1', 'h2', 'h3', 'h4', 'h5', 'p'
+        '.cycle-box p', '.cycle-box h5', '.cycle-box', '.cy-badge', '.lenin-quote-strip p', '.spiral-quote',
+        '.img-caption-tag', '.card-micro-quote', '.card-step-badge', '.card-header-badge', '.axis-svg-label',
+        '.principles-dual-list strong', '.cmp-box strong', '.s-cap strong',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'p'
       ];
       document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
-        if (!el.closest('.prezi-topbar') && !el.closest('.prezi-sidebar') && !el.closest('.prezi-bottom-bar')) {
+        if (!el.closest('.prezi-topbar') && !el.closest('.prezi-sidebar') && !el.closest('.prezi-bottom-bar') && !el.closest('.card-action-bar')) {
           el.setAttribute('contenteditable', 'true');
           el.setAttribute('spellcheck', 'false');
         }
@@ -946,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize
   buildSidebar();
-  setupClickableCards();
+  setupCardInteractions();
   setupPanning();
   generatePreziSpiral();
   setupControls();
