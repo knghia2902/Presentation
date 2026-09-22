@@ -237,6 +237,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const el = document.getElementById(stop.targetId);
       if (el) {
         el.addEventListener('click', (e) => {
+          // If user clicked inside an editable text element or an image, DO NOT zoom/jump camera, allow editing directly!
+          if (e.target.isContentEditable || e.target.tagName === 'IMG' || e.target.closest('[contenteditable="true"]')) {
+            return;
+          }
+          // If already focused on this card, do nothing
+          if (currentStopIndex === index + 1) {
+            return;
+          }
+          // If clicking card background/padding or title when at overview, zoom into card
+          e.stopPropagation();
+          goToStop(index + 1);
+        });
+
+        // Double click card always zooms into it
+        el.addEventListener('dblclick', (e) => {
           e.stopPropagation();
           goToStop(index + 1);
         });
