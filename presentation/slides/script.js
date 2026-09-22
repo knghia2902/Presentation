@@ -949,26 +949,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Positioning Floating Image Toolbar (Hình 1)
-    function positionImageToolbar(imgEl) {
+    function positionImageToolbar(targetEl) {
       if (!imgToolbar || document.body.classList.contains('in-present-mode')) return;
-      const rect = imgEl.getBoundingClientRect();
-      imgToolbar.style.top = `${Math.max(rect.top - 48, 56)}px`;
+      const rect = targetEl.getBoundingClientRect();
+      imgToolbar.style.top = `${Math.max(rect.top - 54, 56)}px`;
       imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
       imgToolbar.classList.add('show');
     }
 
-    // Bind existing images for selection & replacement (Hình 1)
-    function bindImageSelection(img) {
-      img.addEventListener('click', (e) => {
-        e.stopPropagation();
-        selectedImgEl = img;
-        document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
-        img.classList.add('prezi-selected-img');
-        positionImageToolbar(img);
-      });
-    }
-
-    document.querySelectorAll('.canvas-card img, .user-placed-image').forEach(bindImageSelection);
+    upgradeAllImagesToInteractive();
 
     // Floating Text Toolbar Actions
     const btnBold = document.getElementById('btn-format-bold');
@@ -1100,14 +1089,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (event) => {
-          placeImageOnCanvas(event.target.result);
+          if (selectedImgEl && document.contains(selectedImgEl)) {
+            selectedImgEl.src = event.target.result;
+            saveEditsToStorage();
+            showToast('Đã thay thế ảnh thành công!');
+          } else {
+            placeImageOnCanvas(event.target.result);
+          }
         };
         reader.readAsDataURL(file);
       });
     }
 
     // 4. ROBUST MULTI-SOURCE CLIPBOARD PASTE (CTRL+V)
-    // Supports Image files, System Screenshots, Browser Image Copies, HTML <img> tags, and Data URLs
+    // Supports Image files, Screenshots, Browser Image Copies, HTML <img>, and URLs
+    // Direct replace if an image is currently selected!
     window.addEventListener('paste', async (e) => {
       const clipboard = e.clipboardData;
       if (!clipboard) return;
@@ -1124,8 +1120,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (blob) {
               const reader = new FileReader();
               reader.onload = (ev) => {
-                placeImageOnCanvas(ev.target.result);
-                showToast('Đã dán hình ảnh trực tiếp từ bộ nhớ đệm (Clipboard)!');
+                if (selectedImgEl && document.contains(selectedImgEl)) {
+                  selectedImgEl.src = ev.target.result;
+                  saveEditsToStorage();
+                  showToast('Đã dán đè thay thế hình ảnh đang chọn!');
+                } else {
+                  placeImageOnCanvas(ev.target.result);
+                  showToast('Đã dán hình ảnh trực tiếp từ bộ nhớ đệm (Clipboard)!');
+                }
               };
               reader.readAsDataURL(blob);
               handled = true;
@@ -1143,8 +1145,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const img = doc.querySelector('img');
         if (img && img.src) {
           e.preventDefault();
-          placeImageOnCanvas(img.src);
-          showToast('Đã chèn hình ảnh sao chép từ trình duyệt thành công!');
+          if (selectedImgEl && document.contains(selectedImgEl)) {
+            selectedImgEl.src = img.src;
+            saveEditsToStorage();
+            showToast('Đã dán đè thay thế hình ảnh đang chọn!');
+          } else {
+            placeImageOnCanvas(img.src);
+            showToast('Đã chèn hình ảnh sao chép từ trình duyệt!');
+          }
           handled = true;
           return;
         }
@@ -1155,11 +1163,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = clipboard.getData('text/plain').trim();
         if (text.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i) || text.startsWith('data:image/')) {
           e.preventDefault();
-          placeImageOnCanvas(text);
-          showToast('Đã dán hình ảnh từ đường dẫn URL!');
+          if (selectedImgEl && document.contains(selectedImgEl)) {
+            selectedImgEl.src = text;
+            saveEditsToStorage();
+            showToast('Đã dán đè thay thế hình ảnh đang chọn!');
+          } else {
+            placeImageOnCanvas(text);
+            showToast('Đã dán hình ảnh từ đường dẫn URL!');
+          }
           handled = true;
           return;
         }
+      }
+    });
+
+    // Keyboard shortcut: Delete / Backspace key to remove selected image
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedImgEl && !document.activeElement.isContentEditable) {
+        e.preventDefault();
+        const wrapper = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl;
+        wrapper.remove();
+        selectedImgEl = null;
+        if (imgToolbar) imgToolbar.classList.remove('show');
+        saveEditsToStorage();
+        showToast('Đã xóa hình ảnh.');
       }
     });
 
@@ -1175,6 +1202,187 @@ document.addEventListener('DOMContentLoaded', () => {
     loadEditsFromStorage();
   }
 
+  // Positioning Floating Image Toolbar (Hình 1)
+  function positionImageToolbar(targetEl) {
+    const imgToolbar = document.getElementById('image-floating-toolbar');
+    if (!imgToolbar || document.body.classList.contains('in-present-mode')) return;
+    const rect = targetEl.getBoundingClientRect();
+    imgToolbar.style.top = `${Math.max(rect.top - 54, 56)}px`;
+    imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
+    imgToolbar.classList.add('show');
+  }
+
+  // Attach full suite of interactive controls (Select, Resize, Drag, Delete, Double-click)
+  function attachImageWrapperEvents(wrapper, img, resizeHandle, btnDel) {
+    if (!wrapper || !img) return;
+
+    // 1. Select & Open Floating Toolbar
+    wrapper.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedImgEl = img;
+      document.querySelectorAll('.user-image-wrapper.selected').forEach(w => w.classList.remove('selected'));
+      wrapper.classList.add('selected');
+      document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
+      img.classList.add('prezi-selected-img');
+      positionImageToolbar(wrapper);
+    });
+
+    // 2. Double-click to Replace Image from file
+    wrapper.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      selectedImgEl = img;
+      const replaceInput = document.getElementById('replace-file-input');
+      if (replaceInput) replaceInput.click();
+    });
+
+    // 3. Quick Delete Button (✕)
+    if (btnDel) {
+      btnDel.addEventListener('click', (e) => {
+        e.stopPropagation();
+        wrapper.remove();
+        selectedImgEl = null;
+        const imgToolbar = document.getElementById('image-floating-toolbar');
+        if (imgToolbar) imgToolbar.classList.remove('show');
+        saveEditsToStorage();
+        showToast('Đã xóa hình ảnh.');
+      });
+    }
+
+    // 4. Drag & Reposition
+    let isDraggingImg = false;
+    let dragStartX = 0, dragStartY = 0;
+    let imgInitTransX = 0, imgInitTransY = 0;
+    let imgInitLeft = 0, imgInitTop = 0;
+    let isPositionAbsolute = false;
+
+    wrapper.addEventListener('mousedown', (e) => {
+      if (e.target === resizeHandle || e.target === btnDel) return;
+      if (document.body.classList.contains('in-present-mode')) return;
+      e.stopPropagation();
+
+      isDraggingImg = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+
+      isPositionAbsolute = window.getComputedStyle(wrapper).position === 'absolute';
+      if (isPositionAbsolute && !wrapper.style.transform) {
+        imgInitLeft = wrapper.offsetLeft;
+        imgInitTop = wrapper.offsetTop;
+      } else {
+        const curTrans = wrapper.style.transform || '';
+        const match = curTrans.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+        imgInitTransX = match ? parseFloat(match[1]) : 0;
+        imgInitTransY = match ? parseFloat(match[2]) : 0;
+      }
+      wrapper.style.zIndex = '120';
+    });
+
+    // 5. Corner Resize Handle (Co giãn ảnh tự do)
+    let isResizingImg = false;
+    let resizeStartX = 0, resizeStartY = 0;
+    let initW = 0, initH = 0;
+
+    if (resizeHandle) {
+      resizeHandle.addEventListener('mousedown', (e) => {
+        if (document.body.classList.contains('in-present-mode')) return;
+        e.stopPropagation();
+        e.preventDefault();
+        isResizingImg = true;
+        resizeStartX = e.clientX;
+        resizeStartY = e.clientY;
+        initW = wrapper.offsetWidth;
+        initH = wrapper.offsetHeight;
+      });
+    }
+
+    // Window listeners for Smooth Drag & Resize
+    window.addEventListener('mousemove', (e) => {
+      const scale = currentCamera.scale || 1;
+      if (isDraggingImg) {
+        const dx = (e.clientX - dragStartX) / scale;
+        const dy = (e.clientY - dragStartY) / scale;
+        if (isPositionAbsolute && !wrapper.style.transform) {
+          wrapper.style.left = `${imgInitLeft + dx}px`;
+          wrapper.style.top = `${imgInitTop + dy}px`;
+        } else {
+          wrapper.style.transform = `translate(${imgInitTransX + dx}px, ${imgInitTransY + dy}px)`;
+        }
+      } else if (isResizingImg) {
+        const dx = (e.clientX - resizeStartX) / scale;
+        const dy = (e.clientY - resizeStartY) / scale;
+        wrapper.style.width = `${Math.max(initW + dx, 50)}px`;
+        wrapper.style.height = `${Math.max(initH + dy, 40)}px`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isDraggingImg || isResizingImg) {
+        isDraggingImg = false;
+        isResizingImg = false;
+        saveEditsToStorage();
+      }
+    });
+  }
+
+  // Unified Upgrade: Makes all default card images fully interactive identical to pasted images
+  function upgradeAllImagesToInteractive() {
+    const images = document.querySelectorAll('.canvas-card img');
+    images.forEach(img => {
+      if (img.closest('.user-image-wrapper') || img.closest('.bg-manuscript-layer') || img.closest('.bg-splash-layer') || img.closest('.bg-note-paper-layer')) return;
+
+      const parent = img.parentElement;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'user-image-wrapper default-card-image';
+      
+      const curW = img.offsetWidth || 140;
+      const curH = img.offsetHeight || 135;
+      wrapper.style.width = `${curW}px`;
+      wrapper.style.height = `${curH}px`;
+
+      parent.insertBefore(wrapper, img);
+      wrapper.appendChild(img);
+      img.classList.add('user-placed-image');
+
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn-del-img';
+      btnDel.innerHTML = '✕';
+      btnDel.title = 'Xóa ảnh này';
+
+      const resizeHandle = document.createElement('div');
+      resizeHandle.className = 'img-resize-handle';
+      resizeHandle.title = 'Kéo để co giãn kích thước ảnh';
+
+      wrapper.appendChild(btnDel);
+      wrapper.appendChild(resizeHandle);
+
+      attachImageWrapperEvents(wrapper, img, resizeHandle, btnDel);
+    });
+
+    // Re-bind existing wrappers from saved storage if any
+    document.querySelectorAll('.user-image-wrapper').forEach(wrapper => {
+      if (wrapper.dataset.eventsBound) return;
+      wrapper.dataset.eventsBound = 'true';
+      const img = wrapper.querySelector('img');
+      let resizeHandle = wrapper.querySelector('.img-resize-handle');
+      let btnDel = wrapper.querySelector('.btn-del-img');
+
+      if (!btnDel) {
+        btnDel = document.createElement('button');
+        btnDel.className = 'btn-del-img';
+        btnDel.innerHTML = '✕';
+        btnDel.title = 'Xóa ảnh này';
+        wrapper.appendChild(btnDel);
+      }
+      if (!resizeHandle) {
+        resizeHandle = document.createElement('div');
+        resizeHandle.className = 'img-resize-handle';
+        resizeHandle.title = 'Kéo để co giãn kích thước ảnh';
+        wrapper.appendChild(resizeHandle);
+      }
+      attachImageWrapperEvents(wrapper, img, resizeHandle, btnDel);
+    });
+  }
+
   // Place and attach draggable listeners to an image
   function placeImageOnCanvas(srcDataUrl) {
     const activeCard = document.querySelector('.canvas-card.current-active');
@@ -1186,13 +1394,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeCard) {
       wrapper.style.position = 'relative';
       wrapper.style.margin = '14px 0';
+      wrapper.style.width = '100%';
+      wrapper.style.height = '180px';
     } else {
-      // Place near center of current camera
       const vpRect = viewport.getBoundingClientRect();
       const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
       const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
       wrapper.style.left = `${Math.round(centerX - 150)}px`;
       wrapper.style.top = `${Math.round(centerY - 100)}px`;
+      wrapper.style.width = '280px';
+      wrapper.style.height = '200px';
     }
 
     const img = document.createElement('img');
@@ -1204,12 +1415,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDel.className = 'btn-del-img';
     btnDel.innerHTML = '✕';
     btnDel.title = 'Xóa ảnh này';
-    btnDel.addEventListener('click', (e) => {
-      e.stopPropagation();
-      wrapper.remove();
-      saveEditsToStorage();
-      showToast('Đã xóa hình ảnh.');
-    });
 
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'img-resize-handle';
@@ -1220,80 +1425,12 @@ document.addEventListener('DOMContentLoaded', () => {
     wrapper.appendChild(resizeHandle);
     container.appendChild(wrapper);
 
-    // Bind toolbar selection for newly placed image
-    wrapper.addEventListener('click', (e) => {
-      e.stopPropagation();
-      selectedImgEl = img;
-      document.querySelectorAll('.user-image-wrapper').forEach(w => w.classList.remove('selected'));
-      wrapper.classList.add('selected');
-      document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
-      img.classList.add('prezi-selected-img');
-      const imgToolbar = document.getElementById('image-floating-toolbar');
-      if (imgToolbar && !document.body.classList.contains('in-present-mode')) {
-        const rect = wrapper.getBoundingClientRect();
-        imgToolbar.style.top = `${Math.max(rect.top - 48, 56)}px`;
-        imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
-        imgToolbar.classList.add('show');
-      }
-    });
-
-    // Make Draggable
-    let isDraggingImg = false;
-    let dragStartX = 0, dragStartY = 0;
-    let imgInitX = 0, imgInitY = 0;
-
-    wrapper.addEventListener('mousedown', (e) => {
-      if (e.target === resizeHandle || e.target === btnDel) return;
-      e.stopPropagation();
-      isDraggingImg = true;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-      imgInitX = wrapper.offsetLeft;
-      imgInitY = wrapper.offsetTop;
-      wrapper.style.position = 'absolute';
-      wrapper.style.zIndex = 100;
-    });
-
-    // Make Resizable
-    let isResizing = false;
-    let resizeStartX = 0, resizeStartY = 0;
-    let initW = 0, initH = 0;
-
-    resizeHandle.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-      isResizing = true;
-      resizeStartX = e.clientX;
-      resizeStartY = e.clientY;
-      initW = wrapper.offsetWidth;
-      initH = wrapper.offsetHeight;
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (isDraggingImg) {
-        const dx = (e.clientX - dragStartX) / (currentCamera.scale || 1);
-        const dy = (e.clientY - dragStartY) / (currentCamera.scale || 1);
-        wrapper.style.left = `${imgInitX + dx}px`;
-        wrapper.style.top = `${imgInitY + dy}px`;
-      } else if (isResizing) {
-        const dx = (e.clientX - resizeStartX) / (currentCamera.scale || 1);
-        const dy = (e.clientY - resizeStartY) / (currentCamera.scale || 1);
-        wrapper.style.width = `${Math.max(initW + dx, 60)}px`;
-        wrapper.style.height = `${Math.max(initH + dy, 40)}px`;
-      }
-    });
-
-    window.addEventListener('mouseup', () => {
-      if (isDraggingImg || isResizing) {
-        isDraggingImg = false;
-        isResizing = false;
-        saveEditsToStorage();
-      }
-    });
-
+    wrapper.dataset.eventsBound = 'true';
+    attachImageWrapperEvents(wrapper, img, resizeHandle, btnDel);
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.22_v4_fixed';
+  const PREZI_APP_VERSION = '2026.09.23_v6_unified_elements';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
@@ -1397,30 +1534,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Re-bind image click & delete
-      document.querySelectorAll('.canvas-card img, .user-placed-image').forEach(img => {
-        img.addEventListener('click', (e) => {
-          e.stopPropagation();
-          selectedImgEl = img;
-          document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
-          img.classList.add('prezi-selected-img');
-          const imgToolbar = document.getElementById('image-floating-toolbar');
-          if (imgToolbar && !document.body.classList.contains('in-present-mode')) {
-            const rect = img.getBoundingClientRect();
-            imgToolbar.style.top = `${Math.max(rect.top - 48, 56)}px`;
-            imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
-            imgToolbar.classList.add('show');
-          }
-        });
-      });
-
-      document.querySelectorAll('.btn-del-img').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          btn.parentElement.remove();
-          saveEditsToStorage();
-        });
-      });
+      // Re-bind and upgrade all images to fully interactive
+      upgradeAllImagesToInteractive();
     }
   }
 

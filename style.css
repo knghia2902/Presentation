@@ -820,53 +820,76 @@ body.in-present-mode [contenteditable="true"]:focus {
   box-shadow: none !important;
 }
 
-/* User Inserted Floating Images & Resizable Cards */
+/* User Inserted Floating Images & Interactive Card Images */
 .user-placed-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   border-radius: 8px;
-  border: 2px solid #ffffff;
   pointer-events: none;
+  display: block;
 }
 
 .user-image-wrapper {
   position: absolute;
   width: 280px;
   height: 200px;
-  min-width: 80px;
-  min-height: 60px;
+  min-width: 60px;
+  min-height: 40px;
   display: inline-block;
   cursor: move;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
   z-index: 50;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, outline 0.15s;
 }
 
-.user-image-wrapper:hover {
-  box-shadow: 0 12px 32px rgba(24, 100, 171, 0.3);
+.user-image-wrapper.default-card-image {
+  position: relative;
+  width: 100%;
+  height: 140px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.user-image-wrapper.default-card-image img.card-evo-img {
+  object-fit: contain;
+}
+
+.user-image-wrapper.default-card-image img.antique-bust {
+  background: #000;
+}
+
+.user-image-wrapper:hover,
+.user-image-wrapper.selected {
+  outline: 2px dashed #1864ab;
+  outline-offset: 2px;
+}
+
+.user-image-wrapper.selected {
+  outline: 2px solid #1864ab;
+  box-shadow: 0 8px 24px rgba(24, 100, 171, 0.35);
 }
 
 /* Resize corner handle (Góc kéo giãn kích thước ảnh) */
 .user-image-wrapper .img-resize-handle {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 16px;
-  height: 16px;
+  bottom: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
   background: #1890ff;
   border: 2px solid #ffffff;
   border-radius: 50%;
   cursor: se-resize;
   display: none;
-  z-index: 60;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  z-index: 80;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
 }
 
 .user-image-wrapper:hover .img-resize-handle,
 .user-image-wrapper.selected .img-resize-handle {
-  display: block;
+  display: block !important;
 }
 
 .user-image-wrapper .btn-del-img {
@@ -886,20 +909,22 @@ body.in-present-mode [contenteditable="true"]:focus {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-  z-index: 60;
+  z-index: 80;
 }
 
 .user-image-wrapper:hover .btn-del-img,
 .user-image-wrapper.selected .btn-del-img {
-  display: flex;
+  display: flex !important;
+}
+
+body.in-present-mode .user-image-wrapper {
+  cursor: inherit !important;
+  outline: none !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
 }
 
 body.in-present-mode .user-image-wrapper .btn-del-img,
 body.in-present-mode .user-image-wrapper .img-resize-handle {
-  display: none !important;
-}
-
-body.in-present-mode .user-image-wrapper .btn-del-img {
   display: none !important;
 }
 
