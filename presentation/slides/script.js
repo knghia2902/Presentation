@@ -123,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
       previewImg: 'assets/images/thumb_overview.png'
     }
   ];
+  window.STOPS = STOPS;
 
   let currentStopIndex = 0;
   let isPanning = false;
@@ -131,9 +132,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. Generate Sidebar items
   function buildSidebar() {
+    const overviewItem = framesList.querySelector('[data-target="overview"]');
+    framesList.innerHTML = '';
+    if (overviewItem) {
+      framesList.appendChild(overviewItem);
+      overviewItem.onclick = () => goToStop(0);
+    } else {
+      const ov = document.createElement('div');
+      ov.className = 'frame-thumb-item' + (currentStopIndex === 0 ? ' active' : '');
+      ov.dataset.target = 'overview';
+      ov.dataset.index = 0;
+      ov.innerHTML = `
+        <div class="thumb-card-preview">
+          <img src="assets/images/thumb_overview.png" alt="Overview thumbnail" class="thumb-img-ov">
+          <div class="thumb-home-icon">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          </div>
+        </div>
+        <span class="thumb-caption">Overview</span>
+      `;
+      ov.onclick = () => goToStop(0);
+      framesList.appendChild(ov);
+    }
+
     STOPS.slice(1).forEach((stop, index) => {
       const item = document.createElement('div');
-      item.className = 'frame-thumb-item';
+      item.className = 'frame-thumb-item' + (currentStopIndex === index + 1 ? ' active' : '');
       item.dataset.index = index + 1;
       item.innerHTML = `
         <div class="thumb-card-preview">
@@ -145,11 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
       item.addEventListener('click', () => goToStop(index + 1));
       framesList.appendChild(item);
     });
-
-    const overviewItem = framesList.querySelector('[data-target="overview"]');
-    if (overviewItem) {
-      overviewItem.addEventListener('click', () => goToStop(0));
-    }
   }
 
   // 2. Camera Transform Engine
@@ -298,7 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
         bar.innerHTML = `
           <button type="button" class="card-action-btn btn-drag-handle" title="Bấm giữ và kéo để di chuyển thẻ">⋮⋮ Kéo di chuyển</button>
           <button type="button" class="card-action-btn btn-focus-card" title="Phóng to thẻ này">🎯 Focus</button>
+          <button type="button" class="card-action-btn btn-dup-card" title="Nhân bản thẻ này">⧉ Nhân bản</button>
           <button type="button" class="card-action-btn btn-reset-card" title="Khôi phục kích thước & vị trí ban đầu">↺ Reset</button>
+          <button type="button" class="card-action-btn btn-del btn-del-card" title="Xóa thẻ khỏi bài thuyết trình">🗑 Xóa</button>
         `;
         card.appendChild(bar);
       }
@@ -325,6 +346,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const focus = getElementFocusTransform(card, 1.15);
             applyCamera(focus.x, focus.y, focus.scale, true);
           }
+          return;
+        }
+
+        // Action Bar: Duplicate button
+        if (e.target.closest('.btn-dup-card')) {
+          e.stopPropagation();
+          duplicateCard(card);
+          return;
+        }
+
+        // Action Bar: Delete button
+        if (e.target.closest('.btn-del-card')) {
+          e.stopPropagation();
+          deleteCard(card);
           return;
         }
 
@@ -495,6 +530,126 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Duplicate an existing card
+  function duplicateCard(card) {
+    const clone = card.cloneNode(true);
+    const newId = `stop-custom-${Date.now()}`;
+    clone.id = newId;
+    clone.classList.remove('card-selected', 'current-active');
+    
+    // Clean up injected handles from clone
+    clone.querySelectorAll('.card-resize-handle, .card-action-bar').forEach(el => el.remove());
+    
+    // Offset position by 50px
+    const curTrans = card.style.transform || '';
+    const match = curTrans.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    const curX = match ? parseFloat(match[1]) : 0;
+    const curY = match ? parseFloat(match[2]) : 0;
+    clone.style.transform = `translate(${curX + 50}px, ${curY + 50}px)`;
+    clone.style.zIndex = 30;
+
+    card.parentElement.appendChild(clone);
+
+    // Register into STOPS
+    const newIndex = STOPS.length;
+    const cardTitle = clone.querySelector('h1, h2, h3, h4, .card-title-prezi')?.textContent?.trim() || 'Thẻ Nhân Bản';
+    const newStop = {
+      id: newId,
+      title: `${newIndex < 10 ? '0' + newIndex : newIndex}. ${cardTitle}`,
+      targetId: newId,
+      scaleOffset: 1.15,
+      previewImg: 'assets/images/thumb_overview.png'
+    };
+    STOPS.push(newStop);
+
+    buildSidebar();
+    setupCardInteractions();
+    setupEditingEngine();
+
+    showToast('Đã nhân bản thẻ thành công!');
+    saveEditsToStorage();
+    goToStop(newIndex);
+  }
+
+  // Delete an existing card
+  function deleteCard(card) {
+    if (STOPS.length <= 2) {
+      alert('Không thể xóa hết tất cả các thẻ trình chiếu.');
+      return;
+    }
+    const cardTitle = card.querySelector('h1, h2, h3, h4, .card-title-prezi')?.textContent?.trim() || 'thẻ này';
+    if (!confirm(`Bạn có chắc chắn muốn xóa "${cardTitle}" khỏi bài thuyết trình?`)) return;
+
+    const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
+    if (stopIdx >= 0) {
+      STOPS.splice(stopIdx, 1);
+    }
+    card.remove();
+
+    buildSidebar();
+    saveEditsToStorage();
+    showToast('Đã xóa thẻ khỏi bài thuyết trình.');
+
+    if (currentStopIndex >= STOPS.length) {
+      goToStop(STOPS.length - 1);
+    } else {
+      goToStop(Math.max(0, currentStopIndex));
+    }
+  }
+
+  // Add a brand new frame / slide
+  function addNewFrame() {
+    const newIndex = STOPS.length;
+    const newId = `stop-custom-${Date.now()}`;
+    const newTitle = `${newIndex < 10 ? '0' + newIndex : newIndex}. Nội Dung Mới`;
+
+    const vpRect = viewport.getBoundingClientRect();
+    const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
+    const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
+
+    const newCard = document.createElement('div');
+    newCard.className = 'canvas-card custom-added-card';
+    newCard.id = newId;
+    newCard.style.left = `${Math.round(centerX - 360)}px`;
+    newCard.style.top = `${Math.round(centerY - 160)}px`;
+    newCard.style.width = '720px';
+    newCard.style.position = 'absolute';
+    newCard.style.zIndex = 25;
+
+    newCard.innerHTML = `
+      <div class="card-inner-layout">
+        <div class="card-text-col">
+          <span class="card-step-badge">${newIndex}</span>
+          <h3 class="card-title-prezi" contenteditable="true" spellcheck="false">Tiêu Đề Trạm Mới</h3>
+          <p class="card-body-text" contenteditable="true" spellcheck="false">Nhập nội dung thuyết trình tại đây... Bạn có thể kéo 8 chốt quanh thẻ để thay đổi kích thước, chèn ảnh, hoặc kéo di chuyển tự do.</p>
+        </div>
+      </div>
+    `;
+
+    world.appendChild(newCard);
+
+    const newStop = {
+      id: newId,
+      title: newTitle,
+      targetId: newId,
+      scaleOffset: 1.15,
+      previewImg: 'assets/images/thumb_overview.png'
+    };
+    STOPS.push(newStop);
+
+    buildSidebar();
+    setupCardInteractions();
+    setupEditingEngine();
+
+    goToStop(newIndex);
+    showToast(`Đã thêm trạm mới: Trạm ${newIndex}!`);
+    saveEditsToStorage();
+  }
+
+  document.querySelectorAll('.btn-add-frame').forEach(btn => {
+    btn.addEventListener('click', addNewFrame);
+  });
 
   // 5. Drag/Pan Canvas Engine
   function setupPanning() {
