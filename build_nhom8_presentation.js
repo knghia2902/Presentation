@@ -1,0 +1,334 @@
+const fs = require('fs');
+const https = require('https');
+
+function makeTextBox(id, left, top, width, htmlContent) {
+  return `
+    <div class="prezi-textbox" id="${id}" style="position: absolute; left: ${left}px; top: ${top}px; width: ${width}px;">
+      <div class="textbox-content" contenteditable="true" spellcheck="false">${htmlContent}</div>
+      <div class="box-handle tl"></div>
+      <div class="box-handle tr"></div>
+      <div class="box-handle bl"></div>
+      <div class="box-handle br"></div>
+    </div>`;
+}
+
+function makeImage(id, left, top, width, height, src, alt) {
+  return `
+    <div class="user-image-wrapper" id="${id}" style="position: absolute; left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;">
+      <img src="${src}" class="user-placed-image" alt="${alt}">
+      <button class="btn-del-img" title="Xóa ảnh này">✕</button>
+      <div class="img-resize-handle"></div>
+    </div>`;
+}
+
+let worldHTML = '';
+
+// ==========================================
+// KHUNG 0: OVERVIEW FRAME (1000, 1000)
+// ==========================================
+worldHTML += `
+  <div class="canvas-empty-frame-box" id="overview-frame-box" style="position: absolute; left: 1000px; top: 1000px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-ov-01', 40, 35, 880, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <span style="background: rgba(37, 99, 235, 0.12); color: #2563eb; font-weight: 700; font-size: 13px; padding: 4px 12px; border-radius: 20px; letter-spacing: 0.5px;">TRIẾT HỌC MÁC - LÊNIN</span>
+        <span style="color: #64748b; font-size: 13px; font-weight: 500;">BÀI THUYẾT TRÌNH HỌC PHẦN</span>
+      </div>
+      <h1 style="font-family: 'Playfair Display', Georgia, serif; font-size: 38px; font-weight: 800; color: #0f172a; margin: 0 0 6px 0; line-height: 1.2;">QUY LUẬT PHỦ ĐỊNH CỦA PHỦ ĐỊNH</h1>
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 16px; font-weight: 600; color: #2563eb; margin-bottom: 8px;">Nhóm Thực Hiện: NHÓM 8</div>
+      <p style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 15px; color: #475569; line-height: 1.5; margin: 0;">Quy luật chỉ ra khuynh hướng phát triển tiến lên của sự vật, hiện tượng theo hình thức xoáy ốc — vừa kế thừa, vừa đổi mới sáng tạo.</p>
+    `)}
+
+    ${makeTextBox('tb-ov-02', 40, 235, 880, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+        <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size: 12px; font-weight: 700; color: #2563eb; margin-bottom: 4px;">NỘI DUNG 01</div>
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">Quan Điểm Về Phủ Định</div>
+          <div style="font-size: 13px; color: #64748b; line-height: 1.4;">Phủ định siêu hình vs Phủ định biện chứng: Khách quan, Kế thừa, Phổ biến.</div>
+        </div>
+        <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size: 12px; font-weight: 700; color: #2563eb; margin-bottom: 4px;">NỘI DUNG 02</div>
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">Quá Trình Vận Động</div>
+          <div style="font-size: 13px; color: #64748b; line-height: 1.4;">Hai lần phủ định liên tiếp & Sự phát triển theo đường xoáy ốc tiến bộ.</div>
+        </div>
+        <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 10px; padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size: 12px; font-weight: 700; color: #2563eb; margin-bottom: 4px;">NỘI DUNG 03</div>
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">Ý Nghĩa Phương Pháp Luận</div>
+          <div style="font-size: 13px; color: #64748b; line-height: 1.4;">Bài học nhận thức và vận dụng thực tiễn trong học tập, công nghệ, xã hội.</div>
+        </div>
+      </div>
+    `)}
+  </div>`;
+
+// ==========================================
+// FRAME 1: MỞ ĐẦU (2200, 1000)
+// ==========================================
+worldHTML += `
+  <div class="canvas-slide-frame" id="frame-01" style="position: absolute; left: 2200px; top: 1000px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-f1-title', 35, 25, 890, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px;">MỞ ĐẦU (5 PHÚT)</div>
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0f172a; margin: 3px 0 0 0;">Giới Thiệu Đề Tài & Khuynh Hướng Phát Triển</h2>
+    `)}
+
+    ${makeTextBox('tb-f1-quote', 35, 105, 430, `
+      <div style="padding: 12px 14px; background: rgba(241, 245, 249, 0.85); border-left: 4px solid #2563eb; border-radius: 0 8px 8px 0; font-family: 'Be Vietnam Pro', sans-serif; font-size: 13.5px; font-style: italic; color: #334155; line-height: 1.55; margin-bottom: 12px;">
+        “Xin kính chào thầy và các bạn. Hôm nay Nhóm 8 xin trình bày về một trong ba quy luật cơ bản của phép biện chứng duy vật – Quy luật phủ định của phủ định.”
+      </div>
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: #1e293b; line-height: 1.6;">
+        <div style="margin-bottom: 8px;"><strong>🌀 Bản chất quy luật:</strong> Chỉ ra <strong>khuynh hướng phát triển đi lên</strong> của sự vật, hiện tượng theo hình thức <strong>xoáy ốc</strong>.</div>
+        <div style="margin-bottom: 8px;"><strong>🔄 Nguyên lý cốt lõi:</strong> Vừa <em>kế thừa</em> giá trị cũ, vừa <em>đổi mới</em> ở trình độ cao hơn.</div>
+        <div style="background: rgba(37,99,235,0.06); padding: 10px 12px; border-radius: 6px; font-size: 13px; color: #2563eb; font-weight: 600;">
+          3 Trọng tâm: Quan điểm PBCDV • Quá trình vận động • Ý nghĩa phương pháp luận
+        </div>
+      </div>
+    `)}
+
+    ${makeImage('img-f1-spiral', 485, 105, 440, 395, 'assets/images/spiral_evolution.jpg', 'Mô hình đường xoáy ốc phát triển biện chứng')}
+  </div>`;
+
+// ==========================================
+// FRAME 2: PHẦN 1 - QUAN ĐIỂM (3400, 1000)
+// ==========================================
+worldHTML += `
+  <div class="canvas-slide-frame" id="frame-02" style="position: absolute; left: 3400px; top: 1000px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-f2-title', 35, 25, 890, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px;">PHẦN 1 (10 PHÚT)</div>
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0f172a; margin: 3px 0 0 0;">Quan Điểm Về Phủ Định & Phủ Định Biện Chứng</h2>
+    `)}
+
+    ${makeTextBox('tb-f2-lead', 35, 95, 890, `
+      <div style="padding: 10px 14px; background: rgba(248, 250, 252, 0.9); border: 1px solid #e2e8f0; border-radius: 8px; font-family: 'Be Vietnam Pro', sans-serif; font-size: 14px; color: #334155; line-height: 1.55;">
+        <strong>Khái niệm triết học:</strong> Phủ định là sự thay thế cái cũ bằng cái mới trong quá trình vận động và phát triển. Trong phép biện chứng duy vật, phủ định không phải là xóa bỏ sạch trơn, mà là <em>phủ định biện chứng</em> — quá trình vừa loại bỏ vừa kế thừa.
+      </div>
+    `)}
+
+    ${makeTextBox('tb-f2-compare', 35, 175, 420, `
+      <div style="background: #ffffff; border: 1.5px solid #fee2e2; border-radius: 8px; padding: 14px; font-family: 'Be Vietnam Pro', sans-serif;">
+        <div style="font-size: 15px; font-weight: 700; color: #dc2626; margin-bottom: 6px;">❌ Phủ Định Siêu Hình</div>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13.5px; color: #475569; line-height: 1.55;">
+          <li>Coi phủ định là sự <strong>loại bỏ hoàn toàn</strong>, sạch trơn cái cũ.</li>
+          <li>Triệt tiêu sự liên hệ, <strong>không có sự kế thừa</strong>.</li>
+          <li>Chấm dứt sự phát triển của sự vật.</li>
+          <li><em>Ví dụ:</em> Tư tưởng cực đoan phủ nhận sạch trơn truyền thống văn hóa.</li>
+        </ul>
+      </div>
+    `)}
+
+    ${makeTextBox('tb-f2-features', 475, 175, 450, `
+      <div style="background: #ffffff; border: 1.5px solid #dbeafe; border-radius: 8px; padding: 14px; font-family: 'Be Vietnam Pro', sans-serif;">
+        <div style="font-size: 15px; font-weight: 700; color: #2563eb; margin-bottom: 6px;">✅ Phủ Định Biện Chứng (3 Đặc Trưng)</div>
+        <div style="font-size: 13.5px; color: #334155; line-height: 1.55;">
+          <div style="margin-bottom: 6px;">① <strong>Tính khách quan:</strong> Do mâu thuẫn nội tại của chính sự vật giải quyết mà sinh ra, là sự tự phủ định.</div>
+          <div style="margin-bottom: 6px;">② <strong>Tính kế thừa:</strong> Giữ lại hạt nhân hợp lý, cải tạo yếu tố tích cực của cái cũ để xây dựng cái mới.</div>
+          <div>③ <strong>Tính phổ biến:</strong> Diễn ra liên tục trong cả Tự nhiên, Xã hội và Tư duy con người.</div>
+        </div>
+      </div>
+    `)}
+  </div>`;
+
+// ==========================================
+// FRAME 3: PHẦN 1 - VÍ DỤ & THẢO LUẬN (4600, 1000)
+// ==========================================
+worldHTML += `
+  <div class="canvas-slide-frame" id="frame-03" style="position: absolute; left: 4600px; top: 1000px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-f3-title', 35, 25, 890, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px;">PHẦN 1: THỰC TIỄN & TƯƠNG TÁC</div>
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0f172a; margin: 3px 0 0 0;">Ví Dụ Thực Tế & Thảo Luận Phủ Định Biện Chứng</h2>
+    `)}
+
+    ${makeTextBox('tb-f3-examples', 35, 100, 450, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 13.5px; color: #334155; line-height: 1.6;">
+        <div style="margin-bottom: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #2563eb;">
+          <strong>🔬 Trong Khoa Học:</strong> Thuyết tương đối Einstein phủ định Cơ học Newton, nhưng kế thừa trọn vẹn ở phạm vi vận tốc nhỏ và cơ học thông thường.
+        </div>
+        <div style="margin-bottom: 10px; padding: 8px 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #10b981;">
+          <strong>📖 Trong Văn Hóa:</strong> Chữ Quốc ngữ thay thế chữ Nôm, nhưng kế thừa trọn vẹn ngữ âm, từ vựng và tinh hoa tiếng Việt, giúp phổ cập tri thức nhanh hơn.
+        </div>
+        <div style="padding: 8px 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #f59e0b;">
+          <strong>🚗 Trong Đời Sống:</strong> Xe điện phủ định xe xăng (loại bỏ khí thải độc hại), nhưng kế thừa công năng di chuyển và tiện ích giao thông.
+        </div>
+      </div>
+    `)}
+
+    ${makeImage('img-f3-physics', 505, 100, 420, 240, 'assets/images/physics_evolution.jpg', 'Phủ định biện chứng trong vật lý: Newton và Einstein')}
+
+    ${makeTextBox('tb-f3-qa', 35, 365, 890, `
+      <div style="padding: 12px 16px; background: rgba(37,99,235,0.06); border: 1.5px solid rgba(37,99,235,0.2); border-radius: 8px; font-family: 'Be Vietnam Pro', sans-serif; font-size: 13.5px; color: #1e293b; line-height: 1.55;">
+        <div style="font-weight: 700; color: #2563eb; margin-bottom: 4px;">❓ Câu hỏi thảo luận: “Liệu chúng ta có thể phủ định sạch trơn quá khứ không, hay phải kế thừa?”</div>
+        <div>💡 <strong>Đáp án gợi ý:</strong> Không thể phủ định sạch trơn! Cái mới luôn ra đời và lớn lên trên nền tảng tích lũy của cái cũ. Nếu phủ định sạch trơn, chúng ta sẽ mất đi các giá trị văn hóa, tri thức và bản sắc đã bồi đắp qua nhiều thế hệ.</div>
+      </div>
+    `)}
+  </div>`;
+
+// ==========================================
+// FRAME 4: PHẦN 2 - QUÁ TRÌNH 2 LẦN PHỦ ĐỊNH (2200, 1680)
+// ==========================================
+worldHTML += `
+  <div class="canvas-slide-frame" id="frame-04" style="position: absolute; left: 2200px; top: 1680px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-f4-title', 35, 25, 890, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px;">PHẦN 2 (10 PHÚT)</div>
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0f172a; margin: 3px 0 0 0;">Quá Trình Phủ Định Của Phủ Định & Đường Xoáy Ốc</h2>
+    `)}
+
+    ${makeTextBox('tb-f4-content', 35, 100, 440, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 13.5px; color: #1e293b; line-height: 1.6;">
+        <div style="margin-bottom: 12px; padding: 10px 12px; background: rgba(37, 99, 235, 0.05); border-left: 4px solid #2563eb; border-radius: 0 6px 6px 0;">
+          <strong>Chu kỳ phát triển cơ bản:</strong> Trải qua ít nhất <strong>hai lần phủ định liên tiếp</strong> để hoàn thành một nấc thang mới.
+        </div>
+        <div style="margin-bottom: 8px;">
+          🔹 <strong>Lần phủ định thứ nhất:</strong> Cái ban đầu (Khẳng định A) bị thay thế bởi cái đối lập với nó (Phủ định B).
+        </div>
+        <div style="margin-bottom: 12px;">
+          🔹 <strong>Lần phủ định thứ hai:</strong> Cái đối lập (B) bị phủ định tiếp để sinh ra cái mới (Phủ định của phủ định A').
+        </div>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; font-size: 13px; color: #334155;">
+          🌀 <strong>Hình thức đường xoáy ốc:</strong> Sự phát triển dường như lặp lại điểm ban đầu nhưng trên <em>trình độ cao hơn, tiến bộ và hoàn thiện hơn</em>.
+        </div>
+      </div>
+    `)}
+
+    ${makeImage('img-f4-plant', 495, 100, 430, 400, 'assets/images/plant_growth_cycle.jpg', 'Chu kỳ phủ định của phủ định trong tự nhiên: Hạt giống -> Cây -> Quả -> Hạt mới')}
+  </div>`;
+
+// ==========================================
+// FRAME 5: PHẦN 2 - TIẾN HÓA CÔNG NGHỆ & THẢO LUẬN (3400, 1680)
+// ==========================================
+worldHTML += `
+  <div class="canvas-slide-frame" id="frame-05" style="position: absolute; left: 3400px; top: 1680px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-f5-title', 35, 25, 890, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px;">PHẦN 2: THỰC TIỄN TIẾN HÓA</div>
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0f172a; margin: 3px 0 0 0;">Các Chuỗi Tiến Hóa & Quy Luật Xoáy Ốc</h2>
+    `)}
+
+    ${makeTextBox('tb-f5-examples', 35, 100, 450, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 13.5px; color: #334155; line-height: 1.55;">
+        <div style="margin-bottom: 8px;">🌱 <strong>Trong Tự Nhiên:</strong> Hạt giống (Khẳng định) → Cây non (Phủ định 1) → Cây trưởng thành cho Hạt giống mới (Phủ định 2, năng suất vượt trội).</div>
+        <div style="margin-bottom: 8px;">🏛️ <strong>Trong Xã Hội:</strong> Công xã nguyên thủy (chưa có tư hữu) → Xã hội tư hữu (phong kiến, tư bản) → Xã hội mới văn minh (kế thừa trọn vẹn nền sản xuất hiện đại).</div>
+        <div style="margin-bottom: 8px;">📚 <strong>Trong Tư Duy:</strong> Phép tính cộng trừ (Tiểu học) → Đại số (Trung học) → Giải tích cao cấp (Đại học). Kiến thức cũ được kế thừa làm nền tảng nâng tầm.</div>
+      </div>
+    `)}
+
+    ${makeImage('img-f5-tech', 505, 100, 420, 240, 'assets/images/tech_evolution.jpg', 'Tiến hóa công nghệ máy ảnh: Máy phim -> Máy số -> Smartphone')}
+
+    ${makeTextBox('tb-f5-qa', 35, 365, 890, `
+      <div style="padding: 12px 16px; background: rgba(37,99,235,0.06); border: 1.5px solid rgba(37,99,235,0.2); border-radius: 8px; font-family: 'Be Vietnam Pro', sans-serif; font-size: 13.5px; color: #1e293b; line-height: 1.55;">
+        <div style="font-weight: 700; color: #2563eb; margin-bottom: 4px;">❓ Câu hỏi: “Quá trình học tập của chúng ta có phải là một chuỗi phủ định của phủ định không?”</div>
+        <div>💡 <strong>Khẳng định:</strong> Đúng! Mỗi bậc học phủ định kiến thức cũ bằng kiến thức mới sâu rộng hơn, nhưng luôn kế thừa toàn bộ năng lực tư duy nền tảng. Đây là minh chứng rõ nét cho sự phát triển xoáy ốc: lặp lại việc học nhưng ở cấp độ cao hơn.</div>
+      </div>
+    `)}
+  </div>`;
+
+// ==========================================
+// FRAME 6: PHẦN 3 - Ý NGHĨA PHƯƠNG PHÁP LUẬN (4600, 1680)
+// ==========================================
+worldHTML += `
+  <div class="canvas-slide-frame" id="frame-06" style="position: absolute; left: 4600px; top: 1680px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-f6-title', 35, 25, 890, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px;">PHẦN 3 (10 PHÚT)</div>
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0f172a; margin: 3px 0 0 0;">Ý Nghĩa Phương Pháp Luận & Vận Dụng Thực Tiễn</h2>
+    `)}
+
+    ${makeTextBox('tb-f6-principles', 35, 100, 430, `
+      <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px; font-family: 'Be Vietnam Pro', sans-serif;">
+        <div style="font-size: 15px; font-weight: 700; color: #2563eb; margin-bottom: 8px;">🧭 3 Nguyên Tắc Phương Pháp Luận</div>
+        <div style="font-size: 13.5px; color: #334155; line-height: 1.55;">
+          <div style="margin-bottom: 8px;">① <strong>Nhận thức đúng quy luật phát triển:</strong> Sự phát triển luôn quanh co, phức tạp, có lúc quanh quẩn hoặc bước lùi tạm thời nhưng xu hướng tất yếu là đi lên.</div>
+          <div style="margin-bottom: 8px;">② <strong>Ủng hộ và nuôi dưỡng cái mới:</strong> Cái mới xuất hiện thường non nớt, cần tạo điều kiện, bảo vệ cái mới tiến bộ trước sự cản trở của thói quen cũ.</div>
+          <div>③ <strong>Kế thừa có chọn lọc:</strong> Chống tư tưởng bảo thủ, trì trệ (khư khư giữ cái lạc hậu) và chống tư tưởng hư vô chủ nghĩa (phủ định sạch trơn).</div>
+        </div>
+      </div>
+    `)}
+
+    ${makeTextBox('tb-f6-applications', 485, 100, 440, `
+      <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px; font-family: 'Be Vietnam Pro', sans-serif;">
+        <div style="font-size: 15px; font-weight: 700; color: #10b981; margin-bottom: 8px;">🎯 Vận Dụng Vào Thực Tiễn Cuộc Sống</div>
+        <div style="font-size: 13.5px; color: #334155; line-height: 1.55;">
+          <div style="margin-bottom: 8px;">📖 <strong>Trong Học Tập:</strong> Tự phủ định phương pháp học thụ động, ứng dụng công nghệ số và AI nhưng giữ vững tinh thần tự giác, kỷ luật và trung thực.</div>
+          <div style="margin-bottom: 8px;">🏛️ <strong>Trong Xã Hội & Giáo Dục:</strong> Đổi mới giáo dục hiện đại vẫn giữ vững đạo lý “Tôn sư trọng đạo”, lòng yêu nước, đồng thời loại bỏ bệnh thành tích và tư tưởng lỗi thời.</div>
+          <div>💼 <strong>Trong Công Nghệ & Khởi Nghiệp:</strong> Không ngại đổi mới mô hình, cải tiến sản phẩm liên tục để thích ứng xu thế phát triển xanh.</div>
+        </div>
+      </div>
+    `)}
+  </div>`;
+
+// ==========================================
+// FRAME 7: KẾT LUẬN & CẢM ƠN (5800, 1340)
+// ==========================================
+worldHTML += `
+  <div class="canvas-slide-frame" id="frame-07" style="position: absolute; left: 5800px; top: 1340px; width: 960px; height: 540px;">
+    <span class="frame-handle top-left"></span>
+    <span class="frame-handle top-right"></span>
+    <span class="frame-handle bottom-left"></span>
+    <span class="frame-handle bottom-right"></span>
+
+    ${makeTextBox('tb-f7-title', 35, 25, 890, `
+      <div style="font-family: 'Be Vietnam Pro', sans-serif; font-size: 12px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px;">KẾT LUẬN (5 PHÚT)</div>
+      <h2 style="font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 700; color: #0f172a; margin: 3px 0 0 0;">Tổng Kết & Thông Điệp Triết Học</h2>
+    `)}
+
+    ${makeTextBox('tb-f7-quote', 35, 100, 890, `
+      <div style="padding: 22px 24px; background: rgba(37,99,235,0.06); border: 2px solid #2563eb; border-radius: 12px; font-family: 'Playfair Display', Georgia, serif; font-size: 18.5px; font-style: italic; color: #1e293b; line-height: 1.7; text-align: center; box-shadow: 0 4px 14px rgba(37,99,235,0.08);">
+        “Quy luật phủ định của phủ định phản ánh sự phát triển đi lên của sự vật, hiện tượng theo hình thức xoáy ốc – vừa kế thừa, vừa đổi mới. Đây là quy luật có ý nghĩa to lớn trong nhận thức và thực tiễn, giúp chúng ta hiểu rằng sự phát triển luôn phức tạp nhưng cuối cùng nhất định sẽ tiến bộ.”
+      </div>
+    `)}
+
+    ${makeTextBox('tb-f7-thanks', 35, 280, 890, `
+      <div style="text-align: center; font-family: 'Be Vietnam Pro', sans-serif; padding-top: 15px;">
+        <div style="font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px;">XIN CHÂN THÀNH CẢM ƠN THẦY VÀ CÁC BẠN!</div>
+        <div style="font-size: 15px; color: #64748b; margin-top: 8px;">Nhóm 8 rất mong nhận được những câu hỏi và ý kiến đóng góp quý báu từ Thầy và các bạn.</div>
+      </div>
+    `)}
+  </div>`;
+
+// 1. Update index.html
+let indexHTML = fs.readFileSync('index.html', 'utf8');
+const worldStartTag = '<div class="prezi-world" id="prezi-world">';
+const worldEndTag = '</main>';
+
+const startIdx = indexHTML.indexOf(worldStartTag);
+const endIdx = indexHTML.indexOf(worldEndTag, startIdx);
+
+if (startIdx !== -1 && endIdx !== -1) {
+  const newIndexHTML = indexHTML.substring(0, startIdx + worldStartTag.length) + '\n' + worldHTML + '\n      </div>\n    ' + indexHTML.substring(endIdx);
+  fs.writeFileSync('index.html', newIndexHTML, 'utf8');
+  console.log('Successfully updated index.html with complete presentation content!');
+} else {
+  console.error('Could not locate prezi-world in index.html');
+}
+
+fs.writeFileSync('presentation_content.html', worldHTML, 'utf8');
+console.log('Wrote presentation_content.html');

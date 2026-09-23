@@ -3199,6 +3199,15 @@ function initPreziApp() {
     }
 
     // 3. Purge obsolete philosophy preset if detected
+    function isOldPhilosophyPreset(html) {
+      if (!html) return false;
+      return html.includes('cluster-principles') || 
+             html.includes('karl_marx') || 
+             html.includes('bg-manuscript-layer') || 
+             html.includes('cluster-intro') || 
+             (!html.includes('NHÓM 8') && !html.includes('frame-01'));
+    }
+
     if (savedContent && isOldPhilosophyPreset(savedContent)) {
       console.log('Purging obsolete philosophy demo content from storage...');
       localStorage.removeItem('prezi_saved_world_content');

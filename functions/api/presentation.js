@@ -50,7 +50,7 @@ export async function onRequestGet(context) {
 
     let content = record.content;
     let parsedLayout = null;
-    if (content && (content.includes('cluster-principles') || content.includes('karl_marx') || content.includes('bg-manuscript-layer') || content.includes('cluster-intro'))) {
+    if (content && (content.includes('cluster-principles') || content.includes('karl_marx') || content.includes('bg-manuscript-layer') || content.includes('cluster-intro') || (!content.includes('NHÓM 8') && !content.includes('frame-01')))) {
       content = null;
       try {
         await env.DB.prepare('DELETE FROM presentations WHERE id = ?').bind('main').run();
