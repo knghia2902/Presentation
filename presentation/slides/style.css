@@ -370,8 +370,9 @@ input, textarea {
   width: 210px;
   background: #ffffff;
   border: 1px solid #d1d5db;
+  border-right: none;
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   z-index: 60;
@@ -447,12 +448,12 @@ input, textarea {
   justify-content: center;
 }
 
-/* AUTHENTIC PREZI CURVED COLLAPSE / EXPAND TAB ( media_1790131134493.png ) */
+/* AUTHENTIC PREZI CURVED COLLAPSE / EXPAND TAB ( media_1790131979618.png ) */
 .sidebar-collapse-tab {
   position: absolute;
   top: 380px;
   right: -12px;
-  width: 13px;
+  width: 14px;
   height: 66px;
   background: transparent;
   border: none;
@@ -463,12 +464,12 @@ input, textarea {
   justify-content: center;
   z-index: 65;
   outline: none;
-  filter: none;
+  filter: drop-shadow(4px 0 10px rgba(0, 0, 0, 0.08));
   user-select: none;
 }
 
 .sidebar-collapse-tab:hover {
-  filter: drop-shadow(1px 0 2px rgba(0, 0, 0, 0.08));
+  filter: drop-shadow(5px 0 14px rgba(0, 0, 0, 0.12));
 }
 
 .sidebar-collapse-tab .tab-shape-svg {
@@ -481,28 +482,16 @@ input, textarea {
   overflow: visible;
 }
 
-.sidebar-collapse-tab .tab-shape-svg rect {
+.sidebar-collapse-tab .tab-shape-svg path {
   fill: #ffffff;
-}
-
-.sidebar-collapse-tab .tab-shape-svg path[fill] {
-  fill: #ffffff;
-}
-
-.sidebar-collapse-tab .tab-shape-svg path[stroke] {
-  stroke: #d1d5db;
-  transition: stroke 0.15s;
-}
-
-.sidebar-collapse-tab:hover .tab-shape-svg path[stroke] {
-  stroke: #9ca3af;
+  stroke: none;
 }
 
 .sidebar-collapse-tab .chevron-icon {
   position: relative;
   z-index: 2;
-  margin-left: 3px;
-  color: #6b7280;
+  margin-left: 1px;
+  color: #4b5563;
   transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), color 0.15s;
 }
 
