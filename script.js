@@ -2661,16 +2661,19 @@ function initPreziApp() {
     // Floating Image Toolbar Actions (Hình 1: Replace, Edit, Crop, Delete, Layer Ordering)
     const replaceInput = document.getElementById('replace-file-input');
     if (replaceInput) {
-      replaceInput.addEventListener('change', (e) => {
+      replaceInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file || !selectedImgEl) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          selectedImgEl.src = ev.target.result;
+        showToast('Đang tối ưu hóa hình ảnh...');
+        try {
+          const compressed = await compressImageFileOrUrl(file);
+          selectedImgEl.src = compressed;
           saveEditsToStorage();
           showToast('Đã thay thế hình ảnh thành công!');
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+          console.error(err);
+          showToast('Lỗi xử lý hình ảnh!');
+        }
       });
     }
 
@@ -2745,20 +2748,24 @@ function initPreziApp() {
     // 3. Insert Image from File Upload
     const fileInput = document.getElementById('file-input-image');
     if (fileInput) {
-      fileInput.addEventListener('change', (e) => {
+      fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
+        showToast('Đang tối ưu hóa hình ảnh tải lên...');
+        try {
+          const compressed = await compressImageFileOrUrl(file);
           if (selectedImgEl && document.contains(selectedImgEl)) {
-            selectedImgEl.src = event.target.result;
+            selectedImgEl.src = compressed;
             saveEditsToStorage();
             showToast('Đã thay thế ảnh thành công!');
           } else {
-            placeImageOnCanvas(event.target.result);
+            await placeImageOnCanvas(compressed);
           }
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+          console.error(err);
+          showToast('Lỗi tải hình ảnh!');
+        }
+        fileInput.value = '';
       });
     }
 
@@ -2779,18 +2786,20 @@ function initPreziApp() {
             e.preventDefault();
             const blob = item.getAsFile();
             if (blob) {
-              const reader = new FileReader();
-              reader.onload = (ev) => {
+              showToast('Đang tối ưu hình ảnh từ Clipboard...');
+              try {
+                const compressed = await compressImageFileOrUrl(blob);
                 if (selectedImgEl && document.contains(selectedImgEl)) {
-                  selectedImgEl.src = ev.target.result;
+                  selectedImgEl.src = compressed;
                   saveEditsToStorage();
                   showToast('Đã dán đè thay thế hình ảnh đang chọn!');
                 } else {
-                  placeImageOnCanvas(ev.target.result);
+                  await placeImageOnCanvas(compressed);
                   showToast('Đã dán hình ảnh trực tiếp từ bộ nhớ đệm (Clipboard)!');
                 }
-              };
-              reader.readAsDataURL(blob);
+              } catch (err) {
+                console.error(err);
+              }
               handled = true;
               return;
             }
@@ -2806,13 +2815,19 @@ function initPreziApp() {
         const img = doc.querySelector('img');
         if (img && img.src) {
           e.preventDefault();
-          if (selectedImgEl && document.contains(selectedImgEl)) {
-            selectedImgEl.src = img.src;
-            saveEditsToStorage();
-            showToast('Đã dán đè thay thế hình ảnh đang chọn!');
-          } else {
-            placeImageOnCanvas(img.src);
-            showToast('Đã chèn hình ảnh sao chép từ trình duyệt!');
+          showToast('Đang tối ưu hình ảnh sao chép...');
+          try {
+            const compressed = await compressImageFileOrUrl(img.src);
+            if (selectedImgEl && document.contains(selectedImgEl)) {
+              selectedImgEl.src = compressed;
+              saveEditsToStorage();
+              showToast('Đã dán đè thay thế hình ảnh đang chọn!');
+            } else {
+              await placeImageOnCanvas(compressed);
+              showToast('Đã chèn hình ảnh sao chép từ trình duyệt!');
+            }
+          } catch (err) {
+            console.error(err);
           }
           handled = true;
           return;
@@ -2824,13 +2839,19 @@ function initPreziApp() {
         const text = clipboard.getData('text/plain').trim();
         if (text.match(/\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i) || text.startsWith('data:image/')) {
           e.preventDefault();
-          if (selectedImgEl && document.contains(selectedImgEl)) {
-            selectedImgEl.src = text;
-            saveEditsToStorage();
-            showToast('Đã dán đè thay thế hình ảnh đang chọn!');
-          } else {
-            placeImageOnCanvas(text);
-            showToast('Đã dán hình ảnh từ đường dẫn URL!');
+          showToast('Đang xử lý hình ảnh URL...');
+          try {
+            const compressed = await compressImageFileOrUrl(text);
+            if (selectedImgEl && document.contains(selectedImgEl)) {
+              selectedImgEl.src = compressed;
+              saveEditsToStorage();
+              showToast('Đã dán đè thay thế hình ảnh đang chọn!');
+            } else {
+              await placeImageOnCanvas(compressed);
+              showToast('Đã dán hình ảnh từ đường dẫn URL!');
+            }
+          } catch (err) {
+            console.error(err);
           }
           handled = true;
           return;
@@ -3278,27 +3299,100 @@ function initPreziApp() {
     });
   }
 
+  // High-performance client-side image compression
+  // Shrinks 5MB-10MB mobile/desktop uploads down to 80-220KB (fast save, no QuotaExceededError, no SQLITE_TOOBIG)
+  function compressImageFileOrUrl(input, maxWidth = 1400, maxHeight = 1000, quality = 0.82) {
+    return new Promise((resolve) => {
+      const renderToCanvas = (img) => {
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (!w || !h) {
+          resolve(img.src);
+          return;
+        }
+        if (w > maxWidth || h > maxHeight) {
+          const ratio = Math.min(maxWidth / w, maxHeight / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl);
+        } catch (err) {
+          resolve(img.src);
+        }
+      };
+
+      if (typeof input === 'string') {
+        if (input.startsWith('data:image/svg') || (input.startsWith('data:image/') && input.length < 60000)) {
+          resolve(input);
+          return;
+        }
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => renderToCanvas(img);
+        img.onerror = () => resolve(input);
+        img.src = input;
+      } else if (input instanceof Blob || input instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => renderToCanvas(img);
+          img.onerror = () => resolve(e.target.result);
+          img.src = e.target.result;
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(input);
+      } else {
+        resolve(input);
+      }
+    });
+  }
+  window.compressImageFileOrUrl = compressImageFileOrUrl;
+
   // Place and attach draggable listeners to an image
-  function placeImageOnCanvas(srcDataUrl) {
-    const activeCard = document.querySelector('.canvas-card.current-active');
-    const container = activeCard || world;
+  async function placeImageOnCanvas(srcDataUrl) {
+    // Safety check: ensure image is compressed if it's a large data URL
+    if (typeof srcDataUrl === 'string' && srcDataUrl.startsWith('data:image/') && srcDataUrl.length > 250000) {
+      srcDataUrl = await compressImageFileOrUrl(srcDataUrl);
+    }
+
+    // Identify active slide frame or card
+    const activeFrame = document.querySelector('.canvas-slide-frame.selected') || 
+                        (currentStopIndex > 0 && STOPS[currentStopIndex]?.targetId ? document.getElementById(STOPS[currentStopIndex].targetId) : null);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'user-image-wrapper';
 
-    if (activeCard) {
-      wrapper.style.position = 'relative';
-      wrapper.style.margin = '14px 0';
-      wrapper.style.width = '100%';
-      wrapper.style.height = '180px';
+    if (activeFrame && activeFrame.id !== 'overview-frame-box') {
+      // Place centered inside the current slide frame
+      wrapper.style.position = 'absolute';
+      const fW = activeFrame.offsetWidth || 960;
+      const fH = activeFrame.offsetHeight || 540;
+      const imgW = 340;
+      const imgH = 240;
+      wrapper.style.left = `${Math.round((fW - imgW) / 2)}px`;
+      wrapper.style.top = `${Math.round((fH - imgH) / 2)}px`;
+      wrapper.style.width = `${imgW}px`;
+      wrapper.style.height = `${imgH}px`;
+      activeFrame.appendChild(wrapper);
     } else {
       const vpRect = viewport.getBoundingClientRect();
-      const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
-      const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
-      wrapper.style.left = `${Math.round(centerX - 150)}px`;
-      wrapper.style.top = `${Math.round(centerY - 100)}px`;
-      wrapper.style.width = '280px';
-      wrapper.style.height = '200px';
+      const scale = currentCamera.scale || 1;
+      const centerX = (-currentCamera.x + vpRect.width / 2) / scale;
+      const centerY = (-currentCamera.y + vpRect.height / 2) / scale;
+      wrapper.style.left = `${Math.round(centerX - 170)}px`;
+      wrapper.style.top = `${Math.round(centerY - 120)}px`;
+      wrapper.style.width = '340px';
+      wrapper.style.height = '240px';
+      world.appendChild(wrapper);
     }
 
     const img = document.createElement('img');
@@ -3318,35 +3412,31 @@ function initPreziApp() {
     wrapper.appendChild(img);
     wrapper.appendChild(btnDel);
     wrapper.appendChild(resizeHandle);
-    container.appendChild(wrapper);
 
     wrapper.dataset.eventsBound = 'true';
     attachImageWrapperEvents(wrapper, img, resizeHandle, btnDel);
+
+    // Auto-select newly placed image so toolbar is accessible
+    document.querySelectorAll('.user-image-wrapper.selected').forEach(w => w.classList.remove('selected'));
+    document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
+    wrapper.classList.add('selected');
+    img.classList.add('prezi-selected-img');
+    selectedImgEl = img;
+    positionImageToolbar(wrapper);
+
     saveEditsToStorage();
-  }
-
-  const PREZI_APP_VERSION = '2026.09.23_v21_authentic_slide_frame';
-  if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
-    localStorage.removeItem('prezi_saved_world_content');
-    localStorage.removeItem('prezi_cards_layout_v2');
-    localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
-    saveToIndexedDB('world_backup', null);
-  }
-
-  function isOldPhilosophyPreset(html) {
-    if (!html) return false;
-    return html.includes('cluster-principles') || 
-           html.includes('karl_marx') || 
-           html.includes('bust_portrait_card') ||
-           html.includes('Quy Luật Phủ Định Của Phủ') ||
-           html.includes('bg-manuscript-layer') ||
-           html.includes('cluster-intro');
+    showToast('Đã chèn và lưu hình ảnh thành công!');
   }
 
   // Persistence with LocalStorage, IndexedDB & Cloudflare D1 Database
   let d1SyncTimer = null;
   async function saveEditsToStorage() {
     const saveIndicator = document.getElementById('save-status-indicator');
+    if (saveIndicator) {
+      saveIndicator.textContent = 'Đang lưu...';
+      saveIndicator.className = 'save-status-indicator saving';
+    }
+
     let content = world.innerHTML;
     // Sanitize ephemeral selection classes and event bound flags
     content = content
@@ -3355,12 +3445,22 @@ function initPreziApp() {
       .replace(/\bcard-selected\b/g, '')
       .replace(/\bcurrent-active\b/g, '')
       .replace(/\s{2,}/g, ' ');
+
+    const saveTimestamp = Date.now();
+
     try {
       localStorage.setItem('prezi_saved_world_content', content);
+      localStorage.setItem('prezi_saved_timestamp', String(saveTimestamp));
     } catch (err) {
-      // LocalStorage hit 5MB limit, fallback seamlessly to IndexedDB
+      console.warn('LocalStorage quota limit reached, relying on IndexedDB and D1', err);
     }
-    await saveToIndexedDB('world_backup', content);
+
+    try {
+      await saveToIndexedDB('world_backup', { content, timestamp: saveTimestamp });
+    } catch (err) {
+      console.warn('IndexedDB save warning:', err);
+    }
+
     if (saveIndicator) {
       saveIndicator.textContent = 'Đã lưu tự động';
       saveIndicator.className = 'save-status-indicator saved';
@@ -3378,7 +3478,8 @@ function initPreziApp() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             content,
-            cardsLayout: layout
+            cardsLayout: layout,
+            clientTimestamp: saveTimestamp
           })
         });
 
@@ -3390,16 +3491,19 @@ function initPreziApp() {
               saveIndicator.className = 'save-status-indicator saved';
             }
           }
+        } else {
+          console.warn('D1 sync returned non-OK status:', res.status);
         }
       } catch (e) {
         // Offline or running without Pages Functions
       }
-    }, 600);
+    }, 500);
   }
 
   async function loadEditsFromStorage() {
-    let savedContent = null;
-    let savedLayout = null;
+    let d1Content = null;
+    let d1Layout = null;
+    let d1Timestamp = 0;
 
     // 1. Try loading from Cloudflare D1 database first
     try {
@@ -3407,41 +3511,73 @@ function initPreziApp() {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data && json.data.content) {
-          savedContent = json.data.content;
-          savedLayout = json.data.cardsLayout;
+          d1Content = json.data.content;
+          d1Layout = json.data.cardsLayout;
+          function parseIsoDate(val) {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            const str = String(val).trim().replace(' ', 'T');
+            const d = new Date(str.endsWith('Z') || str.includes('+') ? str : str + 'Z');
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+          }
+          d1Timestamp = parseIsoDate(json.data.updatedAt);
         }
       }
     } catch (e) {
       // Offline fallback
     }
 
-    // 2. If not loaded from D1, fallback to LocalStorage & IndexedDB
-    if (!savedContent) {
-      savedContent = localStorage.getItem('prezi_saved_world_content');
-      if (!savedContent) {
-        savedContent = await loadFromIndexedDB('world_backup');
+    // 2. Load from LocalStorage
+    let localContent = null;
+    let localTimestamp = 0;
+    try {
+      localContent = localStorage.getItem('prezi_saved_world_content');
+      localTimestamp = parseInt(localStorage.getItem('prezi_saved_timestamp') || '0', 10);
+    } catch (e) {}
+
+    // 3. Load from IndexedDB
+    let idbContent = null;
+    let idbTimestamp = 0;
+    try {
+      const idbData = await loadFromIndexedDB('world_backup');
+      if (idbData) {
+        if (typeof idbData === 'object' && idbData.content) {
+          idbContent = idbData.content;
+          idbTimestamp = idbData.timestamp || 0;
+        } else if (typeof idbData === 'string') {
+          idbContent = idbData;
+        }
       }
-    }
+    } catch (e) {}
 
-    // 3. Purge obsolete philosophy preset if detected
-    function isOldPhilosophyPreset(html) {
+    // 4. Determine freshest version
+    let savedContent = null;
+    let savedLayout = d1Layout;
+
+    // Filter out obsolete legacy templates
+    function isObsoleteLegacy(html) {
       if (!html) return false;
-      return html.includes('cluster-principles') || 
-             html.includes('karl_marx') || 
-             html.includes('bg-manuscript-layer') || 
-             html.includes('cluster-intro') || 
-             (!html.includes('NHÓM 8') && !html.includes('frame-01'));
+      return html.includes('cluster-principles') || html.includes('bust_portrait_card');
     }
 
-    if (savedContent && isOldPhilosophyPreset(savedContent)) {
-      console.log('Purging obsolete philosophy demo content from storage...');
-      localStorage.removeItem('prezi_saved_world_content');
-      localStorage.removeItem('prezi_cards_layout_v2');
-      await saveToIndexedDB('world_backup', null);
-      savedContent = null;
-      savedLayout = null;
-      // Overwrite D1 with fresh clean slate
+    if (d1Content && isObsoleteLegacy(d1Content)) d1Content = null;
+    if (localContent && isObsoleteLegacy(localContent)) localContent = null;
+    if (idbContent && isObsoleteLegacy(idbContent)) idbContent = null;
+
+    // Compare timestamps to choose the newest content
+    const maxLocalTs = Math.max(localTimestamp, idbTimestamp);
+    if (d1Content && (d1Timestamp >= maxLocalTs || maxLocalTs === 0)) {
+      savedContent = d1Content;
+    } else if (localContent && localTimestamp >= idbTimestamp) {
+      savedContent = localContent;
+      // Sync newer local edits back to D1
       saveEditsToStorage();
+    } else if (idbContent) {
+      savedContent = idbContent;
+      // Sync newer idb edits back to D1
+      saveEditsToStorage();
+    } else if (d1Content) {
+      savedContent = d1Content;
     }
 
     if (savedContent) {
@@ -3451,37 +3587,7 @@ function initPreziApp() {
       world.innerHTML = savedContent;
       world.querySelectorAll('[data-events-bound]').forEach(el => delete el.dataset.eventsBound);
       world.querySelectorAll('.card-action-bar').forEach(el => el.remove());
-      // Sanitize any card contaminated with raw PreziDoc JSON strings
-      world.querySelectorAll('.canvas-card, .canvas-item').forEach(card => {
-        if (card.textContent && card.textContent.includes('{"type":"PreziDoc"')) {
-          const p = card.querySelector('p, .card-body-text') || card;
-          p.textContent = 'Khung Prezi mới (Nhấp chuột để chỉnh sửa nội dung)';
-        }
-      });
-      // Convert any existing custom-added-card or pasted card into clean Prezi floating textbox (bỏ hẳn khung card vớ vẩn)
-      world.querySelectorAll('.canvas-card').forEach(el => {
-        if (el.classList.contains('custom-added-card') || el.classList.contains('custom-added-text-box') || (el.querySelector('.card-body-text')?.textContent && el.querySelector('.card-body-text').textContent.includes('Quy luật phủ định của phủ định không chỉ là một lý thuyết'))) {
-          const p = el.querySelector('.card-body-text') || el.querySelector('p');
-          const textContent = p ? p.textContent.trim() : el.textContent.trim();
-          if (textContent && textContent !== 'Khung Prezi mới' && textContent !== 'Click to edit text') {
-            const newTextBox = document.createElement('div');
-            newTextBox.className = 'prezi-textbox';
-            newTextBox.id = `textbox-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-            newTextBox.style.left = el.style.left || `${el.offsetLeft}px`;
-            newTextBox.style.top = el.style.top || `${el.offsetTop}px`;
-            newTextBox.innerHTML = `
-              <div class="textbox-content" contenteditable="true" spellcheck="false">${textContent}</div>
-              <div class="box-handle tl"></div>
-              <div class="box-handle tr"></div>
-              <div class="box-handle bl"></div>
-              <div class="box-handle br"></div>
-            `;
-            world.appendChild(newTextBox);
-            setupTextBox(newTextBox);
-          }
-          el.remove();
-        }
-      });
+      
       world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
       world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
       ensureOverviewFrameBox();
@@ -3494,7 +3600,7 @@ function initPreziApp() {
       }
       setupCardInteractions();
       
-      // Re-enable ContentEditable
+      // Re-enable ContentEditable for all text elements
       const editableSelectors = [
         '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
         '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
@@ -3523,7 +3629,6 @@ function initPreziApp() {
       }, 60);
     }
   }
-
 
   function cleanUpLegacyCustomCards() {
     world.querySelectorAll('.canvas-card').forEach(el => {
@@ -3555,7 +3660,9 @@ function initPreziApp() {
   cleanUpLegacyCustomCards();
   separateOverlappingFrames();
   ensureOverviewFrameBox();
+  world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
   world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
+  upgradeAllImagesToInteractive();
   syncStopsFromDOM();
   setupCardInteractions();
   setupPanning();
