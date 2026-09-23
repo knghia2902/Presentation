@@ -113,10 +113,15 @@
 
       <!-- Prezi Curved Collapse Tab ( media_1790131134493.png ) -->
       <button class="sidebar-collapse-tab" id="btn-toggle-sidebar" title="Thu gọn / Mở rộng lộ trình" aria-label="Toggle sidebar">
-        <svg class="tab-shape-svg" viewBox="0 0 16 80" fill="none">
-          <path d="M 0 0 C 0 10, 4 16, 9 20 C 13 23.5, 14.5 27, 14.5 32 L 14.5 48 C 14.5 53, 13 56.5, 9 60 C 4 64, 0 70, 0 80 L -5 80 L -5 0 Z" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
+        <svg class="tab-shape-svg" viewBox="0 0 13 66" fill="none">
+          <!-- White mask over the sidebar border underneath -->
+          <rect x="-3" y="0" width="4" height="66" fill="#ffffff" stroke="none"/>
+          <!-- White filled body without stroke -->
+          <path d="M 0 0 C 0 6, 2.5 10, 6.5 12 C 9.5 13.5, 12 15.5, 12 19 L 12 47 C 12 50.5, 9.5 52.5, 6.5 54 C 2.5 56, 0 60, 0 66 Z" fill="#ffffff" stroke="none"/>
+          <!-- Only outer curved border stroke! -->
+          <path d="M 0 0 C 0 6, 2.5 10, 6.5 12 C 9.5 13.5, 12 15.5, 12 19 L 12 47 C 12 50.5, 9.5 52.5, 6.5 54 C 2.5 56, 0 60, 0 66" fill="none" stroke="#d1d5db" stroke-width="1.2" stroke-linecap="round"/>
         </svg>
-        <svg class="chevron-icon" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="chevron-icon" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
       </button>

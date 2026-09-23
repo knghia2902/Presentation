@@ -451,9 +451,9 @@ input, textarea {
 .sidebar-collapse-tab {
   position: absolute;
   top: 380px;
-  right: -14px;
-  width: 15px;
-  height: 80px;
+  right: -12px;
+  width: 13px;
+  height: 66px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -463,13 +463,12 @@ input, textarea {
   justify-content: center;
   z-index: 65;
   outline: none;
-  filter: drop-shadow(2px 0 3px rgba(0, 0, 0, 0.04));
-  transition: filter 0.15s, transform 0.15s;
+  filter: none;
   user-select: none;
 }
 
 .sidebar-collapse-tab:hover {
-  filter: drop-shadow(3px 0 5px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(1px 0 2px rgba(0, 0, 0, 0.08));
 }
 
 .sidebar-collapse-tab .tab-shape-svg {
@@ -482,13 +481,20 @@ input, textarea {
   overflow: visible;
 }
 
-.sidebar-collapse-tab .tab-shape-svg path {
+.sidebar-collapse-tab .tab-shape-svg rect {
   fill: #ffffff;
-  stroke: #d1d5db;
-  transition: fill 0.15s, stroke 0.15s;
 }
 
-.sidebar-collapse-tab:hover .tab-shape-svg path {
+.sidebar-collapse-tab .tab-shape-svg path[fill] {
+  fill: #ffffff;
+}
+
+.sidebar-collapse-tab .tab-shape-svg path[stroke] {
+  stroke: #d1d5db;
+  transition: stroke 0.15s;
+}
+
+.sidebar-collapse-tab:hover .tab-shape-svg path[stroke] {
   stroke: #9ca3af;
 }
 
