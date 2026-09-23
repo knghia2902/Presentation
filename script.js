@@ -577,13 +577,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Delete an existing card
-  function deleteCard(card) {
+  function deleteCard(card, skipConfirm = false) {
     if (STOPS.length <= 2) {
       alert('Không thể xóa hết tất cả các thẻ trình chiếu.');
       return;
     }
     const cardTitle = card.querySelector('h1, h2, h3, h4, .card-title-prezi')?.textContent?.trim() || 'thẻ này';
-    if (!confirm(`Bạn có chắc chắn muốn xóa "${cardTitle}" khỏi bài thuyết trình?`)) return;
+    if (!skipConfirm && !confirm(`Bạn có chắc chắn muốn xóa "${cardTitle}" khỏi bài thuyết trình?`)) return;
 
     const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
     if (stopIdx >= 0) {
@@ -593,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     buildSidebar();
     saveEditsToStorage();
-    showToast('Đã xóa thẻ khỏi bài thuyết trình.');
+    showToast(`Đã xóa "${cardTitle}" khỏi bài thuyết trình.`);
 
     if (currentStopIndex >= STOPS.length) {
       goToStop(STOPS.length - 1);
@@ -1334,9 +1334,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Keyboard shortcut: Delete / Backspace key to remove selected image
+    // Universal Keyboard Delete Shortcut (Delete or Backspace on selected card, image, or text block)
     window.addEventListener('keydown', (e) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedImgEl && !document.activeElement.isContentEditable) {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+
+      // 1. If actively typing text characters inside contenteditable, let native backspace/delete work!
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        return;
+      }
+
+      // 2. If an image is selected:
+      if (selectedImgEl && document.contains(selectedImgEl)) {
         e.preventDefault();
         const wrapper = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl;
         wrapper.remove();
@@ -1344,6 +1353,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (imgToolbar) imgToolbar.classList.remove('show');
         saveEditsToStorage();
         showToast('Đã xóa hình ảnh.');
+        return;
+      }
+
+      // 3. If an image wrapper is selected:
+      const selectedImgWrapper = document.querySelector('.user-image-wrapper.selected');
+      if (selectedImgWrapper) {
+        e.preventDefault();
+        selectedImgWrapper.remove();
+        selectedImgEl = null;
+        if (imgToolbar) imgToolbar.classList.remove('show');
+        saveEditsToStorage();
+        showToast('Đã xóa hình ảnh.');
+        return;
+      }
+
+      // 4. If card(s) are selected on canvas:
+      const selectedCards = Array.from(document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected'));
+      if (selectedCards.length > 0) {
+        e.preventDefault();
+        selectedCards.forEach(c => deleteCard(c, true));
+        return;
+      }
+
+      // 5. If a text block element is selected:
+      if (selectedTextEl && document.contains(selectedTextEl)) {
+        e.preventDefault();
+        selectedTextEl.remove();
+        selectedTextEl = null;
+        if (textToolbar) textToolbar.classList.remove('show');
+        saveEditsToStorage();
+        showToast('Đã xóa khối văn bản.');
+        return;
       }
     });
 
@@ -1587,7 +1628,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v8_native_ctrl_a';
+  const PREZI_APP_VERSION = '2026.09.23_v9_universal_delete';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
