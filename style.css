@@ -1482,10 +1482,11 @@ body.in-present-mode [contenteditable="true"]:focus {
 .user-placed-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 8px;
   pointer-events: none;
   display: block;
+  background: transparent !important;
 }
 
 .user-image-wrapper {
@@ -1499,6 +1500,7 @@ body.in-present-mode [contenteditable="true"]:focus {
   border-radius: 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
   z-index: 50;
+  background: transparent !important;
   transition: box-shadow 0.2s, outline 0.15s;
 }
 
@@ -2182,7 +2184,7 @@ body.in-present-mode .prezi-textbox .box-handle {
 }
 
 .prezi-floating-image-toolbar {
-  position: absolute;
+  position: fixed;
   background: #ffffff;
   border: 1px solid #dcdfe6;
   border-radius: 8px;
@@ -2190,8 +2192,8 @@ body.in-present-mode .prezi-textbox .box-handle {
   display: none;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  z-index: 5000;
+  padding: 6px 12px;
+  z-index: 9999;
   transition: opacity 0.2s cubic-bezier(0.2, 0, 0, 1);
   user-select: none;
 }

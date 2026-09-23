@@ -2039,19 +2039,6 @@ function initPreziApp() {
       });
     }
 
-    const fileInputMedia = document.getElementById('file-input-image');
-    if (fileInputMedia) {
-      fileInputMedia.addEventListener('change', (e) => {
-        const file = e.target.files && e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          placeImageOnCanvas(evt.target.result);
-          showToast('Đã chèn hình ảnh lên bản vẽ!');
-        };
-        reader.readAsDataURL(file);
-      });
-    }
 
     const btnToolShape = document.getElementById('btn-tool-shape');
     if (btnToolShape) {
@@ -2452,10 +2439,24 @@ function initPreziApp() {
     function positionImageToolbar(targetEl) {
       if (!imgToolbar || document.body.classList.contains('in-present-mode')) return;
       const rect = targetEl.getBoundingClientRect();
-      imgToolbar.style.top = `${Math.max(rect.top - 54, 56)}px`;
-      imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
+      const tbHeight = imgToolbar.offsetHeight || 44;
+      const tbWidth = imgToolbar.offsetWidth || 440;
+
+      // Smart clearance: if less than 65px above image (topbar clearance), place BELOW the image
+      let topPos = rect.top - tbHeight - 14;
+      if (topPos < 65) {
+        topPos = rect.bottom + 14;
+      }
+
+      // Center horizontally on the image
+      let leftPos = rect.left + rect.width / 2 - tbWidth / 2;
+      leftPos = Math.max(250, Math.min(window.innerWidth - tbWidth - 16, leftPos));
+
+      imgToolbar.style.top = `${Math.round(topPos)}px`;
+      imgToolbar.style.left = `${Math.round(leftPos)}px`;
       imgToolbar.classList.add('show');
     }
+    window.positionImageToolbar = positionImageToolbar;
 
     upgradeAllImagesToInteractive();
 
@@ -3123,10 +3124,24 @@ function initPreziApp() {
     const imgToolbar = document.getElementById('image-floating-toolbar');
     if (!imgToolbar || document.body.classList.contains('in-present-mode')) return;
     const rect = targetEl.getBoundingClientRect();
-    imgToolbar.style.top = `${Math.max(rect.top - 54, 56)}px`;
-    imgToolbar.style.left = `${Math.max(rect.left + rect.width / 2 - 120, 240)}px`;
+    const tbHeight = imgToolbar.offsetHeight || 44;
+    const tbWidth = imgToolbar.offsetWidth || 440;
+
+    // Smart clearance: if less than 65px above image (topbar clearance), place BELOW the image
+    let topPos = rect.top - tbHeight - 14;
+    if (topPos < 65) {
+      topPos = rect.bottom + 14;
+    }
+
+    // Center horizontally on the image
+    let leftPos = rect.left + rect.width / 2 - tbWidth / 2;
+    leftPos = Math.max(250, Math.min(window.innerWidth - tbWidth - 16, leftPos));
+
+    imgToolbar.style.top = `${Math.round(topPos)}px`;
+    imgToolbar.style.left = `${Math.round(leftPos)}px`;
     imgToolbar.classList.add('show');
   }
+  window.positionImageToolbar = positionImageToolbar;
 
   // Attach full suite of interactive controls (Select, Resize, Drag, Delete, Double-click)
   function attachImageWrapperEvents(wrapper, img, resizeHandle, btnDel) {
@@ -3223,11 +3238,17 @@ function initPreziApp() {
         } else {
           wrapper.style.transform = `translate(${imgInitTransX + dx}px, ${imgInitTransY + dy}px)`;
         }
+        if (wrapper.classList.contains('selected')) {
+          positionImageToolbar(wrapper);
+        }
       } else if (isResizingImg) {
         const dx = (e.clientX - resizeStartX) / scale;
         const dy = (e.clientY - resizeStartY) / scale;
         wrapper.style.width = `${Math.max(initW + dx, 50)}px`;
         wrapper.style.height = `${Math.max(initH + dy, 40)}px`;
+        if (wrapper.classList.contains('selected')) {
+          positionImageToolbar(wrapper);
+        }
       }
     });
 
@@ -3235,6 +3256,9 @@ function initPreziApp() {
       if (isDraggingImg || isResizingImg) {
         isDraggingImg = false;
         isResizingImg = false;
+        if (wrapper.classList.contains('selected')) {
+          positionImageToolbar(wrapper);
+        }
         saveEditsToStorage();
       }
     });
@@ -3300,9 +3324,25 @@ function initPreziApp() {
   }
 
   // High-performance client-side image compression
-  // Shrinks 5MB-10MB mobile/desktop uploads down to 80-220KB (fast save, no QuotaExceededError, no SQLITE_TOOBIG)
-  function compressImageFileOrUrl(input, maxWidth = 1400, maxHeight = 1000, quality = 0.82) {
+  // Preserves 100% alpha transparency for PNG/WebP (NO BLACK BACKGROUNDS!)
+  // Compresses down to ~80-250KB for rapid, fail-proof saving to D1 & LocalStorage
+  function compressImageFileOrUrl(input, maxWidth = 1400, maxHeight = 1000, quality = 0.85) {
     return new Promise((resolve) => {
+      let isTransparentHint = false;
+      if (input instanceof File || input instanceof Blob) {
+        if (input.type === 'image/png' || input.type === 'image/webp' || input.type === 'image/gif' || input.type === 'image/svg+xml') {
+          isTransparentHint = true;
+        }
+      } else if (typeof input === 'string') {
+        if (input.startsWith('data:image/png') || input.startsWith('data:image/webp') || input.startsWith('data:image/gif') || input.includes('.png') || input.includes('.webp')) {
+          isTransparentHint = true;
+        }
+        if (input.startsWith('data:image/svg')) {
+          resolve(input);
+          return;
+        }
+      }
+
       const renderToCanvas = (img) => {
         let w = img.naturalWidth || img.width;
         let h = img.naturalHeight || img.height;
@@ -3322,19 +3362,43 @@ function initPreziApp() {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, w, h);
+
+        // Check if canvas actually has transparent pixels
+        let hasAlpha = isTransparentHint;
+        if (!hasAlpha) {
+          try {
+            const pixelData = ctx.getImageData(0, 0, w, h).data;
+            for (let i = 3; i < pixelData.length; i += 64) {
+              if (pixelData[i] < 250) {
+                hasAlpha = true;
+                break;
+              }
+            }
+          } catch (e) {}
+        }
+
         try {
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-          resolve(compressedDataUrl);
+          if (hasAlpha) {
+            // First try WebP: supports alpha AND gives great compression
+            const webpUrl = canvas.toDataURL('image/webp', quality);
+            if (webpUrl && webpUrl.startsWith('data:image/webp')) {
+              resolve(webpUrl);
+              return;
+            }
+            // Fallback for browsers without webp canvas export: PNG
+            const pngUrl = canvas.toDataURL('image/png');
+            resolve(pngUrl);
+            return;
+          }
+          // Non-transparent photos: JPEG
+          const jpegUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(jpegUrl);
         } catch (err) {
           resolve(img.src);
         }
       };
 
       if (typeof input === 'string') {
-        if (input.startsWith('data:image/svg') || (input.startsWith('data:image/') && input.length < 60000)) {
-          resolve(input);
-          return;
-        }
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => renderToCanvas(img);
@@ -3371,15 +3435,31 @@ function initPreziApp() {
     const wrapper = document.createElement('div');
     wrapper.className = 'user-image-wrapper';
 
+    // Calculate initial dimensions preserving aspect ratio if possible
+    let imgW = 380;
+    let imgH = 260;
+    try {
+      const tempImg = new Image();
+      tempImg.src = srcDataUrl;
+      if (tempImg.naturalWidth && tempImg.naturalHeight) {
+        const aspect = tempImg.naturalWidth / tempImg.naturalHeight;
+        if (aspect >= 1) {
+          imgW = Math.min(460, tempImg.naturalWidth);
+          imgH = Math.round(imgW / aspect);
+        } else {
+          imgH = Math.min(360, tempImg.naturalHeight);
+          imgW = Math.round(imgH * aspect);
+        }
+      }
+    } catch (e) {}
+
     if (activeFrame && activeFrame.id !== 'overview-frame-box') {
       // Place centered inside the current slide frame
       wrapper.style.position = 'absolute';
       const fW = activeFrame.offsetWidth || 960;
       const fH = activeFrame.offsetHeight || 540;
-      const imgW = 340;
-      const imgH = 240;
-      wrapper.style.left = `${Math.round((fW - imgW) / 2)}px`;
-      wrapper.style.top = `${Math.round((fH - imgH) / 2)}px`;
+      wrapper.style.left = `${Math.round(Math.max(20, (fW - imgW) / 2))}px`;
+      wrapper.style.top = `${Math.round(Math.max(20, (fH - imgH) / 2))}px`;
       wrapper.style.width = `${imgW}px`;
       wrapper.style.height = `${imgH}px`;
       activeFrame.appendChild(wrapper);
@@ -3388,10 +3468,10 @@ function initPreziApp() {
       const scale = currentCamera.scale || 1;
       const centerX = (-currentCamera.x + vpRect.width / 2) / scale;
       const centerY = (-currentCamera.y + vpRect.height / 2) / scale;
-      wrapper.style.left = `${Math.round(centerX - 170)}px`;
-      wrapper.style.top = `${Math.round(centerY - 120)}px`;
-      wrapper.style.width = '340px';
-      wrapper.style.height = '240px';
+      wrapper.style.left = `${Math.round(centerX - imgW / 2)}px`;
+      wrapper.style.top = `${Math.round(centerY - imgH / 2)}px`;
+      wrapper.style.width = `${imgW}px`;
+      wrapper.style.height = `${imgH}px`;
       world.appendChild(wrapper);
     }
 
@@ -3422,7 +3502,10 @@ function initPreziApp() {
     wrapper.classList.add('selected');
     img.classList.add('prezi-selected-img');
     selectedImgEl = img;
-    positionImageToolbar(wrapper);
+
+    setTimeout(() => {
+      positionImageToolbar(wrapper);
+    }, 40);
 
     saveEditsToStorage();
     showToast('Đã chèn và lưu hình ảnh thành công!');
