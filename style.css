@@ -1817,14 +1817,9 @@ body.in-present-mode .user-image-wrapper .img-resize-handle {
    ========================================================================== */
 .prezi-bottom-bar {
   position: fixed;
-  bottom: 16px;
+  bottom: 24px;
   left: 0;
   right: 0;
-  height: 0;
-  overflow: visible;
-  background: transparent;
-  border: none;
-  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1841,7 +1836,7 @@ body.in-present-mode .user-image-wrapper .img-resize-handle {
   display: flex;
   align-items: center;
   gap: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .nav-pill-btn {

@@ -8,7 +8,7 @@
  * - Step-by-step Spiral Path SVG generation & animation
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+function initPreziApp() {
   const world = document.getElementById('prezi-world');
   const viewport = document.getElementById('prezi-viewport');
   const framesList = document.getElementById('frames-list');
@@ -154,22 +154,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Calculate Overview position to fit entire World or existing cards on screen
   function getOverviewTransform() {
-    const vpRect = viewport.getBoundingClientRect();
+    const vpRect = viewport ? viewport.getBoundingClientRect() : null;
+    const vpW = (vpRect && vpRect.width > 0) ? vpRect.width : (window.innerWidth - 240);
+    const vpH = (vpRect && vpRect.height > 0) ? vpRect.height : (window.innerHeight - 60);
     const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
     if (cards.length === 0) {
-      const frameBox = (typeof ensureOverviewFrameBox === 'function') ? ensureOverviewFrameBox() : document.getElementById('overview-frame-box');
-      const fw = (frameBox && frameBox.offsetWidth > 0) ? frameBox.offsetWidth : 860;
-      const fh = (frameBox && frameBox.offsetHeight > 0) ? frameBox.offsetHeight : 484;
-      const fLeft = (frameBox && frameBox.offsetLeft > 0) ? frameBox.offsetLeft : 1270;
-      const fTop = (frameBox && frameBox.offsetTop > 0) ? frameBox.offsetTop : 958;
-      const cx = fLeft + fw / 2;
-      const cy = fTop + fh / 2;
-      const scaleX = (vpRect.width * 0.65) / fw;
-      const scaleY = (vpRect.height * 0.65) / fh;
+      if (typeof ensureOverviewFrameBox === 'function') ensureOverviewFrameBox();
+      const fw = 860;
+      const fh = 484;
+      const cx = 1700; // Exact center of 860x484 at left:1270, top:958
+      const cy = 1200;
+      const scaleX = (vpW * 0.65) / fw;
+      const scaleY = (vpH * 0.65) / fh;
       const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.25);
       return {
-        x: vpRect.width / 2 - cx * fitScale,
-        y: vpRect.height / 2 - cy * fitScale,
+        x: vpW / 2 - cx * fitScale,
+        y: vpH / 2 - cy * fitScale,
         scale: Math.round(fitScale * 100) / 100
       };
     }
@@ -251,12 +251,16 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    currentStopTitle.textContent = stop.title;
-    stopCounter.textContent = `Trạm ${index} / ${STOPS.length - 1}`;
+    if (currentStopTitle && stop) {
+      currentStopTitle.textContent = stop.title;
+    }
+    if (stopCounter) {
+      stopCounter.textContent = `Trạm ${index} / ${STOPS.length - 1}`;
+    }
 
     document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
       item.classList.toggle('active', i === index);
-      if (i === index) {
+      if (i === index && item.scrollIntoView) {
         item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
@@ -561,6 +565,11 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         world.appendChild(frameBox);
       }
+      frameBox.style.left = '1270px';
+      frameBox.style.top = '958px';
+      frameBox.style.width = '860px';
+      frameBox.style.height = '484px';
+      delete frameBox.dataset.eventsBound;
       setupOverviewFrameInteractions();
       return frameBox;
     } else {
@@ -888,39 +897,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 7. Keyboard & Controls
   function setupControls() {
-    document.getElementById('btn-next').addEventListener('click', () => {
-      if (currentStopIndex < STOPS.length - 1) goToStop(currentStopIndex + 1);
-    });
+    const btnNext = document.getElementById('btn-next');
+    if (btnNext) {
+      btnNext.addEventListener('click', () => {
+        if (currentStopIndex < STOPS.length - 1) goToStop(currentStopIndex + 1);
+      });
+    }
 
-    document.getElementById('btn-prev').addEventListener('click', () => {
-      if (currentStopIndex > 0) goToStop(currentStopIndex - 1);
-    });
+    const btnPrev = document.getElementById('btn-prev');
+    if (btnPrev) {
+      btnPrev.addEventListener('click', () => {
+        if (currentStopIndex > 0) goToStop(currentStopIndex - 1);
+      });
+    }
 
-    document.getElementById('btn-home').addEventListener('click', () => {
-      goToStop(0);
-    });
+    const btnHome = document.getElementById('btn-home');
+    if (btnHome) {
+      btnHome.addEventListener('click', () => {
+        goToStop(0);
+      });
+    }
 
-    document.getElementById('btn-zoom-in').addEventListener('click', () => {
-      const vpRect = viewport.getBoundingClientRect();
-      const cx = vpRect.width / 2;
-      const cy = vpRect.height / 2;
-      const oldScale = currentCamera.scale || 1;
-      const newScale = Math.min(oldScale * 1.25, 3.2);
-      const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
-      const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
-      applyCamera(newX, newY, newScale, true);
-    });
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    if (btnZoomIn) {
+      btnZoomIn.addEventListener('click', () => {
+        const vpRect = viewport ? viewport.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
+        const cx = vpRect.width / 2;
+        const cy = vpRect.height / 2;
+        const oldScale = currentCamera.scale || 1;
+        const newScale = Math.min(oldScale * 1.25, 3.2);
+        const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
+        const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
+        applyCamera(newX, newY, newScale, true);
+      });
+    }
 
-    document.getElementById('btn-zoom-out').addEventListener('click', () => {
-      const vpRect = viewport.getBoundingClientRect();
-      const cx = vpRect.width / 2;
-      const cy = vpRect.height / 2;
-      const oldScale = currentCamera.scale || 1;
-      const newScale = Math.max(oldScale * 0.8, 0.15);
-      const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
-      const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
-      applyCamera(newX, newY, newScale, true);
-    });
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    if (btnZoomOut) {
+      btnZoomOut.addEventListener('click', () => {
+        const vpRect = viewport ? viewport.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight };
+        const cx = vpRect.width / 2;
+        const cy = vpRect.height / 2;
+        const oldScale = currentCamera.scale || 1;
+        const newScale = Math.max(oldScale * 0.8, 0.15);
+        const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
+        const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
+        applyCamera(newX, newY, newScale, true);
+      });
+    }
 
     const sidebar = document.getElementById('prezi-sidebar');
     const toggleBtn = document.getElementById('btn-toggle-sidebar');
@@ -941,21 +965,27 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    document.getElementById('btn-present-mode').addEventListener('click', () => {
-      document.body.classList.toggle('in-present-mode');
-      if (document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
-      setTimeout(() => goToStop(currentStopIndex, true), 300);
-    });
+    const btnPresentMode = document.getElementById('btn-present-mode');
+    if (btnPresentMode) {
+      btnPresentMode.addEventListener('click', () => {
+        document.body.classList.toggle('in-present-mode');
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+        setTimeout(() => goToStop(currentStopIndex, true), 300);
+      });
+    }
 
-    document.getElementById('btn-fullscreen').addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      } else {
-        document.exitFullscreen().catch(() => {});
-      }
-    });
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+    }
 
     // Event listeners cho các nút tròn bên phải lúc trình chiếu (Hình 2)
     const btnPresentHome = document.getElementById('btn-present-home');
@@ -1988,7 +2018,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v15_frame_always_present_centered_tab';
+  const PREZI_APP_VERSION = '2026.09.23_v16_centered_camera_and_pill';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.removeItem('prezi_cards_layout_v2');
@@ -2141,7 +2171,14 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEditingEngine();
 
   // Initial state: Show Overview
+  goToStop(0, false);
   setTimeout(() => {
     goToStop(0, false);
   }, 100);
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPreziApp);
+} else {
+  initPreziApp();
+}
