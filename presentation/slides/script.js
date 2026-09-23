@@ -417,11 +417,15 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Deselect cards when clicking on canvas background
+    // Deselect cards and elements when clicking on canvas background (WITHOUT resetting camera!)
     viewport.addEventListener('click', (e) => {
-      if (e.target === viewport || e.target === world || e.target.classList.contains('bg-manuscript-layer') || e.target.classList.contains('bg-splash-layer')) {
+      if (e.target === viewport || e.target === world || e.target.classList.contains('bg-manuscript-layer') || e.target.classList.contains('bg-splash-layer') || e.target.classList.contains('bg-note-paper-layer') || (e.target.tagName === 'IMG' && !e.target.closest('.user-image-wrapper') && !e.target.closest('.canvas-card'))) {
         document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => c.classList.remove('card-selected'));
-        goToStop(0);
+        document.querySelectorAll('.user-image-wrapper.selected').forEach(w => w.classList.remove('selected'));
+        document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
+        selectedImgEl = null;
+        const imgToolbar = document.getElementById('image-floating-toolbar');
+        if (imgToolbar) imgToolbar.classList.remove('show');
       }
     });
 
@@ -654,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Drag/Pan Canvas Engine
   function setupPanning() {
     viewport.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.canvas-card') || e.target.closest('.canvas-item') || e.target.closest('.nav-btn') || e.target.closest('.card-action-bar') || e.target.closest('.card-resize-handle')) return;
+      if (e.target.closest('.canvas-card') || e.target.closest('.canvas-item') || e.target.closest('.user-image-wrapper') || e.target.closest('.nav-btn') || e.target.closest('.card-action-bar') || e.target.closest('.card-resize-handle') || e.target.closest('.prezi-floating-text-toolbar') || e.target.closest('.prezi-floating-image-toolbar')) return;
       isPanning = true;
       startX = e.clientX - currentCamera.x;
       startY = e.clientY - currentCamera.y;
@@ -671,15 +675,23 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('mouseup', () => {
       if (isPanning) {
         isPanning = false;
-        world.style.transition = 'transform 0.5s ease-out';
+        world.style.transition = 'transform 0.4s ease-out';
       }
     });
 
+    // Smooth Cursor-Centered Wheel Zoom (like Google Maps & Prezi)
     viewport.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      const newScale = Math.min(Math.max(currentCamera.scale * zoomFactor, 0.2), 2.5);
-      applyCamera(currentCamera.x, currentCamera.y, newScale, true);
+      const zoomFactor = e.deltaY < 0 ? 1.14 : 0.88;
+      const oldScale = currentCamera.scale || 1;
+      const newScale = Math.min(Math.max(oldScale * zoomFactor, 0.15), 3.2);
+
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      const newX = mouseX - (mouseX - currentCamera.x) * (newScale / oldScale);
+      const newY = mouseY - (mouseY - currentCamera.y) * (newScale / oldScale);
+
+      applyCamera(newX, newY, newScale, false);
     }, { passive: false });
   }
 
@@ -745,11 +757,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('btn-zoom-in').addEventListener('click', () => {
-      applyCamera(currentCamera.x, currentCamera.y, currentCamera.scale * 1.25, true);
+      const vpRect = viewport.getBoundingClientRect();
+      const cx = vpRect.width / 2;
+      const cy = vpRect.height / 2;
+      const oldScale = currentCamera.scale || 1;
+      const newScale = Math.min(oldScale * 1.25, 3.2);
+      const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
+      const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
+      applyCamera(newX, newY, newScale, true);
     });
 
     document.getElementById('btn-zoom-out').addEventListener('click', () => {
-      applyCamera(currentCamera.x, currentCamera.y, currentCamera.scale * 0.8, true);
+      const vpRect = viewport.getBoundingClientRect();
+      const cx = vpRect.width / 2;
+      const cy = vpRect.height / 2;
+      const oldScale = currentCamera.scale || 1;
+      const newScale = Math.max(oldScale * 0.8, 0.15);
+      const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
+      const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
+      applyCamera(newX, newY, newScale, true);
     });
 
     const sidebar = document.getElementById('prezi-sidebar');
@@ -802,7 +828,34 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
+    // Keyboard Shortcuts (with strict guard so typing in text boxes is never hijacked)
     window.addEventListener('keydown', (e) => {
+      // 1. If typing inside an editable element or input:
+      const activeEl = document.activeElement;
+      const isEditingText = (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) ||
+                            (e.target && e.target.closest && (e.target.closest('[contenteditable="true"]') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'));
+
+      // Special shortcut: Ctrl + A (Select All text inside the current editable element)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        const editableTarget = (activeEl && activeEl.isContentEditable) ? activeEl : (selectedTextEl && document.contains(selectedTextEl) ? selectedTextEl : null);
+        if (editableTarget) {
+          e.preventDefault();
+          editableTarget.focus();
+          const range = document.createRange();
+          range.selectNodeContents(editableTarget);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          return;
+        }
+      }
+
+      if (isEditingText) {
+        // Do not intercept Spacebar, Arrow keys, etc. when typing!
+        return;
+      }
+
+      // 2. Navigation shortcuts when NOT editing text
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault();
         if (currentStopIndex < STOPS.length - 1) goToStop(currentStopIndex + 1);
@@ -1175,6 +1228,79 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
       }
+
+      // Check 4: Text Paste (Copy text from Web, PDF, Word, Notepad, etc.)
+      if (!handled) {
+        const plainText = clipboard.getData('text/plain');
+        if (plainText && plainText.trim()) {
+          // A. If user is currently focused inside a contenteditable element:
+          if (document.activeElement && document.activeElement.isContentEditable) {
+            e.preventDefault();
+            document.execCommand('insertText', false, plainText);
+            saveEditsToStorage();
+            showToast('Đã dán văn bản!');
+            handled = true;
+            return;
+          }
+
+          // B. If a text element was previously clicked/selected:
+          if (selectedTextEl && document.contains(selectedTextEl)) {
+            e.preventDefault();
+            selectedTextEl.focus();
+            document.execCommand('insertText', false, plainText);
+            saveEditsToStorage();
+            showToast('Đã dán văn bản vào mục đang chọn!');
+            handled = true;
+            return;
+          }
+
+          // C. If an active/selected card is present, append a new editable paragraph:
+          const targetCard = document.querySelector('.canvas-card.card-selected') || document.querySelector('.canvas-card.current-active') || document.getElementById('stop-01');
+          if (targetCard) {
+            e.preventDefault();
+            const p = document.createElement('p');
+            p.className = 'card-body-text';
+            p.textContent = plainText;
+            targetCard.appendChild(p);
+            makeElementEditable(p);
+            p.focus();
+            saveEditsToStorage();
+            showToast('Đã dán đoạn văn bản mới vào thẻ!');
+            handled = true;
+            return;
+          }
+
+          // D. Fallback: Create a floating text note on the canvas at view center
+          e.preventDefault();
+          const vpRect = viewport.getBoundingClientRect();
+          const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
+          const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
+
+          const newBox = document.createElement('div');
+          newBox.className = 'canvas-card custom-added-card';
+          newBox.style.left = `${Math.round(centerX - 160)}px`;
+          newBox.style.top = `${Math.round(centerY - 60)}px`;
+          newBox.style.width = '360px';
+          newBox.style.position = 'absolute';
+          newBox.style.zIndex = '35';
+          newBox.innerHTML = `
+            <div class="card-inner-layout" style="padding: 14px;">
+              <p class="card-body-text" contenteditable="true" spellcheck="false" style="margin: 0;">${plainText}</p>
+            </div>
+          `;
+          world.appendChild(newBox);
+          setupCardInteractions();
+          const pEl = newBox.querySelector('p');
+          if (pEl) {
+            makeElementEditable(pEl);
+            pEl.focus();
+          }
+          saveEditsToStorage();
+          showToast('Đã dán đoạn văn bản mới lên bảng!');
+          handled = true;
+          return;
+        }
+      }
     });
 
     // Keyboard shortcut: Delete / Backspace key to remove selected image
@@ -1430,7 +1556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v6_unified_elements';
+  const PREZI_APP_VERSION = '2026.09.23_v7_paste_text_and_zoom_fix';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);

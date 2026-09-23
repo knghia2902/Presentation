@@ -47,6 +47,30 @@ html, body {
   user-select: none;
 }
 
+/* Allow text selection and cursor highlighting inside all editable presentation content */
+[contenteditable="true"],
+[contenteditable="true"] *,
+.card-body-text,
+.card-title-prezi,
+.card-title-large,
+.p-item,
+.cmp-box,
+.s-cap,
+.m-card,
+.cycle-box,
+.cycle-box *,
+.lenin-quote-strip,
+.lenin-quote-strip *,
+.spiral-quote,
+.img-caption-tag,
+.card-micro-quote,
+.card-step-badge,
+.card-header-badge,
+input, textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
 /* ==========================================================================
    PREZI TOPBAR
    ========================================================================== */
@@ -799,6 +823,8 @@ body.in-present-mode .canvas-item.card-selected {
   border-radius: 4px;
   transition: background-color 0.2s, box-shadow 0.2s;
   cursor: text;
+  user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 [contenteditable="true"]:hover {
