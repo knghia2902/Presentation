@@ -284,6 +284,27 @@ input, textarea {
   gap: 4px;
 }
 
+.btn-clear-all-cards {
+  background: #fff5f5;
+  color: #e03131;
+  border: 1px solid #ffc9c9;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.btn-clear-all-cards:hover {
+  background: #e03131;
+  color: #ffffff;
+  border-color: #e03131;
+}
+
 .btn-toggle-sidebar {
   background: none;
   border: none;

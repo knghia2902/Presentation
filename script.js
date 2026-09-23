@@ -576,12 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
     goToStop(newIndex);
   }
 
-  // Delete an existing card
+  // Delete an existing card (can delete down to 0 cards)
   function deleteCard(card, skipConfirm = false) {
-    if (STOPS.length <= 2) {
-      alert('Không thể xóa hết tất cả các thẻ trình chiếu.');
-      return;
-    }
     const cardTitle = card.querySelector('h1, h2, h3, h4, .card-title-prezi')?.textContent?.trim() || 'thẻ này';
     if (!skipConfirm && !confirm(`Bạn có chắc chắn muốn xóa "${cardTitle}" khỏi bài thuyết trình?`)) return;
 
@@ -595,12 +591,26 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
     showToast(`Đã xóa "${cardTitle}" khỏi bài thuyết trình.`);
 
-    if (currentStopIndex >= STOPS.length) {
+    if (STOPS.length <= 1) {
+      goToStop(0);
+    } else if (currentStopIndex >= STOPS.length) {
       goToStop(STOPS.length - 1);
     } else {
       goToStop(Math.max(0, currentStopIndex));
     }
   }
+
+  // Clear all cards from the canvas completely
+  function clearAllCards() {
+    if (!confirm('Bạn có chắc chắn muốn xóa sạch toàn bộ các thẻ trên bản vẽ để làm mới không?')) return;
+    document.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper').forEach(c => c.remove());
+    STOPS.splice(1); // Keep only Overview
+    buildSidebar();
+    saveEditsToStorage();
+    showToast('Đã dọn sạch toàn bộ các thẻ trên bản vẽ!');
+    goToStop(0);
+  }
+  window.clearAllCards = clearAllCards;
 
   // Add a brand new frame / slide
   function addNewFrame() {
@@ -654,6 +664,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.btn-add-frame').forEach(btn => {
     btn.addEventListener('click', addNewFrame);
   });
+
+  const btnClearAll = document.getElementById('btn-clear-all-cards');
+  if (btnClearAll) {
+    btnClearAll.addEventListener('click', clearAllCards);
+  }
 
   // 5. Drag/Pan Canvas Engine
   function setupPanning() {
@@ -1628,7 +1643,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v9_universal_delete';
+  const PREZI_APP_VERSION = '2026.09.23_v10_clear_all_cards';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
