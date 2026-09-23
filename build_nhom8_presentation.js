@@ -27,7 +27,7 @@ let worldHTML = '';
 // KHUNG 0: OVERVIEW FRAME (1000, 1000)
 // ==========================================
 worldHTML += `
-  <div class="canvas-empty-frame-box" id="overview-frame-box" style="position: absolute; left: 1000px; top: 1000px; width: 960px; height: 540px;">
+  <div class="canvas-slide-frame canvas-empty-frame-box" id="overview-frame-box" style="position: absolute; left: 1000px; top: 1000px; width: 960px; height: 540px;">
     <span class="frame-handle top-left"></span>
     <span class="frame-handle top-right"></span>
     <span class="frame-handle bottom-left"></span>

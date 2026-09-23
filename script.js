@@ -21,7 +21,7 @@ function initPreziApp() {
     {
       id: 'overview',
       title: 'Toàn cảnh (Overview)',
-      targetId: null,
+      targetId: 'overview-frame-box',
       type: 'overview'
     }
   ];
@@ -37,7 +37,7 @@ function initPreziApp() {
       {
         id: 'overview',
         title: 'Toàn cảnh (Overview)',
-        targetId: null,
+        targetId: 'overview-frame-box',
         type: 'overview'
       }
     ];
@@ -317,13 +317,18 @@ function initPreziApp() {
 
     document.querySelectorAll('.canvas-card').forEach(c => c.classList.remove('current-active', 'card-selected'));
     document.querySelectorAll('.canvas-slide-frame').forEach(f => f.classList.remove('current-active', 'selected'));
-    document.querySelectorAll('.canvas-empty-frame-box').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.canvas-empty-frame-box').forEach(b => b.classList.remove('selected', 'current-active'));
 
-    if (stop.type === 'overview') {
-      const ovBox = document.getElementById('overview-frame-box') || ensureOverviewFrameBox();
-      if (ovBox) ovBox.classList.add('selected');
-      const ov = getOverviewTransform();
-      applyCamera(ov.x, ov.y, ov.scale, smooth);
+    if (stop.type === 'overview' || stop.targetId === 'overview-frame-box') {
+      const ovBox = document.getElementById('overview-frame-box') || (typeof ensureOverviewFrameBox === 'function' ? ensureOverviewFrameBox() : null);
+      if (ovBox) {
+        ovBox.classList.add('selected', 'current-active');
+        const focus = getElementFocusTransform(ovBox, 1.0);
+        applyCamera(focus.x, focus.y, focus.scale, smooth);
+      } else {
+        const ov = getOverviewTransform();
+        applyCamera(ov.x, ov.y, ov.scale, smooth);
+      }
     } else {
       const el = document.getElementById(stop.targetId);
       if (el) {
@@ -1740,7 +1745,12 @@ function initPreziApp() {
     const btnHome = document.getElementById('btn-home');
     if (btnHome) {
       btnHome.addEventListener('click', () => {
-        goToStop(0);
+        if (currentStopIndex === 0) {
+          const ov = getOverviewTransform();
+          applyCamera(ov.x, ov.y, ov.scale, true);
+        } else {
+          goToStop(0);
+        }
       });
     }
 
