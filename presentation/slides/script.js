@@ -527,6 +527,95 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Đã lưu vị trí & kích thước thẻ.');
       }
     });
+
+    setupOverviewFrameInteractions();
+  }
+
+  // Resizing and dragging for #overview-frame-box (Authentic Prezi frame matching media_1790130642265.png)
+  function setupOverviewFrameInteractions() {
+    const overviewBox = document.getElementById('overview-frame-box');
+    if (!overviewBox || overviewBox.dataset.eventsBound) return;
+    overviewBox.dataset.eventsBound = 'true';
+
+    let isResizing = false;
+    let resizeType = '';
+    let isDragging = false;
+    let sX = 0, sY = 0;
+    let iW = 0, iH = 0, iLeft = 0, iTop = 0;
+
+    overviewBox.querySelectorAll('.frame-handle').forEach(h => {
+      h.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        isResizing = true;
+        if (h.classList.contains('top-left')) resizeType = 'tl';
+        else if (h.classList.contains('top-right')) resizeType = 'tr';
+        else if (h.classList.contains('bottom-left')) resizeType = 'bl';
+        else if (h.classList.contains('bottom-right')) resizeType = 'br';
+
+        sX = e.clientX;
+        sY = e.clientY;
+        iW = overviewBox.offsetWidth;
+        iH = overviewBox.offsetHeight;
+        iLeft = overviewBox.offsetLeft;
+        iTop = overviewBox.offsetTop;
+      });
+    });
+
+    overviewBox.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.frame-handle')) return;
+      e.stopPropagation();
+      isDragging = true;
+      sX = e.clientX;
+      sY = e.clientY;
+      iLeft = overviewBox.offsetLeft;
+      iTop = overviewBox.offsetTop;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      const scale = currentCamera.scale || 1;
+      if (isResizing) {
+        const dx = (e.clientX - sX) / scale;
+        const dy = (e.clientY - sY) / scale;
+        let newW = iW, newH = iH, newLeft = iLeft, newTop = iTop;
+
+        if (resizeType === 'br') {
+          newW = Math.max(180, iW + dx);
+          newH = Math.max(120, iH + dy);
+        } else if (resizeType === 'bl') {
+          newW = Math.max(180, iW - dx);
+          newH = Math.max(120, iH + dy);
+          newLeft = iLeft + (iW - newW);
+        } else if (resizeType === 'tr') {
+          newW = Math.max(180, iW + dx);
+          newH = Math.max(120, iH - dy);
+          newTop = iTop + (iH - newH);
+        } else if (resizeType === 'tl') {
+          newW = Math.max(180, iW - dx);
+          newH = Math.max(120, iH - dy);
+          newLeft = iLeft + (iW - newW);
+          newTop = iTop + (iH - newH);
+        }
+
+        overviewBox.style.width = `${Math.round(newW)}px`;
+        overviewBox.style.height = `${Math.round(newH)}px`;
+        overviewBox.style.left = `${Math.round(newLeft)}px`;
+        overviewBox.style.top = `${Math.round(newTop)}px`;
+      } else if (isDragging) {
+        const dx = (e.clientX - sX) / scale;
+        const dy = (e.clientY - sY) / scale;
+        overviewBox.style.left = `${Math.round(iLeft + dx)}px`;
+        overviewBox.style.top = `${Math.round(iTop + dy)}px`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizing || isDragging) {
+        isResizing = false;
+        isDragging = false;
+        saveEditsToStorage();
+      }
+    });
   }
 
   // Duplicate an existing card

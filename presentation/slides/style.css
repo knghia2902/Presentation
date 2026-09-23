@@ -359,41 +359,47 @@ input, textarea {
   left: 0;
   right: 0;
   display: flex;
+  overflow: hidden;
 }
 
 .prezi-sidebar {
-  width: var(--sidebar-width);
-  height: 100%;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  bottom: 24px;
+  width: 210px;
   background: #ffffff;
-  border-right: 1px solid #e9ecef;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
-  z-index: 50;
-  position: relative;
+  z-index: 60;
   overflow: visible;
   transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .prezi-sidebar.collapsed {
-  transform: translateX(calc(-1 * var(--sidebar-width)));
+  transform: translateX(calc(-1 * (210px + 24px)));
 }
 
 .sidebar-header {
-  padding: 12px 14px;
+  padding: 10px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  border-bottom: 1px solid #f1f3f5;
+  justify-content: stretch;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .btn-add-frame {
   background: #107c41;
   color: #ffffff;
   border: none;
-  border-radius: 6px;
-  font-size: 0.88rem;
+  border-radius: 4px;
+  font-size: 0.86rem;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: 0;
+  height: 34px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -401,29 +407,50 @@ input, textarea {
   width: 100%;
   box-shadow: 0 1px 3px rgba(16, 124, 65, 0.2);
   transition: background 0.15s, transform 0.1s;
+  overflow: hidden;
 }
 
 .btn-add-frame:hover {
-  background: #0b5e31;
+  background: #0d6937;
 }
 
 .btn-add-frame:active {
   transform: translateY(1px);
 }
 
+.btn-add-frame .btn-add-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 100%;
+}
+
 .btn-add-frame .add-plus {
-  font-size: 1.1rem;
-  margin-right: 4px;
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
-.btn-add-frame .arrow-caret {
-  margin-left: auto;
+.btn-add-frame .btn-add-divider {
+  width: 1px;
+  height: 60%;
+  background: rgba(255, 255, 255, 0.35);
 }
 
-/* AUTHENTIC PREZI CURVED COLLAPSE / EXPAND TAB ( media_1790128116357.png ) */
+.btn-add-frame .btn-add-caret {
+  width: 28px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* AUTHENTIC PREZI CURVED COLLAPSE / EXPAND TAB ( media_1790130642265.png ) */
 .sidebar-collapse-tab {
   position: absolute;
-  top: 130px;
+  top: 360px;
   right: -21px;
   width: 22px;
   height: 76px;
@@ -542,33 +569,74 @@ input, textarea {
   color: #374151;
 }
 
-/* Center Empty Frame Box (media_1790129831208.png) */
+/* Center Frame Box (media_1790130642265.png) */
 .canvas-empty-frame-box {
   position: absolute;
-  left: 1470px;
-  top: 1060px;
-  width: 460px;
-  height: 280px;
-  border: 1.5px solid #94a3b8;
-  border-radius: 8px;
+  left: 1440px;
+  top: 1050px;
+  width: 520px;
+  height: 300px;
+  border: 2px solid #107c41; /* Green border matching Prezi active frame */
+  border-radius: 2px;
   background: transparent;
-  pointer-events: none;
+  pointer-events: auto;
   box-sizing: border-box;
 }
 
-/* Prezi Watermark (bottom-left) */
+.canvas-empty-frame-box .frame-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 1.5px solid #3b82f6; /* Prezi selection blue */
+  border-radius: 1px;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.canvas-empty-frame-box .frame-handle.top-left {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.canvas-empty-frame-box .frame-handle.top-right {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.canvas-empty-frame-box .frame-handle.bottom-left {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.canvas-empty-frame-box .frame-handle.bottom-right {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+/* Prezi Watermark (bottom-left) - authentic white card */
 .canvas-watermark {
   position: absolute;
-  left: 1100px;
-  top: 1650px;
-  display: flex;
+  left: 1440px;
+  top: 1390px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 14px;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #94a3b8;
-  font-size: 1.25rem;
-  font-weight: 700;
-  user-select: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   pointer-events: none;
+  user-select: none;
+  color: #1f2937;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.4px;
 }
 
 /* ==========================================================================

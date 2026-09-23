@@ -100,16 +100,21 @@
     <aside class="prezi-sidebar" id="prezi-sidebar">
       <div class="sidebar-header">
         <button class="btn-add-frame" id="btn-add-frame">
-          <span class="add-plus">＋</span>
-          <span>Add frame</span>
-          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" class="arrow-caret"><path d="M7 10l5 5 5-5z"/></svg>
+          <span class="btn-add-main">
+            <span class="add-plus">＋</span>
+            <span>Add frame</span>
+          </span>
+          <span class="btn-add-divider"></span>
+          <span class="btn-add-caret">
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+          </span>
         </button>
       </div>
 
-      <!-- Prezi Curved Collapse Tab ( media_1790128116357.png ) -->
+      <!-- Prezi Curved Collapse Tab ( media_1790130642265.png ) -->
       <button class="sidebar-collapse-tab" id="btn-toggle-sidebar" title="Thu gọn / Mở rộng lộ trình" aria-label="Toggle sidebar">
         <svg class="tab-shape-svg" viewBox="0 0 24 76" fill="none">
-          <path d="M 0 0 C 0 8, 4 12, 10 14 C 17 16, 21 21, 21 28 L 21 48 C 21 55, 17 60, 10 62 C 4 64, 0 68, 0 76 L -5 76 L -5 0 Z" fill="#ffffff" stroke="#dee2e6" stroke-width="1.2"/>
+          <path d="M 0 0 C 0 8, 4 12, 10 14 C 17 16, 21 21, 21 28 L 21 48 C 21 55, 17 60, 10 62 C 4 64, 0 68, 0 76 L -5 76 L -5 0 Z" fill="#ffffff" stroke="#d1d5db" stroke-width="1.2"/>
         </svg>
         <svg class="chevron-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"></polyline>
@@ -133,15 +138,23 @@
     <main class="prezi-viewport" id="prezi-viewport">
       <div class="prezi-world" id="prezi-world">
         
-        <!-- Khung Frame Trống Mặc Định Ở Giữa Canvas (Khớp chính xác media_1790129831208.png) -->
-        <div class="canvas-empty-frame-box" id="overview-frame-box"></div>
+        <!-- Khung Frame Trống Mặc Định Ở Giữa Canvas (Khớp chính xác media_1790130642265.png) -->
+        <div class="canvas-empty-frame-box" id="overview-frame-box">
+          <span class="frame-handle top-left"></span>
+          <span class="frame-handle top-right"></span>
+          <span class="frame-handle bottom-left"></span>
+          <span class="frame-handle bottom-right"></span>
+        </div>
 
         <!-- Prezi Watermark (Góc dưới bên trái như trong ảnh Prezi) -->
         <div class="canvas-watermark">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="#94a3b8">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="#94a3b8" stroke-width="1.8"/>
-            <path d="M8 12 A4 4 0 0 1 16 12 A4 4 0 0 1 8 12" fill="none" stroke="#94a3b8" stroke-width="1.8"/>
-            <circle cx="12" cy="12" r="1.5" fill="#94a3b8"/>
+          <svg viewBox="0 0 32 32" width="22" height="22" fill="#2d3748">
+            <circle cx="16" cy="16" r="13" fill="none" stroke="#2d3748" stroke-width="2"/>
+            <circle cx="16" cy="16" r="9" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+            <circle cx="16" cy="16" r="5" fill="none" stroke="#2d3748" stroke-width="1.2"/>
+            <circle cx="16" cy="16" r="1.5" fill="#2d3748"/>
+            <line x1="8" y1="16" x2="24" y2="16" stroke="#2d3748" stroke-width="1.2"/>
+            <line x1="16" y1="8" x2="16" y2="24" stroke="#2d3748" stroke-width="1.2"/>
           </svg>
           <span>Prezi</span>
         </div>
