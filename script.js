@@ -1611,10 +1611,88 @@ function initPreziApp() {
         }
       }
 
-      // Check 4: Text Paste (Copy text from Web, PDF, Word, Notepad, etc.)
+      // Check 4: Text Paste (Copy text from Web, PDF, Word, Notepad, or Prezi)
       if (!handled) {
-        const plainText = clipboard.getData('text/plain');
-        if (plainText && plainText.trim()) {
+        const rawText = clipboard.getData('text/plain') || '';
+        let plainText = rawText.trim();
+
+        // --- PREZI SMART CLIPBOARD HANDLER ---
+        let isPreziDoc = false;
+        let preziExtractedTitle = 'Khung Prezi mới';
+        let preziExtractedBody = '';
+
+        if (plainText.startsWith('{') && plainText.includes('"type":"PreziDoc"')) {
+          try {
+            const preziData = JSON.parse(plainText);
+            if (preziData && preziData.type === 'PreziDoc') {
+              isPreziDoc = true;
+              if (preziData.doc && typeof preziData.doc === 'string' && preziData.doc.trim()) {
+                try {
+                  const parser = new DOMParser();
+                  const xmlDoc = parser.parseFromString(preziData.doc, 'text/xml');
+                  const nodes = xmlDoc.querySelectorAll('p, text, span, title, h1, h2, h3');
+                  const extracted = [];
+                  nodes.forEach(n => {
+                    const t = n.textContent.trim();
+                    if (t) extracted.push(t);
+                  });
+                  if (extracted.length > 0) {
+                    preziExtractedTitle = extracted[0];
+                    preziExtractedBody = extracted.slice(1).join('\n\n') || extracted[0];
+                  }
+                } catch(e) {}
+              }
+              if (!preziExtractedBody) {
+                preziExtractedBody = 'Nhấp đúp chuột để chỉnh sửa nội dung thẻ này...';
+              }
+            }
+          } catch(e) {}
+        }
+
+        if (isPreziDoc) {
+          e.preventDefault();
+          // If user was typing in text, avoid pasting the raw JSON code!
+          if (document.activeElement && document.activeElement.isContentEditable) {
+            if (preziExtractedBody && preziExtractedBody !== 'Nhấp đúp chuột để chỉnh sửa nội dung thẻ này...') {
+              document.execCommand('insertText', false, preziExtractedBody);
+              saveEditsToStorage();
+              showToast('Đã trích xuất nội dung từ Prezi vào văn bản!');
+            } else {
+              showToast('Mẹo Prezi: Hãy nhấp đúp vào chữ trong Prezi rồi bôi đen copy (Ctrl+C)!');
+            }
+            handled = true;
+            return;
+          }
+
+          // Create a clean new Prezi frame on canvas at view center
+          const vpRect = viewport.getBoundingClientRect();
+          const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
+          const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
+
+          const newBox = document.createElement('div');
+          newBox.className = 'canvas-card custom-added-card';
+          newBox.style.left = `${Math.round(centerX - 180)}px`;
+          newBox.style.top = `${Math.round(centerY - 80)}px`;
+          newBox.style.width = '380px';
+          newBox.style.position = 'absolute';
+          newBox.style.zIndex = '35';
+          newBox.innerHTML = `
+            <div class="card-inner-layout" style="padding: 20px;">
+              <h3 class="card-title-prezi" contenteditable="true" spellcheck="false" style="margin-top: 0; color: #1e3a8a; font-size: 18px; font-weight: 700;">${preziExtractedTitle}</h3>
+              <p class="card-body-text" contenteditable="true" spellcheck="false" style="margin: 8px 0 0 0; color: #334155; font-size: 14px; line-height: 1.6;">${preziExtractedBody}</p>
+            </div>
+          `;
+          world.appendChild(newBox);
+          setupCardInteractions();
+          newBox.querySelectorAll('h3, p').forEach(makeElementEditable);
+          syncStopsFromDOM();
+          saveEditsToStorage();
+          showToast('Đã tạo khung Prezi mới! (Mẹo: Nhấp đúp vào chữ trong Prezi để copy trực tiếp)');
+          handled = true;
+          return;
+        }
+
+        if (plainText) {
           // A. If user is currently focused inside a contenteditable element:
           if (document.activeElement && document.activeElement.isContentEditable) {
             e.preventDefault();
@@ -1677,6 +1755,7 @@ function initPreziApp() {
             makeElementEditable(pEl);
             pEl.focus();
           }
+          syncStopsFromDOM();
           saveEditsToStorage();
           showToast('Đã dán đoạn văn bản mới lên bảng!');
           handled = true;
@@ -2091,6 +2170,13 @@ function initPreziApp() {
       savedContent = savedContent.replace(/<div class="card-action-bar"[\s\S]*?<\/div>/gi, '');
       world.innerHTML = savedContent;
       world.querySelectorAll('.card-action-bar').forEach(el => el.remove());
+      // Sanitize any card contaminated with raw PreziDoc JSON strings
+      world.querySelectorAll('.canvas-card, .canvas-item').forEach(card => {
+        if (card.textContent && card.textContent.includes('{"type":"PreziDoc"')) {
+          const p = card.querySelector('p, .card-body-text') || card;
+          p.textContent = 'Khung Prezi mới (Nhấp chuột để chỉnh sửa nội dung)';
+        }
+      });
       if (savedLayout) {
         try {
           localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));
