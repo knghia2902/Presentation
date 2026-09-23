@@ -653,6 +653,8 @@ function initPreziApp() {
     overviewBox.addEventListener('mousedown', (e) => {
       if (e.target.closest('.frame-handle')) return;
       e.stopPropagation();
+      document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+      overviewBox.classList.add('selected');
       isDragging = true;
       sX = e.clientX;
       sY = e.clientY;
@@ -843,7 +845,7 @@ function initPreziApp() {
     frame.addEventListener('mousedown', (e) => {
       if (e.target.closest('.frame-handle') || e.target.closest('.prezi-textbox') || e.target.closest('.user-image-wrapper') || e.target.isContentEditable || e.target.closest('[contenteditable="true"]')) return;
       
-      document.querySelectorAll('.canvas-slide-frame.selected, .canvas-card.card-selected, .prezi-textbox.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+      document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
       frame.classList.add('selected');
       
       isDragging = true;
@@ -1125,6 +1127,7 @@ function initPreziApp() {
         e.target.closest('.canvas-card') ||
         e.target.closest('.canvas-item') ||
         e.target.closest('.canvas-slide-frame') ||
+        e.target.closest('.canvas-empty-frame-box') ||
         e.target.closest('.prezi-textbox') ||
         e.target.closest('.textbox-content') ||
         e.target.closest('.user-image-wrapper') ||
@@ -3120,8 +3123,9 @@ function initPreziApp() {
   async function saveEditsToStorage() {
     const saveIndicator = document.getElementById('save-status-indicator');
     let content = world.innerHTML;
-    // Sanitize ephemeral selection classes so elements are never persisted as permanently selected
+    // Sanitize ephemeral selection classes and event bound flags
     content = content
+      .replace(/\s*data-events-bound="[^"]*"/g, '')
       .replace(/\bselected\b/g, '')
       .replace(/\bcard-selected\b/g, '')
       .replace(/\bcurrent-active\b/g, '')
@@ -3209,7 +3213,9 @@ function initPreziApp() {
     if (savedContent) {
       savedContent = savedContent.replace(/<div class="canvas-watermark"[\s\S]*?<\/div>/gi, '');
       savedContent = savedContent.replace(/<div class="card-action-bar"[\s\S]*?<\/div>/gi, '');
+      savedContent = savedContent.replace(/\s*data-events-bound="[^"]*"/g, '');
       world.innerHTML = savedContent;
+      world.querySelectorAll('[data-events-bound]').forEach(el => delete el.dataset.eventsBound);
       world.querySelectorAll('.card-action-bar').forEach(el => el.remove());
       // Sanitize any card contaminated with raw PreziDoc JSON strings
       world.querySelectorAll('.canvas-card, .canvas-item').forEach(card => {
@@ -3244,6 +3250,7 @@ function initPreziApp() {
       });
       world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
       world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
+      ensureOverviewFrameBox();
       separateOverlappingFrames();
       world.querySelectorAll('.selected, .card-selected, .current-active').forEach(el => el.classList.remove('selected', 'card-selected', 'current-active'));
       if (savedLayout) {
@@ -3313,6 +3320,8 @@ function initPreziApp() {
   // Initialize
   cleanUpLegacyCustomCards();
   separateOverlappingFrames();
+  ensureOverviewFrameBox();
+  world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
   syncStopsFromDOM();
   setupCardInteractions();
   setupPanning();

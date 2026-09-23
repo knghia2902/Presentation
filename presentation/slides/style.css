@@ -622,20 +622,24 @@ input, textarea {
   top: 958px;
   width: 860px;
   height: 484px;
-  /* Default when not clicked: thin dark grey border with rounded corners */
-  border: 1px solid #718096;
-  border-radius: 6px;
-  background: transparent;
+  border: 1.5px solid #94a3b8;
+  border-radius: 8px;
+  background: transparent !important;
   pointer-events: auto;
   box-sizing: border-box;
-  cursor: pointer;
-  transition: border 0.15s, border-radius 0.15s;
+  cursor: move;
+  z-index: 5;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-/* When clicked / selected: green border 2px with 2px radius */
+.canvas-empty-frame-box:hover {
+  border-color: #64748b;
+}
+
+/* When clicked / selected: blue border 2px matching slide frame */
 .canvas-empty-frame-box.selected {
-  border: 2px solid #107c41 !important;
-  border-radius: 2px;
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 0 0 1px #2563eb;
 }
 
 /* 4 Corner square handles: ONLY visible when frame is clicked / selected */
