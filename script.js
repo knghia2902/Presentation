@@ -616,6 +616,26 @@ document.addEventListener('DOMContentLoaded', () => {
         saveEditsToStorage();
       }
     });
+
+    // Click on frame to select it (turns green + shows 4 blue corner handles)
+    overviewBox.addEventListener('click', (e) => {
+      e.stopPropagation();
+      overviewBox.classList.add('selected');
+    });
+
+    // Click anywhere outside the frame to deselect (turns grey + hides handles as in media_1790131134493.png)
+    document.addEventListener('click', (e) => {
+      if (!overviewBox.contains(e.target) && !e.target.closest('.frame-thumb-item')) {
+        overviewBox.classList.remove('selected');
+      }
+    });
+
+    // Clicking Overview thumbnail in sidebar selects the frame
+    document.querySelectorAll('[data-target="overview"]').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        overviewBox.classList.add('selected');
+      });
+    });
   }
 
   // Duplicate an existing card

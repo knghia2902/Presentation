@@ -447,13 +447,13 @@ input, textarea {
   justify-content: center;
 }
 
-/* AUTHENTIC PREZI CURVED COLLAPSE / EXPAND TAB ( media_1790130642265.png ) */
+/* AUTHENTIC PREZI CURVED COLLAPSE / EXPAND TAB ( media_1790131134493.png ) */
 .sidebar-collapse-tab {
   position: absolute;
-  top: 360px;
-  right: -21px;
-  width: 22px;
-  height: 76px;
+  top: 380px;
+  right: -14px;
+  width: 15px;
+  height: 80px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -461,15 +461,15 @@ input, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 60;
+  z-index: 65;
   outline: none;
-  filter: drop-shadow(3px 0 5px rgba(0, 0, 0, 0.08));
-  transition: filter 0.2s, transform 0.2s;
+  filter: drop-shadow(2px 0 3px rgba(0, 0, 0, 0.04));
+  transition: filter 0.15s, transform 0.15s;
   user-select: none;
 }
 
 .sidebar-collapse-tab:hover {
-  filter: drop-shadow(4px 0 7px rgba(24, 100, 171, 0.22));
+  filter: drop-shadow(3px 0 5px rgba(0, 0, 0, 0.1));
 }
 
 .sidebar-collapse-tab .tab-shape-svg {
@@ -484,28 +484,27 @@ input, textarea {
 
 .sidebar-collapse-tab .tab-shape-svg path {
   fill: #ffffff;
-  stroke: #dee2e6;
-  transition: fill 0.2s, stroke 0.2s;
+  stroke: #d1d5db;
+  transition: fill 0.15s, stroke 0.15s;
 }
 
 .sidebar-collapse-tab:hover .tab-shape-svg path {
-  fill: #f8f9fa;
-  stroke: #1971c2;
+  stroke: #9ca3af;
 }
 
 .sidebar-collapse-tab .chevron-icon {
   position: relative;
   z-index: 2;
   margin-left: 3px;
-  color: #495057;
-  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), color 0.2s;
+  color: #6b7280;
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), color 0.15s;
 }
 
 .sidebar-collapse-tab:hover .chevron-icon {
-  color: #1971c2;
+  color: #111827;
 }
 
-/* In collapsed state: chevron rotates 180° to point right '>' as in media_1790128116357.png */
+/* In collapsed state: chevron rotates 180° to point right '>' */
 .prezi-sidebar.collapsed .sidebar-collapse-tab .chevron-icon {
   transform: rotate(180deg);
 }
@@ -569,21 +568,33 @@ input, textarea {
   color: #374151;
 }
 
-/* Center Frame Box (media_1790130642265.png) */
+/* Center Frame Box (media_1790131134493.png & media_1790130642265.png) */
 .canvas-empty-frame-box {
   position: absolute;
   left: 1440px;
   top: 1050px;
   width: 520px;
   height: 300px;
-  border: 2px solid #107c41; /* Green border matching Prezi active frame */
-  border-radius: 2px;
+  /* Default when not clicked: thin dark grey border with rounded corners */
+  border: 1px solid #718096;
+  border-radius: 6px;
   background: transparent;
   pointer-events: auto;
   box-sizing: border-box;
+  cursor: pointer;
+  transition: border 0.15s, border-radius 0.15s;
 }
 
+/* When clicked / selected: green border 2px with 2px radius */
+.canvas-empty-frame-box.selected,
+.canvas-empty-frame-box.active {
+  border: 2px solid #107c41 !important;
+  border-radius: 2px;
+}
+
+/* 4 Corner square handles: ONLY visible when frame is clicked / selected */
 .canvas-empty-frame-box .frame-handle {
+  display: none;
   position: absolute;
   width: 8px;
   height: 8px;
@@ -592,6 +603,11 @@ input, textarea {
   border-radius: 1px;
   box-sizing: border-box;
   z-index: 10;
+}
+
+.canvas-empty-frame-box.selected .frame-handle,
+.canvas-empty-frame-box.active .frame-handle {
+  display: block;
 }
 
 .canvas-empty-frame-box .frame-handle.top-left {
