@@ -716,13 +716,13 @@ function initPreziApp() {
 
     // Click anywhere outside the frame to deselect (turns grey + hides handles as in media_1790131134493.png)
     document.addEventListener('click', (e) => {
-      if (!overviewBox.contains(e.target) && !e.target.closest('.frame-thumb-item')) {
+      if (!overviewBox.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-context-menu') && !e.target.closest('#prezi-context-menu')) {
         overviewBox.classList.remove('selected');
       }
     });
 
     document.addEventListener('mousedown', (e) => {
-      if (!overviewBox.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-floating-text-toolbar') && !e.target.closest('.prezi-context-menu')) {
+      if (!overviewBox.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-floating-text-toolbar') && !e.target.closest('.prezi-context-menu') && !e.target.closest('#prezi-context-menu')) {
         overviewBox.classList.remove('selected');
       }
     });
@@ -908,13 +908,13 @@ function initPreziApp() {
     });
 
     document.addEventListener('click', (e) => {
-      if (!frame.contains(e.target) && !e.target.closest('.frame-thumb-item')) {
+      if (!frame.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-context-menu') && !e.target.closest('#prezi-context-menu')) {
         frame.classList.remove('selected');
       }
     });
 
     document.addEventListener('mousedown', (e) => {
-      if (!frame.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-floating-text-toolbar') && !e.target.closest('.prezi-context-menu')) {
+      if (!frame.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-floating-text-toolbar') && !e.target.closest('.prezi-context-menu') && !e.target.closest('#prezi-context-menu')) {
         frame.classList.remove('selected');
       }
     });
@@ -1207,7 +1207,111 @@ function initPreziApp() {
     });
   }
 
-  // 5.6 Prezi Custom Context Menu (Chuột phải mở menu)
+  // Layer ordering helpers
+  function sendElementToBack(target) {
+    if (!target) return;
+    const parent = target.parentElement;
+    if (!parent) return;
+
+    if (parent.classList.contains('canvas-slide-frame') || parent.id === 'overview-frame-box') {
+      const contentSiblings = Array.from(parent.children).filter(child =>
+        child !== target && !child.classList.contains('frame-handle')
+      );
+      let minZ = 10;
+      contentSiblings.forEach(s => {
+        const z = parseInt(s.style.zIndex || window.getComputedStyle(s).zIndex, 10);
+        if (!isNaN(z) && z < minZ) minZ = z;
+      });
+      target.style.zIndex = `${Math.max(1, minZ - 1)}`;
+      if (contentSiblings.length > 0) {
+        parent.insertBefore(target, contentSiblings[0]);
+      }
+    } else if (parent === world) {
+      const canvasItems = Array.from(world.children).filter(child =>
+        child !== target &&
+        !child.classList.contains('bg-manuscript-layer') &&
+        !child.classList.contains('bg-splash-layer') &&
+        !child.classList.contains('bg-note-paper-layer') &&
+        child.id !== 'prezi-spiral-svg' &&
+        child.id !== 'canvas-grid'
+      );
+      let minZ = 10;
+      canvasItems.forEach(s => {
+        const z = parseInt(s.style.zIndex || window.getComputedStyle(s).zIndex, 10);
+        if (!isNaN(z) && z < minZ) minZ = z;
+      });
+      target.style.zIndex = `${Math.max(2, minZ - 1)}`;
+      if (canvasItems.length > 0) {
+        world.insertBefore(target, canvasItems[0]);
+      }
+      if (target.classList.contains('canvas-slide-frame')) {
+        syncStopsFromDOM();
+      }
+    } else {
+      let minZ = 10;
+      Array.from(parent.children).forEach(s => {
+        if (s !== target) {
+          const z = parseInt(s.style.zIndex || window.getComputedStyle(s).zIndex, 10);
+          if (!isNaN(z) && z < minZ) minZ = z;
+        }
+      });
+      target.style.zIndex = `${Math.max(1, minZ - 1)}`;
+      parent.insertBefore(target, parent.firstElementChild);
+    }
+
+    saveEditsToStorage();
+    showToast('Đã đưa mục xuống dưới cùng!');
+  }
+  window.sendElementToBack = sendElementToBack;
+
+  function bringElementToFront(target) {
+    if (!target) return;
+    const parent = target.parentElement;
+    if (!parent) return;
+
+    if (parent.classList.contains('canvas-slide-frame') || parent.id === 'overview-frame-box') {
+      const contentSiblings = Array.from(parent.children).filter(child =>
+        child !== target && !child.classList.contains('frame-handle')
+      );
+      let maxZ = 10;
+      contentSiblings.forEach(s => {
+        const z = parseInt(s.style.zIndex || window.getComputedStyle(s).zIndex, 10);
+        if (!isNaN(z) && z > maxZ) maxZ = z;
+      });
+      target.style.zIndex = `${maxZ + 1}`;
+      parent.appendChild(target);
+      parent.querySelectorAll('.frame-handle').forEach(h => parent.appendChild(h));
+    } else if (parent === world) {
+      let maxZ = 10;
+      Array.from(world.children).forEach(s => {
+        if (s !== target) {
+          const z = parseInt(s.style.zIndex || window.getComputedStyle(s).zIndex, 10);
+          if (!isNaN(z) && z > maxZ) maxZ = z;
+        }
+      });
+      target.style.zIndex = `${maxZ + 1}`;
+      world.appendChild(target);
+      if (target.classList.contains('canvas-slide-frame')) {
+        syncStopsFromDOM();
+      }
+    } else {
+      let maxZ = 10;
+      Array.from(parent.children).forEach(s => {
+        if (s !== target) {
+          const z = parseInt(s.style.zIndex || window.getComputedStyle(s).zIndex, 10);
+          if (!isNaN(z) && z > maxZ) maxZ = z;
+        }
+      });
+      target.style.zIndex = `${maxZ + 1}`;
+      parent.appendChild(target);
+    }
+
+    saveEditsToStorage();
+    showToast('Đã đưa mục lên trên cùng!');
+  }
+  window.bringElementToFront = bringElementToFront;
+
+  // 5. Context Menu Engine
   function setupContextMenu() {
     let contextMenu = document.getElementById('prezi-context-menu');
     if (!contextMenu) {
@@ -1216,6 +1320,8 @@ function initPreziApp() {
       contextMenu.className = 'prezi-context-menu';
       document.body.appendChild(contextMenu);
     }
+
+    let currentContextMenuTarget = null;
 
     function hideContextMenu() {
       if (contextMenu) {
@@ -1236,7 +1342,7 @@ function initPreziApp() {
       }
     });
 
-    viewport.addEventListener('contextmenu', (e) => {
+    function openContextMenuHandler(e) {
       e.preventDefault();
       if (document.body.classList.contains('in-present-mode')) return;
 
@@ -1249,26 +1355,62 @@ function initPreziApp() {
       const canvasX = (-currentCamera.x + (clickX - vpRect.left)) / scale;
       const canvasY = (-currentCamera.y + (clickY - vpRect.top)) / scale;
 
-      // Check if clicked directly on an element or selected items
-      const targetElement = e.target.closest('.canvas-card, .canvas-slide-frame, .prezi-textbox, .user-image-wrapper, .canvas-item');
-      const hasSelection = document.querySelectorAll('.canvas-card.card-selected, .canvas-slide-frame.selected, .prezi-textbox.selected, .user-image-wrapper.selected').length > 0;
+      // Check if right clicked on an element or in thumbnail list
+      let targetElement = e.target.closest('.canvas-card, .canvas-slide-frame, .prezi-textbox, .user-image-wrapper, .canvas-item, .frame-thumb-item');
+      if (!targetElement && e.target.tagName === 'IMG') {
+        targetElement = e.target.closest('.user-image-wrapper') || e.target;
+      }
 
-      // If clicked on an unselected element, select it
+      // If clicked thumbnail in sidebar, map to target slide frame
+      if (targetElement && targetElement.classList.contains('frame-thumb-item')) {
+        const targetId = targetElement.dataset.targetId || (window.STOPS && window.STOPS[parseInt(targetElement.dataset.index, 10)]?.targetId);
+        if (targetId) {
+          targetElement = document.getElementById(targetId) || targetElement;
+        }
+      }
+
+      // If no target under cursor, check if there is an existing selected item
+      if (!targetElement) {
+        targetElement = document.querySelector('.canvas-slide-frame.selected, .prezi-textbox.selected, .user-image-wrapper.selected, .canvas-card.card-selected');
+      }
+
+      currentContextMenuTarget = targetElement;
+
+      // Select targetElement so user sees blue focus border
       if (targetElement) {
         if (!targetElement.classList.contains('selected') && !targetElement.classList.contains('card-selected')) {
           document.querySelectorAll('.canvas-card.card-selected, .canvas-slide-frame.selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
           if (targetElement.classList.contains('canvas-card')) {
             targetElement.classList.add('card-selected');
-          } else {
+          } else if (targetElement.classList.contains('canvas-slide-frame') || targetElement.classList.contains('prezi-textbox') || targetElement.classList.contains('user-image-wrapper')) {
             targetElement.classList.add('selected');
           }
         }
       }
 
-      const isItemContext = targetElement || hasSelection;
+      const isSlideFrame = targetElement && targetElement.classList.contains('canvas-slide-frame') && targetElement.id !== 'overview-frame-box';
 
-      if (isItemContext) {
+      if (targetElement) {
         // MENU CHO MỤC ĐANG CHỌN (Selected Item Menu)
+        let frameReorderOptions = '';
+        if (isSlideFrame) {
+          frameReorderOptions = `
+            <div class="ctx-divider"></div>
+            <div class="ctx-item" data-action="move-last-slide">
+              <span class="ctx-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/><line x1="5" y1="19" x2="19" y2="19"/></svg>
+                <span>Chuyển xuống cuối thứ tự slide</span>
+              </span>
+            </div>
+            <div class="ctx-item" data-action="move-first-slide">
+              <span class="ctx-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/><line x1="5" y1="5" x2="19" y2="5"/></svg>
+                <span>Chuyển lên đầu thứ tự slide</span>
+              </span>
+            </div>
+          `;
+        }
+
         contextMenu.innerHTML = `
           <div class="ctx-item" data-action="copy">
             <span class="ctx-left">
@@ -1295,15 +1437,17 @@ function initPreziApp() {
           <div class="ctx-item" data-action="bring-front">
             <span class="ctx-left">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-              <span>Đưa lên trên cùng</span>
+              <span>Đưa lên trên cùng (Bring to Front)</span>
             </span>
           </div>
           <div class="ctx-item" data-action="send-back">
             <span class="ctx-left">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>
-              <span>Đưa xuống dưới cùng</span>
+              <span>Đưa xuống dưới cùng (Send to Back)</span>
             </span>
           </div>
+          ${frameReorderOptions}
+          <div class="ctx-divider"></div>
           <div class="ctx-item" data-action="zoom-to">
             <span class="ctx-left">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
@@ -1366,8 +1510,8 @@ function initPreziApp() {
 
       // Position context menu safely within screen bounds
       contextMenu.style.display = 'block';
-      const menuW = contextMenu.offsetWidth || 220;
-      const menuH = contextMenu.offsetHeight || 260;
+      const menuW = contextMenu.offsetWidth || 230;
+      const menuH = contextMenu.offsetHeight || 280;
       const posX = Math.min(clickX, window.innerWidth - menuW - 12);
       const posY = Math.min(clickY, window.innerHeight - menuH - 12);
       contextMenu.style.left = `${posX}px`;
@@ -1377,6 +1521,7 @@ function initPreziApp() {
       contextMenu.querySelectorAll('.ctx-item').forEach(item => {
         item.onclick = async () => {
           const action = item.dataset.action;
+          const target = currentContextMenuTarget;
           hideContextMenu();
 
           if (action === 'add-frame') {
@@ -1447,7 +1592,7 @@ function initPreziApp() {
             const btnPresent = document.getElementById('btn-present');
             if (btnPresent) btnPresent.click();
           } else if (action === 'copy') {
-            const selEl = document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
+            const selEl = target || document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
             if (selEl) {
               const text = selEl.textContent.trim();
               if (navigator.clipboard && text) {
@@ -1456,7 +1601,7 @@ function initPreziApp() {
               showToast('Đã sao chép vào bộ nhớ đệm!');
             }
           } else if (action === 'cut') {
-            const selEl = document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
+            const selEl = target || document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
             if (selEl) {
               const text = selEl.textContent.trim();
               if (navigator.clipboard && text) {
@@ -1475,23 +1620,45 @@ function initPreziApp() {
               syncStopsFromDOM();
               saveEditsToStorage();
               showToast(c === 1 ? 'Đã xóa mục.' : `Đã xóa ${c} mục.`);
+            } else if (target && target.id !== 'overview-frame-box') {
+              target.remove();
+              syncStopsFromDOM();
+              saveEditsToStorage();
+              showToast('Đã xóa mục.');
             }
           } else if (action === 'bring-front') {
-            const active = document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');
+            const active = target || document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected') || (selectedImgEl ? selectedImgEl.closest('.user-image-wrapper') : null);
             if (active) {
-              active.style.zIndex = '999';
-              saveEditsToStorage();
-              showToast('Đã đưa mục lên trên cùng!');
+              bringElementToFront(active);
             }
           } else if (action === 'send-back') {
-            const active = document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');
+            const active = target || document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected') || (selectedImgEl ? selectedImgEl.closest('.user-image-wrapper') : null);
             if (active) {
-              active.style.zIndex = '2';
+              sendElementToBack(active);
+            }
+          } else if (action === 'move-last-slide') {
+            const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
+            if (frame && frame.id !== 'overview-frame-box') {
+              world.appendChild(frame);
+              syncStopsFromDOM();
               saveEditsToStorage();
-              showToast('Đã đưa mục xuống dưới cùng!');
+              showToast('Đã chuyển Frame xuống cuối danh sách trình chiếu!');
+            }
+          } else if (action === 'move-first-slide') {
+            const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
+            if (frame && frame.id !== 'overview-frame-box') {
+              const firstFrame = Array.from(world.children).find(el =>
+                el.classList.contains('canvas-slide-frame') && el.id !== 'overview-frame-box' && el !== frame
+              );
+              if (firstFrame) {
+                world.insertBefore(frame, firstFrame);
+              }
+              syncStopsFromDOM();
+              saveEditsToStorage();
+              showToast('Đã chuyển Frame lên đầu danh sách trình chiếu!');
             }
           } else if (action === 'zoom-to') {
-            const active = document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');
+            const active = target || document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');
             if (active) {
               const focus = getElementFocusTransform(active, 1.25);
               applyCamera(focus.x, focus.y, focus.scale, true);
@@ -1499,7 +1666,12 @@ function initPreziApp() {
           }
         };
       });
-    });
+    }
+
+    viewport.addEventListener('contextmenu', openContextMenuHandler);
+    if (framesList) {
+      framesList.addEventListener('contextmenu', openContextMenuHandler);
+    }
   }
 
   // 6. SVG Spiral Generator
@@ -2159,10 +2331,12 @@ function initPreziApp() {
 
     // Universal Click-Outside Deselection Engine (Xóa viền xung quanh khi click ra ngoài)
     document.addEventListener('mousedown', (e) => {
-      // 0. If clicking inside toolbars, action buttons, or resize handles, ignore
+      // 0. If clicking inside toolbars, action buttons, context menu, or resize handles, ignore
       if (
         e.target.closest('#text-floating-toolbar') ||
         e.target.closest('#image-floating-toolbar') ||
+        e.target.closest('#prezi-context-menu') ||
+        e.target.closest('.prezi-context-menu') ||
         e.target.closest('#btn-tool-text') ||
         e.target.closest('#btn-select-tool') ||
         e.target.closest('#btn-pan-tool') ||
@@ -2453,7 +2627,28 @@ function initPreziApp() {
       }
     });
 
-    // Floating Image Toolbar Actions (Hình 1: Replace, Edit, Crop, Delete)
+    // Text Floating Toolbar: Bring to Front & Send to Back
+    const btnTextLayerFront = document.getElementById('btn-text-layer-front');
+    if (btnTextLayerFront) {
+      btnTextLayerFront.addEventListener('click', () => {
+        const target = selectedTextEl ? (selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .canvas-card') || selectedTextEl) : document.querySelector('.prezi-textbox.selected');
+        if (target && typeof bringElementToFront === 'function') {
+          bringElementToFront(target);
+        }
+      });
+    }
+
+    const btnTextLayerBack = document.getElementById('btn-text-layer-back');
+    if (btnTextLayerBack) {
+      btnTextLayerBack.addEventListener('click', () => {
+        const target = selectedTextEl ? (selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .canvas-card') || selectedTextEl) : document.querySelector('.prezi-textbox.selected');
+        if (target && typeof sendElementToBack === 'function') {
+          sendElementToBack(target);
+        }
+      });
+    }
+
+    // Floating Image Toolbar Actions (Hình 1: Replace, Edit, Crop, Delete, Layer Ordering)
     const replaceInput = document.getElementById('replace-file-input');
     if (replaceInput) {
       replaceInput.addEventListener('change', (e) => {
@@ -2486,6 +2681,26 @@ function initPreziApp() {
         saveEditsToStorage();
       }
     });
+
+    const btnImgLayerFront = document.getElementById('btn-img-layer-front');
+    if (btnImgLayerFront) {
+      btnImgLayerFront.addEventListener('click', () => {
+        const target = selectedImgEl ? (selectedImgEl.closest('.user-image-wrapper') || selectedImgEl) : document.querySelector('.user-image-wrapper.selected');
+        if (target && typeof bringElementToFront === 'function') {
+          bringElementToFront(target);
+        }
+      });
+    }
+
+    const btnImgLayerBack = document.getElementById('btn-img-layer-back');
+    if (btnImgLayerBack) {
+      btnImgLayerBack.addEventListener('click', () => {
+        const target = selectedImgEl ? (selectedImgEl.closest('.user-image-wrapper') || selectedImgEl) : document.querySelector('.user-image-wrapper.selected');
+        if (target && typeof sendElementToBack === 'function') {
+          sendElementToBack(target);
+        }
+      });
+    }
 
     const btnImgDel = document.getElementById('btn-img-delete');
     if (btnImgDel) btnImgDel.addEventListener('click', () => {
