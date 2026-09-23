@@ -114,10 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
       ov.dataset.target = 'overview';
       ov.dataset.index = 0;
       ov.innerHTML = `
-        <div class="thumb-card-preview">
-          <img src="assets/images/thumb_overview.png" alt="Overview thumbnail" class="thumb-img-ov">
+        <div class="thumb-card-preview overview-card-blank">
           <div class="thumb-home-icon">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="#374151"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           </div>
         </div>
         <span class="thumb-caption">Overview</span>
@@ -155,7 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const vpRect = viewport.getBoundingClientRect();
     const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
     if (cards.length === 0) {
-      return { x: vpRect.width / 2 - 1700 * 0.45, y: vpRect.height / 2 - 1200 * 0.45, scale: 0.45 };
+      const frameBox = document.getElementById('overview-frame-box');
+      const cx = frameBox ? (frameBox.offsetLeft + frameBox.offsetWidth / 2) : 1700;
+      const cy = frameBox ? (frameBox.offsetTop + frameBox.offsetHeight / 2) : 1200;
+      const scale = 0.28;
+      return { x: vpRect.width / 2 - cx * scale, y: vpRect.height / 2 - cy * scale, scale: 0.28 };
     }
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -648,7 +651,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5. Drag/Pan Canvas Engine
   function setupPanning() {
     viewport.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.canvas-card') || e.target.closest('.canvas-item') || e.target.closest('.user-image-wrapper') || e.target.closest('.nav-btn') || e.target.closest('.card-action-bar') || e.target.closest('.card-resize-handle') || e.target.closest('.prezi-floating-text-toolbar') || e.target.closest('.prezi-floating-image-toolbar')) return;
+      if (window.preziToolMode === 'select' && e.button === 0 && !e.altKey && !e.ctrlKey) return;
+      if (e.target.closest('.canvas-card') || e.target.closest('.canvas-item') || e.target.closest('.user-image-wrapper') || e.target.closest('.nav-btn') || e.target.closest('.nav-pill-btn') || e.target.closest('.bottom-right-aux') || e.target.closest('.card-action-bar') || e.target.closest('.card-resize-handle') || e.target.closest('.prezi-floating-text-toolbar') || e.target.closest('.prezi-floating-image-toolbar') || e.target.closest('.prezi-right-sidebar')) return;
       isPanning = true;
       startX = e.clientX - currentCamera.x;
       startY = e.clientY - currentCamera.y;
@@ -859,6 +863,226 @@ document.addEventListener('DOMContentLoaded', () => {
         goToStop(0);
       }
     });
+
+    // --------------------------------------------------------------------------
+    // Prezi Floating Bottom Pill & Modes (Pan vs Select)
+    // --------------------------------------------------------------------------
+    const btnPan = document.getElementById('btn-pan-tool');
+    const btnSelect = document.getElementById('btn-select-tool');
+    window.preziToolMode = 'pan';
+
+    if (btnPan && btnSelect) {
+      btnPan.addEventListener('click', () => {
+        window.preziToolMode = 'pan';
+        btnPan.classList.add('active');
+        btnSelect.classList.remove('active');
+        viewport.style.cursor = 'grab';
+      });
+      btnSelect.addEventListener('click', () => {
+        window.preziToolMode = 'select';
+        btnSelect.classList.add('active');
+        btnPan.classList.remove('active');
+        viewport.style.cursor = 'default';
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // Right Sidebar (Background Panel) Controls
+    // --------------------------------------------------------------------------
+    const btnToolStyle = document.getElementById('btn-tool-style');
+    const rightSidebar = document.getElementById('prezi-right-sidebar');
+    const btnCloseBg = document.getElementById('btn-close-bg-panel');
+    const bgPreviewBox = document.getElementById('bg-preview-box');
+
+    if (btnToolStyle && rightSidebar) {
+      btnToolStyle.addEventListener('click', () => {
+        rightSidebar.classList.toggle('collapsed');
+      });
+    }
+    if (btnCloseBg && rightSidebar) {
+      btnCloseBg.addEventListener('click', () => {
+        rightSidebar.classList.add('collapsed');
+      });
+    }
+
+    // Fill Color
+    const bgColorPicker = document.getElementById('bg-color-picker');
+    if (bgColorPicker) {
+      bgColorPicker.addEventListener('input', (e) => {
+        const col = e.target.value;
+        viewport.style.backgroundColor = col;
+        if (bgPreviewBox) bgPreviewBox.style.backgroundColor = col;
+      });
+    }
+
+    // Image Fit
+    const selectImageFit = document.getElementById('select-image-fit');
+    if (selectImageFit) {
+      selectImageFit.addEventListener('change', (e) => {
+        viewport.style.backgroundSize = e.target.value;
+        if (bgPreviewBox) bgPreviewBox.style.backgroundSize = e.target.value;
+      });
+    }
+
+    // Upload Background Image
+    const inputBgImage = document.getElementById('input-bg-image');
+    if (inputBgImage) {
+      inputBgImage.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const url = evt.target.result;
+          viewport.style.backgroundImage = `url("${url}")`;
+          viewport.style.backgroundSize = selectImageFit ? selectImageFit.value : 'cover';
+          viewport.style.backgroundPosition = 'center';
+          if (bgPreviewBox) {
+            bgPreviewBox.style.backgroundImage = `url("${url}")`;
+          }
+          showToast('Đã áp dụng ảnh nền!');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // AI & Preset Backgrounds
+    const presetTiles = document.querySelectorAll('.bg-preset-tile');
+    presetTiles.forEach(tile => {
+      tile.addEventListener('click', () => {
+        const bg = tile.dataset.bg;
+        if (bg && bg !== 'none') {
+          viewport.style.backgroundImage = `url("${bg}")`;
+          viewport.style.backgroundSize = 'cover';
+          viewport.style.backgroundPosition = 'center';
+          if (bgPreviewBox) bgPreviewBox.style.backgroundImage = `url("${bg}")`;
+        } else if (tile.style.background) {
+          viewport.style.background = tile.style.background;
+          if (bgPreviewBox) bgPreviewBox.style.background = tile.style.background;
+        }
+        showToast('Đã áp dụng hình nền.');
+      });
+    });
+
+    // --------------------------------------------------------------------------
+    // Top Bar Tools: Text, Media, Shape, Story block, Animation, More, Share
+    // --------------------------------------------------------------------------
+    const btnToolText = document.getElementById('btn-tool-text');
+    if (btnToolText) {
+      btnToolText.addEventListener('click', () => {
+        const vpRect = viewport.getBoundingClientRect();
+        const scale = currentCamera.scale || 1;
+        const cx = (-currentCamera.x + vpRect.width / 2) / scale;
+        const cy = (-currentCamera.y + vpRect.height / 2) / scale;
+
+        const newId = `text-box-${Date.now()}`;
+        const textBox = document.createElement('div');
+        textBox.className = 'canvas-card custom-added-text-box';
+        textBox.id = newId;
+        textBox.style.left = `${Math.round(cx - 160)}px`;
+        textBox.style.top = `${Math.round(cy - 40)}px`;
+        textBox.style.width = '320px';
+        textBox.style.minHeight = '60px';
+        textBox.style.padding = '14px 18px';
+        textBox.style.background = '#ffffff';
+        textBox.style.borderRadius = '8px';
+        textBox.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+        textBox.style.position = 'absolute';
+        textBox.style.zIndex = '30';
+        textBox.innerHTML = `
+          <h3 class="card-title-prezi" contenteditable="true" spellcheck="false" style="margin: 0; font-size: 1.25rem; color: #111827; outline: none;">Nhập văn bản mới...</h3>
+        `;
+        world.appendChild(textBox);
+        syncStopsFromDOM();
+        setupCardInteractions();
+        setupEditingEngine();
+        saveEditsToStorage();
+        const h3 = textBox.querySelector('h3');
+        if (h3) {
+          h3.focus();
+          document.execCommand('selectAll', false, null);
+        }
+        showToast('Đã thêm hộp văn bản mới!');
+      });
+    }
+
+    const fileInputMedia = document.getElementById('file-input-image');
+    if (fileInputMedia) {
+      fileInputMedia.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          placeImageOnCanvas(evt.target.result);
+          showToast('Đã chèn hình ảnh lên bản vẽ!');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const btnToolShape = document.getElementById('btn-tool-shape');
+    if (btnToolShape) {
+      btnToolShape.addEventListener('click', () => {
+        const vpRect = viewport.getBoundingClientRect();
+        const scale = currentCamera.scale || 1;
+        const cx = (-currentCamera.x + vpRect.width / 2) / scale;
+        const cy = (-currentCamera.y + vpRect.height / 2) / scale;
+
+        const shapeBox = document.createElement('div');
+        shapeBox.className = 'canvas-card custom-shape-box';
+        shapeBox.style.left = `${Math.round(cx - 120)}px`;
+        shapeBox.style.top = `${Math.round(cy - 120)}px`;
+        shapeBox.style.width = '240px';
+        shapeBox.style.height = '240px';
+        shapeBox.style.borderRadius = '16px';
+        shapeBox.style.border = '2px solid #2563eb';
+        shapeBox.style.background = 'rgba(37, 99, 235, 0.05)';
+        shapeBox.style.position = 'absolute';
+        shapeBox.style.zIndex = '20';
+        world.appendChild(shapeBox);
+        setupCardInteractions();
+        saveEditsToStorage();
+        showToast('Đã chèn hình khối!');
+      });
+    }
+
+    const btnToolStoryBlock = document.getElementById('btn-tool-story-block');
+    if (btnToolStoryBlock) {
+      btnToolStoryBlock.addEventListener('click', addNewFrame);
+    }
+
+    const btnToolAnim = document.getElementById('btn-tool-animation');
+    if (btnToolAnim) {
+      btnToolAnim.addEventListener('click', () => {
+        showToast('Hiệu ứng chuyển động (Zoom in/out) được tự động kích hoạt khi di chuyển giữa các trạm!');
+      });
+    }
+
+    const btnToolMore = document.getElementById('btn-tool-more');
+    if (btnToolMore) {
+      btnToolMore.addEventListener('click', () => {
+        showToast('Tùy chọn mở rộng: Chèn biểu đồ, Icon, Bản đồ, Video.');
+      });
+    }
+
+    const btnSharePres = document.getElementById('btn-share-presentation');
+    if (btnSharePres) {
+      btnSharePres.addEventListener('click', () => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(window.location.href);
+          showToast('Đã sao chép link chia sẻ bài thuyết trình!');
+        } else {
+          showToast('Link chia sẻ: ' + window.location.href);
+        }
+      });
+    }
+
+    const btnShortcuts = document.getElementById('btn-aux-shortcuts');
+    const btnHelp = document.getElementById('btn-aux-help');
+    const showHelpModal = () => {
+      alert("Phím tắt bài thuyết trình Prezi:\n\n• Mũi tên Phải (→) / Spacebar: Sang trạm tiếp theo\n• Mũi tên Trái (←): Về trạm trước\n• Phím H / Escape: Toàn cảnh (Overview)\n• Ctrl + A: Chọn tất cả các thẻ trên bản vẽ\n• Delete: Xóa thẻ / phần tử đang chọn\n• Cuộn chuột: Phóng to / Thu nhỏ mượt mà theo vị trí con trỏ\n• Giữ chuột trái & kéo: Di chuyển bản vẽ không gian");
+    };
+    if (btnShortcuts) btnShortcuts.addEventListener('click', showHelpModal);
+    if (btnHelp) btnHelp.addEventListener('click', showHelpModal);
 
     window.addEventListener('resize', () => {
       if (currentStopIndex === 0) {
@@ -1601,11 +1825,12 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v12_clean_slate_dynamic_stops';
+  const PREZI_APP_VERSION = '2026.09.23_v13_prezi_blank_editor';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.removeItem('prezi_cards_layout_v2');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
+    saveToIndexedDB('world_backup', null);
   }
 
   function isOldPhilosophyPreset(html) {

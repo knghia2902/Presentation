@@ -14,56 +14,96 @@
 </head>
 <body class="prezi-app">
 
-  <!-- TOP BAR (Prezi Editor / Presentation Navigation Bar) -->
+  <!-- TOP BAR (Prezi Editor Navbar - Matches media_1790129831208.png) -->
   <header class="prezi-topbar">
     <div class="topbar-left">
-      <div class="prezi-logo">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
-          <path d="M8 12 A4 4 0 0 1 16 12 A4 4 0 0 1 8 12" fill="none" stroke="currentColor" stroke-width="2"/>
-          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
-        </svg>
-        <span>Prezi</span>
+      <button class="btn-topbar-icon" id="btn-menu" title="Menu">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="presentation-title" contenteditable="true" spellcheck="false" title="Nhấp để đổi tên bài thuyết trình">Untitled presentation</div>
+      <button class="btn-badge-visibility" title="Trạng thái bài thuyết trình">
+        <span>Public</span>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
+      <div class="history-actions">
+        <button class="btn-history" id="btn-undo" title="Hoàn tác (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+        </button>
+        <button class="btn-history" id="btn-redo" title="Làm lại (Ctrl+Y)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+        </button>
       </div>
-      <div class="presentation-title" contenteditable="true" spellcheck="false" title="Nhấp để sửa tiêu đề bài thuyết trình">Bài Thuyết Trình Mới</div>
-      <span class="badge-public">Public</span>
+      <div class="cloud-status-icon" id="save-status-indicator" title="Đã lưu tự động lên đám mây">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="cloud-synced-svg">
+          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM10 17l-3.5-3.5 1.41-1.41L10 14.17l5.59-5.59L17 10l-7 7z"/>
+        </svg>
+      </div>
     </div>
     
-    <!-- EDITING TOOLBAR (Thanh công cụ chỉnh sửa chuẩn Prezi) -->
+    <!-- EDITING TOOLBAR (Icon on top, label below - chuẩn Prezi) -->
     <div class="topbar-center">
-      <button class="btn-tool" id="btn-tool-text" title="Thêm đoạn văn bản mới">
+      <button class="btn-tool-prezi active" id="btn-tool-style" title="Kiểu dáng & Hình nền">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/></svg>
+        <span>Style</span>
+      </button>
+      <button class="btn-tool-prezi" id="btn-tool-text" title="Thêm chữ">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4z"/></svg>
         <span>Text</span>
       </button>
-      <label class="btn-tool" id="label-tool-media" title="Chèn ảnh từ máy tính (hoặc dán Ctrl+V trực tiếp)">
+      <label class="btn-tool-prezi" id="label-tool-media" title="Chèn ảnh / video">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-        <span>Chèn ảnh</span>
+        <span>Media</span>
         <input type="file" id="file-input-image" accept="image/*" style="display:none;">
       </label>
-      <button class="btn-tool" id="btn-tool-save" title="Lưu lại các thay đổi đã chỉnh sửa">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
-        <span>Lưu bản thảo</span>
+      <button class="btn-tool-prezi" id="btn-tool-shape" title="Chèn hình khối">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><circle cx="16" cy="16" r="4"/></svg>
+        <span>Shape</span>
       </button>
-      <span class="save-status-indicator" id="save-status-indicator">Đã lưu tự động</span>
+      <button class="btn-tool-prezi" id="btn-tool-story-block" title="Khối nội dung">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        <span>Story block</span>
+      </button>
+      <button class="btn-tool-prezi" id="btn-tool-animation" title="Hiệu ứng chuyển động">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span>Animation</span>
+      </button>
+      <button class="btn-tool-prezi" id="btn-tool-more" title="Xem thêm công cụ">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+        <span>More</span>
+      </button>
     </div>
 
     <div class="topbar-right">
-      <button class="btn-topbar" id="btn-fullscreen" title="Toàn màn hình">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
-      </button>
-      <button class="btn-topbar btn-primary" id="btn-present-mode">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        <span>Thuyết trình</span>
+      <div class="user-avatar-badge" title="Tài khoản cá nhân">
+        <span class="user-avatar-text">NB</span>
+      </div>
+      <div class="split-btn-group">
+        <button class="btn-present-split" id="btn-present-mode">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span>Present</span>
+        </button>
+        <button class="btn-split-arrow" id="btn-present-options" title="Tùy chọn trình chiếu">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
+      </div>
+      <button class="btn-share" id="btn-share-presentation">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        <span>Share</span>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
       </button>
     </div>
   </header>
 
   <div class="prezi-main-container">
     
-    <!-- LEFT SIDEBAR: THUMBNAIL PATH (Giống hệt giao diện Prezi trong ảnh) -->
+    <!-- LEFT SIDEBAR: THUMBNAIL PATH (Khớp 100% media_1790129831208.png) -->
     <aside class="prezi-sidebar" id="prezi-sidebar">
       <div class="sidebar-header">
-        <button class="btn-add-frame">＋ Add frame</button>
+        <button class="btn-add-frame" id="btn-add-frame">
+          <span class="add-plus">＋</span>
+          <span>Add frame</span>
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" class="arrow-caret"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
       </div>
 
       <!-- Prezi Curved Collapse Tab ( media_1790128116357.png ) -->
@@ -77,17 +117,15 @@
       </button>
 
       <div class="frames-list" id="frames-list">
-        <!-- Overview item with authentic thumbnail -->
+        <!-- Overview thumbnail: Thẻ bo tròn trắng tinh khôi viền xanh lục chuẩn Prezi -->
         <div class="frame-thumb-item active" data-target="overview" data-index="0">
-          <div class="thumb-card-preview">
-            <img src="assets/images/thumb_overview.png" alt="Overview thumbnail" class="thumb-img-ov">
+          <div class="thumb-card-preview overview-card-blank">
             <div class="thumb-home-icon">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="#374151"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
             </div>
           </div>
           <span class="thumb-caption">Overview</span>
         </div>
-        <!-- Stops generated by JS with actual preview cards -->
       </div>
     </aside>
 
@@ -95,46 +133,129 @@
     <main class="prezi-viewport" id="prezi-viewport">
       <div class="prezi-world" id="prezi-world">
         
-        <!-- Slide 01: Slide mở đầu sạch sẽ, sẵn sàng chỉnh sửa -->
-        <div class="canvas-card" id="stop-01" style="left: 1300px; top: 950px; width: 780px; position: absolute; z-index: 10;">
-          <div class="card-inner-layout">
-            <div class="card-text-col" style="width: 100%;">
-              <span class="card-step-badge">1</span>
-              <h2 class="card-title-prezi" contenteditable="true" spellcheck="false">Tiêu Đề Bài Thuyết Trình</h2>
-              <p class="card-body-text" contenteditable="true" spellcheck="false">Nhấp đôi vào đây để nhập nội dung bài thuyết trình của bạn. Bạn có thể bấm "+ Add frame" để thêm slide tiếp theo, chèn ảnh từ máy tính hoặc dán (Ctrl+V) trực tiếp, hoặc chọn thẻ và bấm phím Delete để xóa.</p>
-            </div>
-          </div>
+        <!-- Khung Frame Trống Mặc Định Ở Giữa Canvas (Khớp chính xác media_1790129831208.png) -->
+        <div class="canvas-empty-frame-box" id="overview-frame-box"></div>
+
+        <!-- Prezi Watermark (Góc dưới bên trái như trong ảnh Prezi) -->
+        <div class="canvas-watermark">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="#94a3b8">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="#94a3b8" stroke-width="1.8"/>
+            <path d="M8 12 A4 4 0 0 1 16 12 A4 4 0 0 1 8 12" fill="none" stroke="#94a3b8" stroke-width="1.8"/>
+            <circle cx="12" cy="12" r="1.5" fill="#94a3b8"/>
+          </svg>
+          <span>Prezi</span>
         </div>
 
       </div>
     </main>
 
-    <!-- PREZI BOTTOM CONTROLS (Chuẩn thanh điều hướng góc dưới trong ảnh Prezi) -->
-    <nav class="prezi-bottom-bar">
-      <div class="nav-control-group">
-        <button class="nav-btn" id="btn-pan-tool" title="Kéo thả bản đồ">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0m-4-2a2 2 0 0 0-2 2v6m-4-3a2 2 0 0 0-2 2v5a7 7 0 0 0 14 0v-4a2 2 0 0 0-2-2"/></svg>
-        </button>
-        <div class="divider-v"></div>
-        <button class="nav-btn" id="btn-prev" title="Trạm trước (Phím ←)">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        <button class="nav-btn" id="btn-next" title="Trạm kế tiếp (Phím → / Phím Space)">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-        </button>
-        <div class="divider-v"></div>
-        <button class="nav-btn" id="btn-home" title="Xem toàn cảnh bản đồ (Phím H / ESC)">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </button>
-        <div class="divider-v"></div>
-        <button class="nav-btn" id="btn-zoom-out" title="Thu nhỏ">－</button>
-        <span class="zoom-level" id="zoom-indicator">100%</span>
-        <button class="nav-btn" id="btn-zoom-in" title="Phóng to">＋</button>
+    <!-- RIGHT SIDEBAR: BACKGROUND PANEL (Khớp hoàn toàn bảng Background bên phải trong ảnh Prezi) -->
+    <aside class="prezi-right-sidebar" id="prezi-right-sidebar">
+      <div class="right-sidebar-header">
+        <h3 class="panel-title">Background</h3>
+        <button class="btn-panel-close" id="btn-close-bg-panel" title="Đóng bảng Background">✕</button>
       </div>
 
-      <div class="current-stop-indicator">
-        <span id="current-stop-title">Toàn cảnh (Overview)</span>
-        <span class="stop-counter" id="stop-counter">Trạm 0 / 14</span>
+      <div class="right-sidebar-content">
+        <!-- Preview Box -->
+        <div class="bg-preview-box" id="bg-preview-box"></div>
+
+        <!-- Control Rows -->
+        <div class="bg-control-row">
+          <span class="ctrl-label">Fill color</span>
+          <div class="color-picker-wrapper">
+            <input type="color" id="bg-color-picker" value="#ffffff" class="bg-color-swatch">
+          </div>
+        </div>
+
+        <div class="bg-control-row">
+          <span class="ctrl-label">Background parallax</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-parallax" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="bg-control-row">
+          <span class="ctrl-label">Image fit</span>
+          <select class="bg-select" id="select-image-fit">
+            <option value="cover">Fill</option>
+            <option value="contain">Fit</option>
+            <option value="repeat">Tile</option>
+          </select>
+        </div>
+
+        <div class="bg-control-row">
+          <span class="ctrl-label">Screen ratio</span>
+          <select class="bg-select" id="select-screen-ratio">
+            <option value="16:9">16:9</option>
+            <option value="4:3">4:3</option>
+          </select>
+        </div>
+
+        <!-- Upload Image Button -->
+        <label class="btn-upload-bg-image" title="Tải ảnh nền lên từ máy tính">
+          <span>Upload image</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+          <input type="file" id="input-bg-image" accept="image/*" style="display:none;">
+        </label>
+
+        <!-- Unsplash Search -->
+        <div class="bg-section-title">Images by Unsplash &amp; Prezi</div>
+        <div class="search-input-box">
+          <input type="text" id="input-unsplash-search" placeholder="Search..." class="search-field">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+
+        <!-- AI Recommended Backgrounds -->
+        <div class="bg-section-header">
+          <span class="bg-section-title">AI recommended backgrounds</span>
+          <span class="ai-sparkle">✦</span>
+        </div>
+        <div class="bg-presets-grid" id="bg-presets-grid">
+          <div class="bg-preset-tile" data-bg="assets/images/watercolor_splash.png" style="background-image: url('assets/images/watercolor_splash.png');" title="Màu nước trừu tượng"></div>
+          <div class="bg-preset-tile" data-bg="assets/images/smartphone_tech.jpg" style="background-image: url('assets/images/smartphone_tech.jpg');" title="Thành phố ánh sáng"></div>
+          <div class="bg-preset-tile" data-bg="assets/images/rice_field.jpg" style="background-image: url('assets/images/rice_field.jpg');" title="Thiên nhiên hùng vĩ"></div>
+          <div class="bg-preset-tile" data-bg="assets/images/vintage_note_paper.png" style="background-image: url('assets/images/vintage_note_paper.png');" title="Giấy cổ điển"></div>
+          <div class="bg-preset-tile" data-bg="assets/images/thumb_overview.png" style="background-image: url('assets/images/thumb_overview.png');" title="Hình ảnh hiện đại"></div>
+          <div class="bg-preset-tile" data-bg="none" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);" title="Gradient công nghệ"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- PREZI BOTTOM CONTROLS (Thanh pill nổi ở giữa + nút Help góc dưới phải trong ảnh) -->
+    <nav class="prezi-bottom-bar">
+      <div class="nav-control-floating-pill">
+        <button class="nav-pill-btn active" id="btn-pan-tool" title="Di chuyển bàn tay (Pan)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0m-4-2a2 2 0 0 0-2 2v6m-4-3a2 2 0 0 0-2 2v5a7 7 0 0 0 14 0v-4a2 2 0 0 0-2-2"/></svg>
+        </button>
+        <button class="nav-pill-btn" id="btn-select-tool" title="Con trỏ chọn (Select)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M3 3l7 18 3-7 7-3L3 3z"/></svg>
+        </button>
+        <div class="pill-divider"></div>
+        <button class="nav-pill-btn" id="btn-prev" title="Trạm trước (←)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="nav-pill-btn" id="btn-next" title="Trạm kế (→)">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button class="nav-pill-btn" id="btn-home" title="Về toàn cảnh (Home)">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        </button>
+        <div class="pill-divider"></div>
+        <button class="nav-pill-btn" id="btn-zoom-out" title="Thu nhỏ">－</button>
+        <span class="nav-pill-zoom" id="zoom-indicator">28%</span>
+        <button class="nav-pill-btn" id="btn-zoom-in" title="Phóng to">＋</button>
+      </div>
+
+      <div class="bottom-right-aux">
+        <button class="btn-aux-square" id="btn-aux-shortcuts" title="Phím tắt & Lưới">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        </button>
+        <button class="btn-aux-help" id="btn-aux-help" title="Trợ giúp">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Help</span>
+        </button>
       </div>
     </nav>
 
