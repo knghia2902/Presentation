@@ -155,10 +155,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
     if (cards.length === 0) {
       const frameBox = document.getElementById('overview-frame-box');
-      const cx = frameBox ? (frameBox.offsetLeft + frameBox.offsetWidth / 2) : 1700;
-      const cy = frameBox ? (frameBox.offsetTop + frameBox.offsetHeight / 2) : 1200;
-      const scale = 0.28;
-      return { x: vpRect.width / 2 - cx * scale, y: vpRect.height / 2 - cy * scale, scale: 0.28 };
+      const fw = frameBox ? frameBox.offsetWidth : 860;
+      const fh = frameBox ? frameBox.offsetHeight : 484;
+      const cx = frameBox ? (frameBox.offsetLeft + fw / 2) : 1700;
+      const cy = frameBox ? (frameBox.offsetTop + fh / 2) : 1200;
+      const scaleX = (vpRect.width * 0.68) / fw;
+      const scaleY = (vpRect.height * 0.68) / fh;
+      const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.4), 1.25);
+      return {
+        x: vpRect.width / 2 - cx * fitScale,
+        y: vpRect.height / 2 - cy * fitScale,
+        scale: Math.round(fitScale * 100) / 100
+      };
     }
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -882,10 +890,23 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const sidebar = document.getElementById('prezi-sidebar');
-    document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
-      sidebar.classList.toggle('collapsed');
-      setTimeout(() => goToStop(currentStopIndex, true), 300);
-    });
+    const toggleBtn = document.getElementById('btn-toggle-sidebar');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sidebar.classList.toggle('collapsed');
+        setTimeout(() => goToStop(currentStopIndex, true), 320);
+      });
+    }
+
+    if (sidebar) {
+      sidebar.addEventListener('click', (e) => {
+        if (sidebar.classList.contains('collapsed')) {
+          sidebar.classList.remove('collapsed');
+          setTimeout(() => goToStop(currentStopIndex, true), 320);
+        }
+      });
+    }
 
     document.getElementById('btn-present-mode').addEventListener('click', () => {
       document.body.classList.toggle('in-present-mode');
@@ -1934,7 +1955,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v13_prezi_blank_editor';
+  const PREZI_APP_VERSION = '2026.09.23_v14_centered_frame_hover_sidebar';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.removeItem('prezi_cards_layout_v2');
