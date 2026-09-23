@@ -463,7 +463,8 @@ input, textarea {
 /* AUTHENTIC PREZI CURVED COLLAPSE / EXPAND TAB ( media_1790131979618.png ) */
 .sidebar-collapse-tab {
   position: absolute;
-  top: 60%;
+  top: 50%;
+  transform: translateY(-50%);
   right: -12px;
   width: 14px;
   height: 66px;

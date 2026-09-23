@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Dynamically sync STOPS and frame numbers from existing cards on the canvas
   function syncStopsFromDOM() {
     const existingCards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item'));
+    if (existingCards.length === 0 && typeof ensureOverviewFrameBox === 'function') {
+      ensureOverviewFrameBox();
+    }
     const newStops = [
       {
         id: 'overview',
@@ -154,14 +157,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const vpRect = viewport.getBoundingClientRect();
     const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
     if (cards.length === 0) {
-      const frameBox = document.getElementById('overview-frame-box');
-      const fw = frameBox ? frameBox.offsetWidth : 860;
-      const fh = frameBox ? frameBox.offsetHeight : 484;
-      const cx = frameBox ? (frameBox.offsetLeft + fw / 2) : 1700;
-      const cy = frameBox ? (frameBox.offsetTop + fh / 2) : 1200;
-      const scaleX = (vpRect.width * 0.68) / fw;
-      const scaleY = (vpRect.height * 0.68) / fh;
-      const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.4), 1.25);
+      const frameBox = (typeof ensureOverviewFrameBox === 'function') ? ensureOverviewFrameBox() : document.getElementById('overview-frame-box');
+      const fw = (frameBox && frameBox.offsetWidth > 0) ? frameBox.offsetWidth : 860;
+      const fh = (frameBox && frameBox.offsetHeight > 0) ? frameBox.offsetHeight : 484;
+      const fLeft = (frameBox && frameBox.offsetLeft > 0) ? frameBox.offsetLeft : 1270;
+      const fTop = (frameBox && frameBox.offsetTop > 0) ? frameBox.offsetTop : 958;
+      const cx = fLeft + fw / 2;
+      const cy = fTop + fh / 2;
+      const scaleX = (vpRect.width * 0.65) / fw;
+      const scaleY = (vpRect.height * 0.65) / fh;
+      const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.25);
       return {
         x: vpRect.width / 2 - cx * fitScale,
         y: vpRect.height / 2 - cy * fitScale,
@@ -538,6 +543,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupOverviewFrameInteractions();
   }
+
+  // Guarantees #overview-frame-box exists when there are no slide cards (media_1790130642265.png & media_1790134536388.png)
+  function ensureOverviewFrameBox() {
+    const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
+    let frameBox = document.getElementById('overview-frame-box');
+    if (cards.length === 0) {
+      if (!frameBox) {
+        frameBox = document.createElement('div');
+        frameBox.className = 'canvas-empty-frame-box';
+        frameBox.id = 'overview-frame-box';
+        frameBox.innerHTML = `
+          <span class="frame-handle top-left"></span>
+          <span class="frame-handle top-right"></span>
+          <span class="frame-handle bottom-left"></span>
+          <span class="frame-handle bottom-right"></span>
+        `;
+        world.appendChild(frameBox);
+      }
+      setupOverviewFrameInteractions();
+      return frameBox;
+    } else {
+      if (frameBox) {
+        frameBox.remove();
+      }
+      return null;
+    }
+  }
+  window.ensureOverviewFrameBox = ensureOverviewFrameBox;
 
   // Resizing and dragging for #overview-frame-box (Authentic Prezi frame matching media_1790130642265.png)
   function setupOverviewFrameInteractions() {
@@ -1955,7 +1988,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v14_centered_frame_hover_sidebar';
+  const PREZI_APP_VERSION = '2026.09.23_v15_frame_always_present_centered_tab';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.removeItem('prezi_cards_layout_v2');
@@ -2059,6 +2092,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (savedContent) {
+      savedContent = savedContent.replace(/<div class="canvas-watermark"[\s\S]*?<\/div>/gi, '');
       world.innerHTML = savedContent;
       if (savedLayout) {
         try {
@@ -2087,8 +2121,14 @@ document.addEventListener('DOMContentLoaded', () => {
       upgradeAllImagesToInteractive();
     }
 
-    // Always dynamically sync STOPS from what is actually in the DOM!
+    // Always dynamically sync STOPS and frame box from what is actually in the DOM!
+    ensureOverviewFrameBox();
     syncStopsFromDOM();
+    if (currentStopIndex === 0) {
+      setTimeout(() => {
+        goToStop(0, false);
+      }, 60);
+    }
   }
 
 
