@@ -758,7 +758,7 @@ function initPreziApp() {
     });
 
     frame.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.frame-handle') || e.target.closest('.prezi-textbox') || e.target.closest('.user-image-wrapper') || e.target.isContentEditable) return;
+      if (e.target.closest('.frame-handle') || e.target.closest('.prezi-textbox') || e.target.closest('.user-image-wrapper') || e.target.isContentEditable || e.target.closest('[contenteditable="true"]')) return;
       
       document.querySelectorAll('.canvas-slide-frame.selected, .canvas-card.card-selected, .prezi-textbox.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
       frame.classList.add('selected');
@@ -768,6 +768,7 @@ function initPreziApp() {
       sY = e.clientY;
       iLeft = frame.offsetLeft;
       iTop = frame.offsetTop;
+      e.stopPropagation();
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -881,12 +882,41 @@ function initPreziApp() {
   // 5. Drag/Pan Canvas Engine
   function setupPanning() {
     viewport.addEventListener('mousedown', (e) => {
-      if (window.preziToolMode === 'select' && e.button === 0 && !e.altKey && !e.ctrlKey) return;
-      if (e.target.closest('.canvas-card') || e.target.closest('.canvas-item') || e.target.closest('.user-image-wrapper') || e.target.closest('.nav-btn') || e.target.closest('.nav-pill-btn') || e.target.closest('.bottom-right-aux') || e.target.closest('.card-action-bar') || e.target.closest('.card-resize-handle') || e.target.closest('.prezi-floating-text-toolbar') || e.target.closest('.prezi-floating-image-toolbar') || e.target.closest('.prezi-right-sidebar')) return;
+      // If in Select mode or Shift-key is pressed, Marquee Selection handles it
+      if ((window.preziToolMode === 'select' || e.shiftKey) && e.button === 0) return;
+      if (e.button !== 0 && e.button !== 1) return;
+
+      // Do NOT pan canvas when clicking inside editable text, textboxes, slide frames, handles, or tools!
+      if (
+        e.target.isContentEditable ||
+        e.target.closest('[contenteditable="true"]') ||
+        e.target.closest('.canvas-card') ||
+        e.target.closest('.canvas-item') ||
+        e.target.closest('.canvas-slide-frame') ||
+        e.target.closest('.prezi-textbox') ||
+        e.target.closest('.textbox-content') ||
+        e.target.closest('.user-image-wrapper') ||
+        e.target.closest('.frame-handle') ||
+        e.target.closest('.card-resize-handle') ||
+        e.target.closest('.nav-btn') ||
+        e.target.closest('.nav-pill-btn') ||
+        e.target.closest('.bottom-right-aux') ||
+        e.target.closest('.card-action-bar') ||
+        e.target.closest('.prezi-floating-text-toolbar') ||
+        e.target.closest('.prezi-floating-image-toolbar') ||
+        e.target.closest('.prezi-right-sidebar') ||
+        e.target.closest('.prezi-topbar') ||
+        e.target.closest('.prezi-sidebar') ||
+        e.target.closest('.prezi-bottom-bar')
+      ) return;
+
       isPanning = true;
       startX = e.clientX - currentCamera.x;
       startY = e.clientY - currentCamera.y;
       world.style.transition = 'none';
+      if (window.preziToolMode === 'pan') {
+        viewport.style.cursor = 'grabbing';
+      }
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -900,6 +930,9 @@ function initPreziApp() {
       if (isPanning) {
         isPanning = false;
         world.style.transition = 'transform 0.4s ease-out';
+        if (window.preziToolMode === 'pan') {
+          viewport.style.cursor = 'grab';
+        }
       }
     });
 
@@ -917,6 +950,111 @@ function initPreziApp() {
 
       applyCamera(newX, newY, newScale, false);
     }, { passive: false });
+  }
+
+  // 5.5 Marquee / Area Selection Engine (Bôi các vùng chọn trên canvas bằng kéo chuột)
+  function setupMarqueeSelection() {
+    let isMarquee = false;
+    let mStartX = 0, mStartY = 0;
+
+    let marqueeBox = document.getElementById('prezi-marquee-box');
+    if (!marqueeBox) {
+      marqueeBox = document.createElement('div');
+      marqueeBox.id = 'prezi-marquee-box';
+      marqueeBox.className = 'marquee-selection-box';
+      viewport.appendChild(marqueeBox);
+    }
+
+    viewport.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return; // Only primary left-click
+      if (document.body.classList.contains('in-present-mode')) return;
+
+      // Active when Select tool is active OR Shift key is held down
+      const isSelectMode = (window.preziToolMode === 'select') || e.shiftKey;
+      if (!isSelectMode) return;
+
+      // Do NOT start marquee when clicking directly on elements or controls
+      if (
+        e.target.isContentEditable ||
+        e.target.closest('[contenteditable="true"]') ||
+        e.target.closest('.canvas-card') ||
+        e.target.closest('.canvas-item') ||
+        e.target.closest('.canvas-slide-frame') ||
+        e.target.closest('.prezi-textbox') ||
+        e.target.closest('.textbox-content') ||
+        e.target.closest('.user-image-wrapper') ||
+        e.target.closest('.frame-handle') ||
+        e.target.closest('.card-resize-handle') ||
+        e.target.closest('.nav-btn') ||
+        e.target.closest('.nav-pill-btn') ||
+        e.target.closest('.prezi-floating-text-toolbar') ||
+        e.target.closest('.prezi-floating-image-toolbar') ||
+        e.target.closest('.prezi-topbar') ||
+        e.target.closest('.prezi-sidebar') ||
+        e.target.closest('.prezi-bottom-bar') ||
+        e.target.closest('.prezi-right-sidebar')
+      ) {
+        return;
+      }
+
+      isMarquee = true;
+      mStartX = e.clientX;
+      mStartY = e.clientY;
+      const vpRect = viewport.getBoundingClientRect();
+
+      // Clear previous selection unless Shift is held
+      if (!e.shiftKey) {
+        document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => c.classList.remove('card-selected'));
+        document.querySelectorAll('.canvas-slide-frame.selected').forEach(f => f.classList.remove('selected'));
+        document.querySelectorAll('.prezi-textbox.selected').forEach(t => t.classList.remove('selected'));
+        document.querySelectorAll('.user-image-wrapper.selected').forEach(w => w.classList.remove('selected'));
+      }
+
+      const onMouseMove = (ev) => {
+        if (!isMarquee) return;
+        const curX = ev.clientX;
+        const curY = ev.clientY;
+        const l = Math.min(mStartX, curX);
+        const t = Math.min(mStartY, curY);
+        const w = Math.abs(curX - mStartX);
+        const h = Math.abs(curY - mStartY);
+
+        if (w > 3 || h > 3) {
+          marqueeBox.style.display = 'block';
+          marqueeBox.style.left = `${l - vpRect.left}px`;
+          marqueeBox.style.top = `${t - vpRect.top}px`;
+          marqueeBox.style.width = `${w}px`;
+          marqueeBox.style.height = `${h}px`;
+
+          const mBounds = { left: l, top: t, right: l + w, bottom: t + h };
+
+          // Intersect with canvas cards, slide frames, textboxes, and user images
+          const targets = world.querySelectorAll('.canvas-card, .canvas-slide-frame, .prezi-textbox, .user-image-wrapper');
+          targets.forEach(el => {
+            if (el.id === 'overview-frame-box') return;
+            const r = el.getBoundingClientRect();
+            const hit = !(r.right < mBounds.left || r.left > mBounds.right || r.bottom < mBounds.top || r.top > mBounds.bottom);
+            if (el.classList.contains('canvas-card')) {
+              el.classList.toggle('card-selected', hit);
+            } else {
+              el.classList.toggle('selected', hit);
+            }
+          });
+        }
+      };
+
+      const onMouseUp = () => {
+        if (isMarquee) {
+          isMarquee = false;
+          marqueeBox.style.display = 'none';
+        }
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
   }
 
   // 6. SVG Spiral Generator
@@ -1141,12 +1279,14 @@ function initPreziApp() {
         btnPan.classList.add('active');
         btnSelect.classList.remove('active');
         viewport.style.cursor = 'grab';
+        showToast('Chế độ Di chuyển (Pan: Kéo chuột để di chuyển canvas)');
       });
       btnSelect.addEventListener('click', () => {
         window.preziToolMode = 'select';
         btnSelect.classList.add('active');
         btnPan.classList.remove('active');
-        viewport.style.cursor = 'default';
+        viewport.style.cursor = 'crosshair';
+        showToast('Chế độ Bôi vùng chọn (Select: Kéo chuột khoanh vùng để chọn nhiều đối tượng)');
       });
     }
 
@@ -1429,9 +1569,11 @@ function initPreziApp() {
     let origTop = 0;
 
     textBox.addEventListener('mousedown', (e) => {
-      const isInsideContent = e.target.classList.contains('textbox-content');
+      const isInsideContent = e.target.classList.contains('textbox-content') || e.target.isContentEditable || e.target.closest('.textbox-content');
 
-      document.querySelectorAll('.prezi-textbox.selected, .canvas-card.card-selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+      document.querySelectorAll('.prezi-textbox.selected').forEach(el => {
+        if (el !== textBox) el.classList.remove('selected');
+      });
       textBox.classList.add('selected');
       const content = textBox.querySelector('.textbox-content');
       selectedTextEl = content;
@@ -1439,45 +1581,54 @@ function initPreziApp() {
         positionTextToolbar(content);
       }
 
-      if (!isInsideContent || e.altKey) {
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        origLeft = parseFloat(textBox.style.left) || textBox.offsetLeft;
-        origTop = parseFloat(textBox.style.top) || textBox.offsetTop;
+      // If user clicked inside the text content to edit or highlight text:
+      if (isInsideContent && !e.altKey) {
+        // Stop propagation so viewport panning does not steal the mouse drag!
         e.stopPropagation();
-
-        const onMouseMove = (ev) => {
-          if (!isDragging) return;
-          const scale = currentCamera.scale || 1;
-          const dx = (ev.clientX - startX) / scale;
-          const dy = (ev.clientY - startY) / scale;
-          textBox.style.left = `${Math.round(origLeft + dx)}px`;
-          textBox.style.top = `${Math.round(origTop + dy)}px`;
-          if (typeof positionTextToolbar === 'function' && content) {
-            positionTextToolbar(content);
-          }
-        };
-
-        const onMouseUp = () => {
-          if (isDragging) {
-            isDragging = false;
-            saveEditsToStorage();
-          }
-          window.removeEventListener('mousemove', onMouseMove);
-          window.removeEventListener('mouseup', onMouseUp);
-        };
-
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
+        // Allow native cursor and drag-to-highlight (bôi đen chữ)!
+        return;
       }
+
+      // User clicked border/handle or pressed Alt to move the textbox
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = parseFloat(textBox.style.left) || textBox.offsetLeft;
+      origTop = parseFloat(textBox.style.top) || textBox.offsetTop;
+      e.stopPropagation();
+
+      const onMouseMove = (ev) => {
+        if (!isDragging) return;
+        const scale = currentCamera.scale || 1;
+        const dx = (ev.clientX - startX) / scale;
+        const dy = (ev.clientY - startY) / scale;
+        textBox.style.left = `${Math.round(origLeft + dx)}px`;
+        textBox.style.top = `${Math.round(origTop + dy)}px`;
+        if (typeof positionTextToolbar === 'function' && content) {
+          positionTextToolbar(content);
+        }
+      };
+
+      const onMouseUp = () => {
+        if (isDragging) {
+          isDragging = false;
+          saveEditsToStorage();
+        }
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
     });
 
     const content = textBox.querySelector('.textbox-content');
     if (content) {
       content.addEventListener('click', (e) => {
         e.stopPropagation();
-        document.querySelectorAll('.prezi-textbox.selected, .canvas-card.card-selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+        document.querySelectorAll('.prezi-textbox.selected').forEach(el => {
+          if (el !== textBox) el.classList.remove('selected');
+        });
         textBox.classList.add('selected');
         selectedTextEl = content;
         if (typeof positionTextToolbar === 'function') {
@@ -1486,7 +1637,9 @@ function initPreziApp() {
       });
 
       content.addEventListener('focus', () => {
-        document.querySelectorAll('.prezi-textbox.selected, .canvas-card.card-selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+        document.querySelectorAll('.prezi-textbox.selected').forEach(el => {
+          if (el !== textBox) el.classList.remove('selected');
+        });
         textBox.classList.add('selected');
         selectedTextEl = content;
         if (typeof positionTextToolbar === 'function') {
@@ -1558,17 +1711,97 @@ function initPreziApp() {
 
     document.querySelectorAll(editableSelectors.join(',')).forEach(makeElementEditable);
 
-    // Click outside to hide toolbars
+    // Universal Click-Outside Deselection Engine (Xóa viền xung quanh khi click ra ngoài)
     document.addEventListener('mousedown', (e) => {
-      if (textToolbar && !textToolbar.contains(e.target) && !e.target.isContentEditable) {
-        textToolbar.classList.remove('show');
-        if (selectedTextEl) selectedTextEl.classList.remove('prezi-selected-el');
-        selectedTextEl = null;
+      // 0. If clicking inside toolbars, action buttons, or resize handles, ignore
+      if (
+        e.target.closest('#text-floating-toolbar') ||
+        e.target.closest('#image-floating-toolbar') ||
+        e.target.closest('#btn-tool-text') ||
+        e.target.closest('#btn-select-tool') ||
+        e.target.closest('#btn-pan-tool') ||
+        e.target.closest('.card-resize-handle') ||
+        e.target.closest('.frame-handle') ||
+        e.target.closest('.card-action-bar')
+      ) {
+        return;
       }
-      if (imgToolbar && !imgToolbar.contains(e.target) && !e.target.classList.contains('prezi-selected-img') && !e.target.classList.contains('card-portrait-img') && !e.target.classList.contains('user-placed-image')) {
-        imgToolbar.classList.remove('show');
-        if (selectedImgEl) selectedImgEl.classList.remove('prezi-selected-img');
+
+      // 1. Textbox deselection: If click is NOT inside a .prezi-textbox
+      const clickedTextBox = e.target.closest('.prezi-textbox');
+      if (!clickedTextBox) {
+        document.querySelectorAll('.prezi-textbox.selected').forEach(box => {
+          box.classList.remove('selected');
+          const content = box.querySelector('.textbox-content');
+          if (content && (document.activeElement === content || content.contains(document.activeElement))) {
+            content.blur();
+          }
+        });
+      } else {
+        document.querySelectorAll('.prezi-textbox.selected').forEach(box => {
+          if (box !== clickedTextBox) {
+            box.classList.remove('selected');
+            const content = box.querySelector('.textbox-content');
+            if (content && document.activeElement === content) {
+              content.blur();
+            }
+          }
+        });
+      }
+
+      // 2. Editable text deselection: If click is NOT inside contenteditable text
+      if (!e.target.isContentEditable && !e.target.closest('[contenteditable="true"]')) {
+        document.querySelectorAll('.prezi-selected-el').forEach(el => el.classList.remove('prezi-selected-el'));
+        selectedTextEl = null;
+        if (document.activeElement && document.activeElement.isContentEditable) {
+          document.activeElement.blur();
+        }
+        if (textToolbar && !clickedTextBox) {
+          textToolbar.classList.remove('show');
+        }
+      }
+
+      // 3. Slide Frame deselection: If click is NOT inside a .canvas-slide-frame
+      const clickedFrame = e.target.closest('.canvas-slide-frame');
+      if (!clickedFrame && !e.target.closest('.frame-handle')) {
+        document.querySelectorAll('.canvas-slide-frame.selected').forEach(f => f.classList.remove('selected'));
+      } else if (clickedFrame) {
+        document.querySelectorAll('.canvas-slide-frame.selected').forEach(f => {
+          if (f !== clickedFrame) f.classList.remove('selected');
+        });
+      }
+
+      // 4. Card deselection: If click is NOT inside a .canvas-card
+      const clickedCard = e.target.closest('.canvas-card, .canvas-item');
+      if (!clickedCard && !e.target.closest('.card-resize-handle')) {
+        document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => c.classList.remove('card-selected'));
+      } else if (clickedCard) {
+        document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => {
+          if (c !== clickedCard) c.classList.remove('card-selected');
+        });
+      }
+
+      // 5. Image deselection: If click is NOT on an image
+      const clickedImg = e.target.closest('.user-image-wrapper') || e.target.classList.contains('card-portrait-img') || e.target.classList.contains('user-placed-image');
+      if (!clickedImg) {
+        document.querySelectorAll('.user-image-wrapper.selected').forEach(w => w.classList.remove('selected'));
+        document.querySelectorAll('.prezi-selected-img').forEach(i => i.classList.remove('prezi-selected-img'));
         selectedImgEl = null;
+        if (imgToolbar) imgToolbar.classList.remove('show');
+      }
+    });
+
+    // Auto-position text toolbar when text is highlighted / selected
+    document.addEventListener('selectionchange', () => {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+        const active = document.activeElement;
+        if (active && (active.isContentEditable || active.closest('[contenteditable="true"]'))) {
+          selectedTextEl = active;
+          if (typeof positionTextToolbar === 'function') {
+            positionTextToolbar(active);
+          }
+        }
       }
     });
 
@@ -2116,64 +2349,23 @@ function initPreziApp() {
         return;
       }
 
-      // 2. If a prezi-textbox or custom-added-text-box is selected:
-      const selectedTextBox = document.querySelector('.prezi-textbox.selected, .custom-added-text-box.selected, .custom-added-text-box.card-selected');
-      if (selectedTextBox) {
+      // 2. Universal single/bulk deletion of any selected canvas elements (textboxes, slide frames, cards, images):
+      const allSelectedItems = Array.from(document.querySelectorAll(
+        '.prezi-textbox.selected, .custom-added-text-box.selected, .custom-added-text-box.card-selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .canvas-item.card-selected, .user-image-wrapper.selected, .user-image-wrapper.card-selected'
+      )).filter(el => el.id !== 'overview-frame-box');
+
+      if (allSelectedItems.length > 0) {
         e.preventDefault();
-        selectedTextBox.remove();
+        const count = allSelectedItems.length;
+        allSelectedItems.forEach(item => item.remove());
         if (textToolbar) textToolbar.classList.remove('show');
+        if (imgToolbar) imgToolbar.classList.remove('show');
         selectedTextEl = null;
-        syncStopsFromDOM();
-        saveEditsToStorage();
-        showToast('Đã xóa hộp văn bản.');
-        return;
-      }
-
-      // 2.5. If a slide frame is selected:
-      const selectedFrame = document.querySelector('.canvas-slide-frame.selected');
-      if (selectedFrame) {
-        e.preventDefault();
-        selectedFrame.remove();
-        syncStopsFromDOM();
-        saveEditsToStorage();
-        showToast('Đã xóa khung trình chiếu.');
-        goToStop(Math.min(currentStopIndex, STOPS.length - 1));
-        return;
-      }
-
-      // 3. If an image is selected:
-      if (selectedImgEl && document.contains(selectedImgEl)) {
-        e.preventDefault();
-        const wrapper = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl;
-        wrapper.remove();
         selectedImgEl = null;
-        if (imgToolbar) imgToolbar.classList.remove('show');
-        saveEditsToStorage();
-        showToast('Đã xóa hình ảnh.');
-        return;
-      }
-
-      // 4. If an image wrapper is selected:
-      const selectedImgWrapper = document.querySelector('.user-image-wrapper.selected');
-      if (selectedImgWrapper) {
-        e.preventDefault();
-        selectedImgWrapper.remove();
-        selectedImgEl = null;
-        if (imgToolbar) imgToolbar.classList.remove('show');
-        saveEditsToStorage();
-        showToast('Đã xóa hình ảnh.');
-        return;
-      }
-
-      // 5. If card(s) or images are selected on canvas:
-      const selectedCards = Array.from(document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected, .user-image-wrapper.card-selected, .user-image-wrapper.selected'));
-      if (selectedCards.length > 0) {
-        e.preventDefault();
-        selectedCards.forEach(c => c.remove());
         syncStopsFromDOM();
         saveEditsToStorage();
-        showToast(`Đã xóa ${selectedCards.length} mục đã chọn.`);
-        goToStop(Math.min(currentStopIndex, STOPS.length - 1));
+        showToast(count === 1 ? 'Đã xóa mục đang chọn.' : `Đã xóa ${count} mục đã chọn.`);
+        goToStop(Math.min(currentStopIndex, Math.max(0, STOPS.length - 1)));
         return;
       }
 
@@ -2633,6 +2825,7 @@ function initPreziApp() {
   syncStopsFromDOM();
   setupCardInteractions();
   setupPanning();
+  setupMarqueeSelection();
   generatePreziSpiral();
   setupControls();
   setupEditingEngine();

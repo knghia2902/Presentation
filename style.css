@@ -2029,7 +2029,7 @@ body.in-present-mode .prezi-present-right-controls {
 .prezi-textbox {
   position: absolute;
   background: transparent !important;
-  border: 1.5px solid transparent;
+  border: 1.5px solid transparent !important;
   box-shadow: none !important;
   border-radius: 0 !important;
   padding: 2px 4px;
@@ -2038,17 +2038,20 @@ body.in-present-mode .prezi-present-right-controls {
   min-width: 80px;
   display: inline-block;
   box-sizing: border-box;
-  user-select: none;
+  user-select: auto;
   transition: border-color 0.15s;
 }
 
-.prezi-textbox:hover {
-  border: 1.5px dashed rgba(37, 99, 235, 0.5);
+body:not(.in-present-mode) .prezi-textbox:hover:not(.selected) {
+  border: 1.5px dashed rgba(37, 99, 235, 0.4) !important;
 }
 
-.prezi-textbox.selected,
-.prezi-textbox:focus-within {
+.prezi-textbox.selected {
   border: 1.5px solid #2563eb !important;
+}
+
+.prezi-textbox:not(.selected) {
+  border: 1.5px solid transparent !important;
 }
 
 .prezi-textbox .textbox-content,
@@ -2069,11 +2072,12 @@ body.in-present-mode .prezi-present-right-controls {
   white-space: pre-wrap;
   word-break: break-word;
   user-select: text !important;
+  -webkit-user-select: text !important;
 }
 
 /* 4 Corner handles chuẩn Prezi (Hình 1) */
 .prezi-textbox .box-handle {
-  display: none;
+  display: none !important;
   position: absolute;
   width: 7px;
   height: 7px;
@@ -2084,15 +2088,39 @@ body.in-present-mode .prezi-present-right-controls {
   box-sizing: border-box;
 }
 
-.prezi-textbox.selected .box-handle,
-.prezi-textbox:focus-within .box-handle {
-  display: block;
+.prezi-textbox.selected .box-handle {
+  display: block !important;
+}
+
+.prezi-textbox:not(.selected) .box-handle {
+  display: none !important;
 }
 
 .prezi-textbox .box-handle.tl { top: -4px; left: -4px; }
 .prezi-textbox .box-handle.tr { top: -4px; right: -4px; }
 .prezi-textbox .box-handle.bl { bottom: -4px; left: -4px; }
 .prezi-textbox .box-handle.br { bottom: -4px; right: -4px; }
+
+body.in-present-mode .prezi-textbox {
+  border: none !important;
+  cursor: default !important;
+}
+
+body.in-present-mode .prezi-textbox .box-handle {
+  display: none !important;
+}
+
+/* Prezi Marquee Selection Box (Khoanh vùng chọn đối tượng trên canvas) */
+.marquee-selection-box {
+  position: absolute;
+  border: 1.5px solid #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 9990;
+  display: none;
+  box-sizing: border-box;
+}
 
 /* ==========================================================================
    PREZI FLOATING TOOLBARS (Text: Hình 1 & Image: Hình 1)
