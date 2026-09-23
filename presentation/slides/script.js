@@ -965,13 +965,22 @@ function initPreziApp() {
       viewport.appendChild(marqueeBox);
     }
 
+    // Prevent default browser context menu on viewport to allow smooth right-click dragging
+    viewport.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
     viewport.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return; // Only primary left-click
       if (document.body.classList.contains('in-present-mode')) return;
 
-      // Active when Select tool is active OR Shift key is held down
-      const isSelectMode = (window.preziToolMode === 'select') || e.shiftKey;
-      if (!isSelectMode) return;
+      const isRightClick = (e.button === 2);
+      const isLeftClick = (e.button === 0);
+
+      // Support Right-Click drag anywhere on canvas, OR Left-Click in select mode or with Shift
+      if (!isRightClick && !isLeftClick) return;
+
+      const shouldMarquee = isRightClick || (isLeftClick && (window.preziToolMode === 'select' || e.shiftKey));
+      if (!shouldMarquee) return;
 
       // Do NOT start marquee when clicking directly on elements or controls
       if (
@@ -2206,51 +2215,59 @@ function initPreziApp() {
 
         if (isPreziDoc) {
           e.preventDefault();
-          // If user was typing in text, avoid pasting the raw JSON code!
+          const textToInsert = preziExtractedBody && preziExtractedBody !== 'Nhấp đúp chuột để chỉnh sửa nội dung thẻ này...' ? preziExtractedBody : (preziExtractedTitle || 'Văn bản Prezi');
           if (document.activeElement && document.activeElement.isContentEditable) {
-            if (preziExtractedBody && preziExtractedBody !== 'Nhấp đúp chuột để chỉnh sửa nội dung thẻ này...') {
-              document.execCommand('insertText', false, preziExtractedBody);
-              saveEditsToStorage();
-              showToast('Đã trích xuất nội dung từ Prezi vào văn bản!');
-            } else {
-              showToast('Mẹo Prezi: Hãy nhấp đúp vào chữ trong Prezi rồi bôi đen copy (Ctrl+C)!');
-            }
+            document.execCommand('insertText', false, textToInsert);
+            saveEditsToStorage();
+            showToast('Đã dán văn bản từ Prezi!');
             handled = true;
             return;
           }
 
-          // Create a clean new Prezi frame on canvas at view center
+          // Create a clean, transparent Prezi floating text box (NO CARD, NO WHITE BOX)
           const vpRect = viewport.getBoundingClientRect();
-          const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
-          const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
+          const scale = currentCamera.scale || 1;
+          const centerX = (-currentCamera.x + vpRect.width / 2) / scale;
+          const centerY = (-currentCamera.y + vpRect.height / 2) / scale;
 
-          const newBox = document.createElement('div');
-          newBox.className = 'canvas-card custom-added-card';
-          newBox.style.left = `${Math.round(centerX - 180)}px`;
-          newBox.style.top = `${Math.round(centerY - 80)}px`;
-          newBox.style.width = '380px';
-          newBox.style.position = 'absolute';
-          newBox.style.zIndex = '35';
-          newBox.innerHTML = `
-            <div class="card-inner-layout" style="padding: 20px;">
-              <h3 class="card-title-prezi" contenteditable="true" spellcheck="false" style="margin-top: 0; color: #1e3a8a; font-size: 18px; font-weight: 700;">${preziExtractedTitle}</h3>
-              <p class="card-body-text" contenteditable="true" spellcheck="false" style="margin: 8px 0 0 0; color: #334155; font-size: 14px; line-height: 1.6;">${preziExtractedBody}</p>
-            </div>
-          `;
-          world.appendChild(newBox);
-          setupCardInteractions();
-          newBox.querySelectorAll('h3, p').forEach(makeElementEditable);
-          syncStopsFromDOM();
+          const newId = `textbox-${Date.now()}`;
+          const textBox = document.createElement('div');
+          textBox.className = 'prezi-textbox selected';
+          textBox.id = newId;
+          textBox.style.left = `${Math.round(centerX - 150)}px`;
+          textBox.style.top = `${Math.round(centerY - 30)}px`;
+
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'textbox-content';
+          contentDiv.setAttribute('contenteditable', 'true');
+          contentDiv.setAttribute('spellcheck', 'false');
+          contentDiv.textContent = textToInsert;
+
+          textBox.appendChild(contentDiv);
+          textBox.insertAdjacentHTML('beforeend', `
+            <div class="box-handle tl"></div>
+            <div class="box-handle tr"></div>
+            <div class="box-handle bl"></div>
+            <div class="box-handle br"></div>
+          `);
+          world.appendChild(textBox);
+          setupTextBox(textBox);
           saveEditsToStorage();
-          showToast('Đã tạo khung Prezi mới! (Mẹo: Nhấp đúp vào chữ trong Prezi để copy trực tiếp)');
+
+          contentDiv.focus();
+          selectedTextEl = contentDiv;
+          if (typeof positionTextToolbar === 'function') {
+            positionTextToolbar(contentDiv);
+          }
+          showToast('Đã dán văn bản trong suốt từ Prezi!');
           handled = true;
           return;
         }
 
         if (plainText) {
+          e.preventDefault();
           // A. If user is currently focused inside a contenteditable element:
           if (document.activeElement && document.activeElement.isContentEditable) {
-            e.preventDefault();
             document.execCommand('insertText', false, plainText);
             saveEditsToStorage();
             showToast('Đã dán văn bản!');
@@ -2260,7 +2277,6 @@ function initPreziApp() {
 
           // B. If a text element was previously clicked/selected:
           if (selectedTextEl && document.contains(selectedTextEl)) {
-            e.preventDefault();
             selectedTextEl.focus();
             document.execCommand('insertText', false, plainText);
             saveEditsToStorage();
@@ -2269,50 +2285,56 @@ function initPreziApp() {
             return;
           }
 
-          // C. If an active/selected card is present, append a new editable paragraph:
-          const targetCard = document.querySelector('.canvas-card.card-selected') || document.querySelector('.canvas-card.current-active') || document.getElementById('stop-01');
-          if (targetCard) {
-            e.preventDefault();
-            const p = document.createElement('p');
-            p.className = 'card-body-text';
-            p.textContent = plainText;
-            targetCard.appendChild(p);
-            makeElementEditable(p);
-            p.focus();
-            saveEditsToStorage();
-            showToast('Đã dán đoạn văn bản mới vào thẻ!');
-            handled = true;
-            return;
+          // C. If a prezi textbox is selected:
+          const selectedTextBox = document.querySelector('.prezi-textbox.selected');
+          if (selectedTextBox) {
+            const content = selectedTextBox.querySelector('.textbox-content');
+            if (content) {
+              content.focus();
+              document.execCommand('insertText', false, plainText);
+              saveEditsToStorage();
+              showToast('Đã dán văn bản vào hộp chữ!');
+              handled = true;
+              return;
+            }
           }
 
-          // D. Fallback: Create a floating text note on the canvas at view center
-          e.preventDefault();
+          // D. Canvas Paste: Create a clean, transparent Prezi floating text box (NO CARD, NO WHITE BOX, NO BADGE, NO SHADOW)
           const vpRect = viewport.getBoundingClientRect();
-          const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
-          const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
+          const scale = currentCamera.scale || 1;
+          const centerX = (-currentCamera.x + vpRect.width / 2) / scale;
+          const centerY = (-currentCamera.y + vpRect.height / 2) / scale;
 
-          const newBox = document.createElement('div');
-          newBox.className = 'canvas-card custom-added-card';
-          newBox.style.left = `${Math.round(centerX - 160)}px`;
-          newBox.style.top = `${Math.round(centerY - 60)}px`;
-          newBox.style.width = '360px';
-          newBox.style.position = 'absolute';
-          newBox.style.zIndex = '35';
-          newBox.innerHTML = `
-            <div class="card-inner-layout" style="padding: 14px;">
-              <p class="card-body-text" contenteditable="true" spellcheck="false" style="margin: 0;">${plainText}</p>
-            </div>
-          `;
-          world.appendChild(newBox);
-          setupCardInteractions();
-          const pEl = newBox.querySelector('p');
-          if (pEl) {
-            makeElementEditable(pEl);
-            pEl.focus();
-          }
-          syncStopsFromDOM();
+          const newId = `textbox-${Date.now()}`;
+          const textBox = document.createElement('div');
+          textBox.className = 'prezi-textbox selected';
+          textBox.id = newId;
+          textBox.style.left = `${Math.round(centerX - 150)}px`;
+          textBox.style.top = `${Math.round(centerY - 30)}px`;
+
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'textbox-content';
+          contentDiv.setAttribute('contenteditable', 'true');
+          contentDiv.setAttribute('spellcheck', 'false');
+          contentDiv.textContent = plainText;
+
+          textBox.appendChild(contentDiv);
+          textBox.insertAdjacentHTML('beforeend', `
+            <div class="box-handle tl"></div>
+            <div class="box-handle tr"></div>
+            <div class="box-handle bl"></div>
+            <div class="box-handle br"></div>
+          `);
+          world.appendChild(textBox);
+          setupTextBox(textBox);
           saveEditsToStorage();
-          showToast('Đã dán đoạn văn bản mới lên bảng!');
+
+          contentDiv.focus();
+          selectedTextEl = contentDiv;
+          if (typeof positionTextToolbar === 'function') {
+            positionTextToolbar(contentDiv);
+          }
+          showToast('Đã dán văn bản (Prezi Text trong suốt)');
           handled = true;
           return;
         }
@@ -2742,46 +2764,31 @@ function initPreziApp() {
           p.textContent = 'Khung Prezi mới (Nhấp chuột để chỉnh sửa nội dung)';
         }
       });
-      // Convert any existing custom-added-text-box (Hình 2) into clean Prezi floating textbox (Hình 1)
-      world.querySelectorAll('.custom-added-text-box').forEach(el => {
-        const textContent = el.querySelector('h1, h2, h3, h4, p, .card-title-prezi')?.textContent || 'Click to edit text';
-        el.className = 'prezi-textbox';
-        el.style.background = 'transparent';
-        el.style.boxShadow = 'none';
-        el.style.border = '1.5px solid transparent';
-        el.style.padding = '2px 4px';
-        el.querySelectorAll('.card-step-badge, .card-action-bar').forEach(b => b.remove());
-        el.innerHTML = `
-          <div class="textbox-content" contenteditable="true" spellcheck="false">${textContent}</div>
-          <div class="box-handle tl"></div>
-          <div class="box-handle tr"></div>
-          <div class="box-handle bl"></div>
-          <div class="box-handle br"></div>
-        `;
-        setupTextBox(el);
+      // Convert any existing custom-added-card or pasted card into clean Prezi floating textbox (bỏ hẳn khung card vớ vẩn)
+      world.querySelectorAll('.canvas-card').forEach(el => {
+        if (el.classList.contains('custom-added-card') || el.classList.contains('custom-added-text-box') || (el.querySelector('.card-body-text')?.textContent && el.querySelector('.card-body-text').textContent.includes('Quy luật phủ định của phủ định không chỉ là một lý thuyết'))) {
+          const p = el.querySelector('.card-body-text') || el.querySelector('p');
+          const textContent = p ? p.textContent.trim() : el.textContent.trim();
+          if (textContent && textContent !== 'Khung Prezi mới' && textContent !== 'Click to edit text') {
+            const newTextBox = document.createElement('div');
+            newTextBox.className = 'prezi-textbox';
+            newTextBox.id = `textbox-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+            newTextBox.style.left = el.style.left || `${el.offsetLeft}px`;
+            newTextBox.style.top = el.style.top || `${el.offsetTop}px`;
+            newTextBox.innerHTML = `
+              <div class="textbox-content" contenteditable="true" spellcheck="false">${textContent}</div>
+              <div class="box-handle tl"></div>
+              <div class="box-handle tr"></div>
+              <div class="box-handle bl"></div>
+              <div class="box-handle br"></div>
+            `;
+            world.appendChild(newTextBox);
+            setupTextBox(newTextBox);
+          }
+          el.remove();
+        }
       });
       world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
-      // Convert any existing custom-added-card (Hình 1) into clean Prezi slide frame (Hình 2)
-      world.querySelectorAll('.custom-added-card').forEach(el => {
-        el.className = 'canvas-slide-frame';
-        el.style.background = 'transparent';
-        el.style.boxShadow = 'none';
-        el.style.border = '1.5px solid #64748b';
-        el.style.borderRadius = '8px';
-        el.style.padding = '0';
-        el.style.width = el.style.width || '860px';
-        el.style.height = el.style.height || '484px';
-        el.style.position = 'absolute';
-        el.style.zIndex = '5';
-        el.querySelectorAll('.card-inner-layout, .card-step-badge, .card-action-bar').forEach(b => b.remove());
-        el.innerHTML = `
-          <span class="frame-handle top-left"></span>
-          <span class="frame-handle top-right"></span>
-          <span class="frame-handle bottom-left"></span>
-          <span class="frame-handle bottom-right"></span>
-        `;
-        setupSlideFrameInteractions(el);
-      });
       world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
       if (savedLayout) {
         try {
@@ -2821,7 +2828,34 @@ function initPreziApp() {
   }
 
 
+  function cleanUpLegacyCustomCards() {
+    world.querySelectorAll('.canvas-card').forEach(el => {
+      if (el.classList.contains('custom-added-card') || el.classList.contains('custom-added-text-box') || (el.querySelector('.card-body-text')?.textContent && el.querySelector('.card-body-text').textContent.includes('Quy luật phủ định của phủ định không chỉ là một lý thuyết'))) {
+        const p = el.querySelector('.card-body-text') || el.querySelector('p');
+        const textContent = p ? p.textContent.trim() : el.textContent.trim();
+        if (textContent && textContent !== 'Khung Prezi mới' && textContent !== 'Click to edit text') {
+          const newTextBox = document.createElement('div');
+          newTextBox.className = 'prezi-textbox';
+          newTextBox.id = `textbox-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+          newTextBox.style.left = el.style.left || `${el.offsetLeft}px`;
+          newTextBox.style.top = el.style.top || `${el.offsetTop}px`;
+          newTextBox.innerHTML = `
+            <div class="textbox-content" contenteditable="true" spellcheck="false">${textContent}</div>
+            <div class="box-handle tl"></div>
+            <div class="box-handle tr"></div>
+            <div class="box-handle bl"></div>
+            <div class="box-handle br"></div>
+          `;
+          world.appendChild(newTextBox);
+          setupTextBox(newTextBox);
+        }
+        el.remove();
+      }
+    });
+  }
+
   // Initialize
+  cleanUpLegacyCustomCards();
   syncStopsFromDOM();
   setupCardInteractions();
   setupPanning();
