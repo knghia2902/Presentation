@@ -123,17 +123,55 @@ function initPreziApp() {
     }
 
     STOPS.slice(1).forEach((stop, index) => {
+      const stopIndex = index + 1;
       const item = document.createElement('div');
-      item.className = 'frame-thumb-item' + (currentStopIndex === index + 1 ? ' active' : '');
-      item.dataset.index = index + 1;
+      item.className = 'frame-thumb-item' + (currentStopIndex === stopIndex ? ' active' : '');
+      item.dataset.index = stopIndex;
+      item.setAttribute('tabindex', '0');
       item.innerHTML = `
         <div class="thumb-card-preview blank-frame-preview">
           ${stop.previewImg ? `<img src="${stop.previewImg}" alt="Thumb" class="thumb-img-card">` : `<div class="thumb-blank-slide"></div>`}
-          <div class="thumb-badge-index">${index + 1}</div>
+          <div class="thumb-badge-index">${stopIndex}</div>
+          <button class="thumb-delete-btn" title="Xóa Frame ${stopIndex} (Delete)" type="button">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 12z"/>
+            </svg>
+          </button>
         </div>
-        <span class="thumb-caption">Frame ${index + 1}</span>
+        <span class="thumb-caption">Frame ${stopIndex}</span>
       `;
-      item.addEventListener('click', () => goToStop(index + 1));
+
+      const delBtn = item.querySelector('.thumb-delete-btn');
+      if (delBtn) {
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const targetEl = document.getElementById(stop.targetId);
+          if (targetEl) {
+            deleteCard(targetEl, true);
+          }
+        });
+      }
+
+      item.addEventListener('click', () => {
+        goToStop(stopIndex);
+        const targetEl = document.getElementById(stop.targetId);
+        if (targetEl) {
+          document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+          targetEl.classList.add('selected');
+        }
+      });
+
+      item.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          e.stopPropagation();
+          const targetEl = document.getElementById(stop.targetId);
+          if (targetEl) {
+            deleteCard(targetEl, true);
+          }
+        }
+      });
+
       framesList.appendChild(item);
     });
   }
@@ -2787,7 +2825,7 @@ function initPreziApp() {
         return;
       }
 
-      // 6. If a text block element is selected:
+      // 3. If a text block element is selected:
       if (selectedTextEl && document.contains(selectedTextEl)) {
         e.preventDefault();
         const parentBox = selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
@@ -2802,6 +2840,20 @@ function initPreziApp() {
         saveEditsToStorage();
         showToast('Đã xóa khối văn bản.');
         return;
+      }
+
+      // 4. CRITICAL: If user clicked a frame in the left sidebar OR is currently viewing a slide frame (Frame 1, Frame 2, ...):
+      // Pressing Delete or Backspace deletes that frame immediately!
+      if (currentStopIndex > 0 && currentStopIndex < STOPS.length) {
+        const stop = STOPS[currentStopIndex];
+        if (stop && stop.targetId) {
+          const targetFrame = document.getElementById(stop.targetId);
+          if (targetFrame && targetFrame.id !== 'overview-frame-box') {
+            e.preventDefault();
+            deleteCard(targetFrame, true);
+            return;
+          }
+        }
       }
     });
 

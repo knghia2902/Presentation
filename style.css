@@ -562,6 +562,45 @@ input, textarea {
   box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
 
+.frame-thumb-item:focus,
+.frame-thumb-item:focus-visible {
+  outline: none;
+}
+.frame-thumb-item:focus .thumb-card-preview,
+.frame-thumb-item:focus-visible .thumb-card-preview {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px #2563eb;
+}
+
+.frame-thumb-item .thumb-delete-btn {
+  display: none;
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  background: rgba(239, 68, 68, 0.95);
+  color: #ffffff;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background 0.15s, transform 0.15s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  padding: 0;
+}
+
+.frame-thumb-item .thumb-delete-btn:hover {
+  background: #dc2626;
+  transform: scale(1.15);
+}
+
+.frame-thumb-item:hover .thumb-delete-btn {
+  display: flex;
+}
+
 .frame-thumb-item.active .thumb-card-preview {
   border-color: #107c41;
   box-shadow: 0 0 0 1px #107c41;
