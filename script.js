@@ -44,24 +44,18 @@ function initPreziApp() {
 
     existingCards.forEach((card, idx) => {
       const num = idx + 1;
-      const cardId = card.id || `stop-${num < 10 ? '0' + num : num}`;
+      const cardId = card.id || `frame-${num < 10 ? '0' + num : num}`;
       card.id = cardId;
 
-      let badge = card.querySelector('.card-step-badge');
-      if (!badge) {
-        badge = document.createElement('span');
-        badge.className = 'card-step-badge';
-        const inner = card.querySelector('.card-inner-layout') || card;
-        inner.prepend(badge);
-      }
-      badge.textContent = `${num}`;
+      // Do NOT display number badge inside slide frames (User: "bỏ số 1 ở góc bên trái khung đi")
+      card.querySelectorAll('.card-step-badge').forEach(b => b.remove());
 
       const titleEl = card.querySelector('h1, h2, h3, h4, .card-title-prezi, .card-title-large, .hero-title');
-      const titleText = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : `Trạm ${num}`;
+      const titleText = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : `Frame ${num}`;
 
-      // Check if card has an image to use as preview thumb
-      const img = card.querySelector('img');
-      const previewImg = img ? img.src : 'assets/images/thumb_overview.png';
+      // Only show user-placed image in thumbnail, never use obsolete Marx/philosophy portrait
+      const userImg = card.querySelector('.user-placed-image, img');
+      const previewImg = (userImg && !userImg.src.includes('thumb_overview.png')) ? userImg.src : null;
 
       newStops.push({
         id: cardId,
@@ -91,7 +85,7 @@ function initPreziApp() {
       currentStopTitle.textContent = stop.title;
     }
     if (stopCounter) {
-      stopCounter.textContent = STOPS.length <= 1 ? 'Chưa có thẻ' : `Trạm ${currentStopIndex} / ${STOPS.length - 1}`;
+      stopCounter.textContent = STOPS.length <= 1 ? 'Chưa có frame' : (currentStopIndex === 0 ? 'Overview' : `Frame ${currentStopIndex} / ${STOPS.length - 1}`);
     }
     document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
       item.classList.toggle('active', i === currentStopIndex);
@@ -133,11 +127,11 @@ function initPreziApp() {
       item.className = 'frame-thumb-item' + (currentStopIndex === index + 1 ? ' active' : '');
       item.dataset.index = index + 1;
       item.innerHTML = `
-        <div class="thumb-card-preview">
-          <img src="${stop.previewImg || 'assets/images/thumb_overview.png'}" alt="Thumb" class="thumb-img-card">
+        <div class="thumb-card-preview blank-frame-preview">
+          ${stop.previewImg ? `<img src="${stop.previewImg}" alt="Thumb" class="thumb-img-card">` : `<div class="thumb-blank-slide"></div>`}
           <div class="thumb-badge-index">${index + 1}</div>
         </div>
-        <span class="thumb-caption">${stop.title.split(':')[0]}</span>
+        <span class="thumb-caption">Frame ${index + 1}</span>
       `;
       item.addEventListener('click', () => goToStop(index + 1));
       framesList.appendChild(item);
@@ -189,12 +183,12 @@ function initPreziApp() {
   // Calculate Overview position to fit entire World or existing cards on screen
   function getOverviewTransform() {
     const safe = getSafeWorkArea();
+    if (typeof ensureOverviewFrameBox === 'function') ensureOverviewFrameBox();
+    const overviewBox = document.getElementById('overview-frame-box');
     const cards = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item, .user-image-wrapper'))
       .filter(el => el.id !== 'overview-frame-box' && !el.classList.contains('prezi-textbox'));
 
     if (cards.length === 0) {
-      if (typeof ensureOverviewFrameBox === 'function') ensureOverviewFrameBox();
-      const overviewBox = document.getElementById('overview-frame-box');
       const fw = overviewBox ? overviewBox.offsetWidth : 860;
       const fh = overviewBox ? overviewBox.offsetHeight : 484;
       const fLeft = overviewBox ? overviewBox.offsetLeft : 1270;
@@ -202,8 +196,8 @@ function initPreziApp() {
       const cx = fLeft + fw / 2;
       const cy = fTop + fh / 2;
 
-      const scaleX = (safe.safeW * 0.78) / fw;
-      const scaleY = (safe.safeH * 0.78) / fh;
+      const scaleX = (safe.safeW * 0.82) / fw;
+      const scaleY = (safe.safeH * 0.82) / fh;
       const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.25);
       return {
         x: safe.centerX - cx * fitScale,
@@ -212,7 +206,11 @@ function initPreziApp() {
       };
     }
 
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = overviewBox ? overviewBox.offsetLeft : Infinity;
+    let minY = overviewBox ? overviewBox.offsetTop : Infinity;
+    let maxX = overviewBox ? (overviewBox.offsetLeft + overviewBox.offsetWidth) : -Infinity;
+    let maxY = overviewBox ? (overviewBox.offsetTop + overviewBox.offsetHeight) : -Infinity;
+
     cards.forEach(c => {
       const left = c.offsetLeft;
       const top = c.offsetTop;
@@ -224,15 +222,15 @@ function initPreziApp() {
       if (bottom > maxY) maxY = bottom;
     });
 
-    const pad = 70;
+    const pad = 100;
     const w = Math.max(maxX - minX + pad * 2, 860);
     const h = Math.max(maxY - minY + pad * 2, 484);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
 
-    const scaleX = (safe.safeW * 0.80) / w;
-    const scaleY = (safe.safeH * 0.80) / h;
-    const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.25);
+    const scaleX = (safe.safeW * 0.82) / w;
+    const scaleY = (safe.safeH * 0.82) / h;
+    const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.20), 1.25);
 
     return {
       x: safe.centerX - cx * fitScale,
@@ -284,6 +282,8 @@ function initPreziApp() {
     document.querySelectorAll('.canvas-empty-frame-box').forEach(b => b.classList.remove('selected'));
 
     if (stop.type === 'overview') {
+      const ovBox = document.getElementById('overview-frame-box') || ensureOverviewFrameBox();
+      if (ovBox) ovBox.classList.add('selected');
       const ov = getOverviewTransform();
       applyCamera(ov.x, ov.y, ov.scale, smooth);
     } else {
@@ -299,7 +299,7 @@ function initPreziApp() {
       currentStopTitle.textContent = stop.title;
     }
     if (stopCounter) {
-      stopCounter.textContent = `Trạm ${index} / ${STOPS.length - 1}`;
+      stopCounter.textContent = index === 0 ? 'Overview' : `Frame ${index} / ${STOPS.length - 1}`;
     }
 
     document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
@@ -395,7 +395,7 @@ function initPreziApp() {
             currentStopTitle.textContent = STOPS[stopIdx].title;
           }
           if (stopCounter) {
-            stopCounter.textContent = `Trạm ${stopIdx} / ${STOPS.length - 1}`;
+            stopCounter.textContent = stopIdx === 0 ? 'Overview' : `Frame ${stopIdx} / ${STOPS.length - 1}`;
           }
           document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
             item.classList.toggle('active', i === stopIdx);
@@ -557,37 +557,27 @@ function initPreziApp() {
     setupOverviewFrameInteractions();
   }
 
-  // Guarantees #overview-frame-box exists when there are no slide cards (media_1790130642265.png & media_1790134536388.png)
+  // Guarantees #overview-frame-box exists permanently (representing Overview frame)
   function ensureOverviewFrameBox() {
-    const cards = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item, .user-image-wrapper'))
-      .filter(el => el.id !== 'overview-frame-box');
     let frameBox = document.getElementById('overview-frame-box');
-    if (cards.length === 0) {
-      if (!frameBox) {
-        frameBox = document.createElement('div');
-        frameBox.className = 'canvas-empty-frame-box';
-        frameBox.id = 'overview-frame-box';
-        frameBox.innerHTML = `
-          <span class="frame-handle top-left"></span>
-          <span class="frame-handle top-right"></span>
-          <span class="frame-handle bottom-left"></span>
-          <span class="frame-handle bottom-right"></span>
-        `;
-        world.appendChild(frameBox);
-      }
+    if (!frameBox) {
+      frameBox = document.createElement('div');
+      frameBox.className = 'canvas-empty-frame-box';
+      frameBox.id = 'overview-frame-box';
+      frameBox.innerHTML = `
+        <span class="frame-handle top-left"></span>
+        <span class="frame-handle top-right"></span>
+        <span class="frame-handle bottom-left"></span>
+        <span class="frame-handle bottom-right"></span>
+      `;
       frameBox.style.left = '1270px';
       frameBox.style.top = '958px';
       frameBox.style.width = '860px';
       frameBox.style.height = '484px';
-      delete frameBox.dataset.eventsBound;
-      setupOverviewFrameInteractions();
-      return frameBox;
-    } else {
-      if (frameBox) {
-        frameBox.remove();
-      }
-      return null;
+      world.appendChild(frameBox);
     }
+    setupOverviewFrameInteractions();
+    return frameBox;
   }
   window.ensureOverviewFrameBox = ensureOverviewFrameBox;
 
@@ -680,6 +670,7 @@ function initPreziApp() {
     // Click on frame to select it (turns green + shows 4 blue corner handles)
     overviewBox.addEventListener('click', (e) => {
       e.stopPropagation();
+      document.querySelectorAll('.canvas-slide-frame.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
       overviewBox.classList.add('selected');
     });
 
@@ -690,9 +681,16 @@ function initPreziApp() {
       }
     });
 
+    document.addEventListener('mousedown', (e) => {
+      if (!overviewBox.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-floating-text-toolbar') && !e.target.closest('.prezi-context-menu')) {
+        overviewBox.classList.remove('selected');
+      }
+    });
+
     // Clicking Overview thumbnail in sidebar selects the frame
     document.querySelectorAll('[data-target="overview"]').forEach(thumb => {
       thumb.addEventListener('click', () => {
+        document.querySelectorAll('.canvas-slide-frame.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
         overviewBox.classList.add('selected');
       });
     });
@@ -721,12 +719,14 @@ function initPreziApp() {
     // Register into STOPS
     const newIndex = STOPS.length;
     const cardTitle = clone.querySelector('h1, h2, h3, h4, .card-title-prezi')?.textContent?.trim() || 'Thẻ Nhân Bản';
+    const cloneImg = clone.querySelector('.user-placed-image, img');
+    const previewImg = (cloneImg && !cloneImg.src.includes('thumb_overview.png')) ? cloneImg.src : null;
     const newStop = {
       id: newId,
       title: `${newIndex < 10 ? '0' + newIndex : newIndex}. ${cardTitle}`,
       targetId: newId,
       scaleOffset: 1.15,
-      previewImg: 'assets/images/thumb_overview.png'
+      previewImg: previewImg
     };
     STOPS.push(newStop);
 
@@ -906,22 +906,22 @@ function initPreziApp() {
     const newIndex = STOPS.length;
     const newId = `frame-${newIndex < 10 ? '0' + newIndex : newIndex}-${Date.now()}`;
 
-    const safe = getSafeWorkArea();
-    const scale = currentCamera.scale || 1;
-    const centerX = (-currentCamera.x + safe.centerX) / scale;
-    const centerY = (-currentCamera.y + safe.centerY) / scale;
-
     const frameW = 860;
     const frameH = 484;
 
+    const overviewBox = document.getElementById('overview-frame-box') || ensureOverviewFrameBox();
+    const ovLeft = overviewBox ? overviewBox.offsetLeft : 1270;
+    const ovTop = overviewBox ? overviewBox.offsetTop : 958;
+    const ovWidth = overviewBox ? (overviewBox.offsetWidth || frameW) : frameW;
+
     let targetLeft, targetTop;
     if (existingFrames.length === 0) {
-      targetLeft = Math.round(centerX - frameW / 2);
-      targetTop = Math.round(centerY - frameH / 2);
+      targetLeft = Math.round(ovLeft + ovWidth + 240);
+      targetTop = Math.round(ovTop);
     } else {
       // Find the furthest right frame to place the new frame neatly to its right
-      let maxRight = -Infinity;
-      let refTop = centerY - frameH / 2;
+      let maxRight = ovLeft + ovWidth;
+      let refTop = ovTop;
       existingFrames.forEach(f => {
         const r = f.offsetLeft + (f.offsetWidth || frameW);
         if (r > maxRight) {
@@ -929,9 +929,12 @@ function initPreziApp() {
           refTop = f.offsetTop;
         }
       });
-      targetLeft = Math.round(maxRight + 200);
+      targetLeft = Math.round(maxRight + 240);
       targetTop = Math.round(refTop);
     }
+
+    // Deselect any previous selected items
+    document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected').forEach(el => el.classList.remove('selected', 'card-selected'));
 
     const newFrame = document.createElement('div');
     newFrame.className = 'canvas-slide-frame selected';
@@ -957,7 +960,7 @@ function initPreziApp() {
     syncStopsFromDOM();
 
     goToStop(newIndex);
-    showToast(`Đã thêm khung trình chiếu mới (Khung ${newIndex < 10 ? '0' + newIndex : newIndex})`);
+    showToast(`Đã thêm khung trình chiếu mới (Frame ${newIndex})`);
     saveEditsToStorage();
   }
 
@@ -1111,6 +1114,7 @@ function initPreziApp() {
       if (!e.shiftKey) {
         document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => c.classList.remove('card-selected'));
         document.querySelectorAll('.canvas-slide-frame.selected').forEach(f => f.classList.remove('selected'));
+        document.querySelectorAll('.canvas-empty-frame-box.selected').forEach(b => b.classList.remove('selected'));
         document.querySelectorAll('.prezi-textbox.selected').forEach(t => t.classList.remove('selected'));
         document.querySelectorAll('.user-image-wrapper.selected').forEach(w => w.classList.remove('selected'));
       }
