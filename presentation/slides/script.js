@@ -67,7 +67,7 @@ function initPreziApp() {
         id: cardId,
         title: `${num < 10 ? '0' + num : num}. ${titleText}`,
         targetId: cardId,
-        scaleOffset: 1.15,
+        scaleOffset: 1.0,
         previewImg: previewImg
       });
     });
@@ -152,24 +152,62 @@ function initPreziApp() {
     zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
   }
 
+  // Computes the unobstructed Safe Work Area between sidebars and controls
+  function getSafeWorkArea() {
+    const vpRect = viewport ? viewport.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
+    const leftSidebar = document.getElementById('prezi-sidebar');
+    const isPresent = document.body.classList.contains('in-present-mode');
+    const isLeftCollapsed = leftSidebar ? leftSidebar.classList.contains('collapsed') : false;
+
+    // Left inset: In presentation mode = 24px margin. In edit mode:
+    // If expanded: 210px sidebar + 12px margin + 18px breathing room = 240px.
+    // If collapsed: small chevron tab = 48px.
+    const leftInset = isPresent ? 24 : (isLeftCollapsed ? 48 : 240);
+
+    // Right inset: Right sidebar is 320px flex child when open, so vpRect.width already reflects it.
+    const rightInset = 24;
+    const topInset = 20;
+    const bottomInset = isPresent ? 24 : 70;
+
+    const safeW = Math.max(300, vpRect.width - leftInset - rightInset);
+    const safeH = Math.max(200, vpRect.height - topInset - bottomInset);
+
+    // Center coordinates inside viewport
+    const centerX = leftInset + safeW / 2;
+    const centerY = topInset + safeH / 2;
+
+    return {
+      safeW,
+      safeH,
+      centerX,
+      centerY,
+      vpRect
+    };
+  }
+  window.getSafeWorkArea = getSafeWorkArea;
+
   // Calculate Overview position to fit entire World or existing cards on screen
   function getOverviewTransform() {
-    const vpRect = viewport ? viewport.getBoundingClientRect() : null;
-    const vpW = (vpRect && vpRect.width > 0) ? vpRect.width : (window.innerWidth - 240);
-    const vpH = (vpRect && vpRect.height > 0) ? vpRect.height : (window.innerHeight - 60);
-    const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
+    const safe = getSafeWorkArea();
+    const cards = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item, .user-image-wrapper'))
+      .filter(el => el.id !== 'overview-frame-box' && !el.classList.contains('prezi-textbox'));
+
     if (cards.length === 0) {
       if (typeof ensureOverviewFrameBox === 'function') ensureOverviewFrameBox();
-      const fw = 860;
-      const fh = 484;
-      const cx = 1700; // Exact center of 860x484 at left:1270, top:958
-      const cy = 1200;
-      const scaleX = (vpW * 0.65) / fw;
-      const scaleY = (vpH * 0.65) / fh;
+      const overviewBox = document.getElementById('overview-frame-box');
+      const fw = overviewBox ? overviewBox.offsetWidth : 860;
+      const fh = overviewBox ? overviewBox.offsetHeight : 484;
+      const fLeft = overviewBox ? overviewBox.offsetLeft : 1270;
+      const fTop = overviewBox ? overviewBox.offsetTop : 958;
+      const cx = fLeft + fw / 2;
+      const cy = fTop + fh / 2;
+
+      const scaleX = (safe.safeW * 0.78) / fw;
+      const scaleY = (safe.safeH * 0.78) / fh;
       const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.25);
       return {
-        x: vpW / 2 - cx * fitScale,
-        y: vpH / 2 - cy * fitScale,
+        x: safe.centerX - cx * fitScale,
+        y: safe.centerY - cy * fitScale,
         scale: Math.round(fitScale * 100) / 100
       };
     }
@@ -186,25 +224,26 @@ function initPreziApp() {
       if (bottom > maxY) maxY = bottom;
     });
 
-    const pad = 120;
-    const w = Math.max(maxX - minX + pad * 2, 800);
-    const h = Math.max(maxY - minY + pad * 2, 600);
+    const pad = 70;
+    const w = Math.max(maxX - minX + pad * 2, 860);
+    const h = Math.max(maxY - minY + pad * 2, 484);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
 
-    const scaleX = (vpRect.width * 0.9) / w;
-    const scaleY = (vpRect.height * 0.9) / h;
+    const scaleX = (safe.safeW * 0.80) / w;
+    const scaleY = (safe.safeH * 0.80) / h;
     const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.25);
 
-    const targetX = vpRect.width / 2 - cx * fitScale;
-    const targetY = vpRect.height / 2 - cy * fitScale;
-
-    return { x: targetX, y: targetY, scale: fitScale };
+    return {
+      x: safe.centerX - cx * fitScale,
+      y: safe.centerY - cy * fitScale,
+      scale: Math.round(fitScale * 100) / 100
+    };
   }
 
   // Focus camera into a specific HTML element using exact coordinates relative to #prezi-world
   function getElementFocusTransform(el, scaleMultiplier = 1.0) {
-    const vpRect = viewport.getBoundingClientRect();
+    const safe = getSafeWorkArea();
     const wRect = world.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     const currentScale = currentCamera.scale || 1;
@@ -215,15 +254,18 @@ function initPreziApp() {
     const elW = el.offsetWidth;
     const elH = el.offsetHeight;
 
-    const scaleX = (vpRect.width * 0.82) / elW;
-    const scaleY = (vpRect.height * 0.82) / elH;
-    let targetScale = Math.min(scaleX, scaleY) * scaleMultiplier;
-    // Allow zoom range from 0.4 up to 2.4 so cards comfortably fill the viewport
-    targetScale = Math.min(Math.max(targetScale, 0.4), 2.4);
+    const elCenterX = elWorldX + elW / 2;
+    const elCenterY = elWorldY + elH / 2;
 
-    // Target (X, Y) centers the specific element in viewport
-    const targetX = vpRect.width / 2 - (elWorldX + elW / 2) * targetScale;
-    const targetY = vpRect.height / 2 - (elWorldY + elH / 2) * targetScale;
+    const scaleX = (safe.safeW * 0.88) / elW;
+    const scaleY = (safe.safeH * 0.88) / elH;
+    let targetScale = Math.min(scaleX, scaleY) * scaleMultiplier;
+    // Allow clean zoom bounds so cards comfortably fill the viewport
+    targetScale = Math.min(Math.max(targetScale, 0.4), 2.0);
+
+    // Target (X, Y) centers the specific element in the safe visible area
+    const targetX = safe.centerX - elCenterX * targetScale;
+    const targetY = safe.centerY - elCenterY * targetScale;
 
     return { x: targetX, y: targetY, scale: targetScale };
   }
@@ -515,7 +557,8 @@ function initPreziApp() {
 
   // Guarantees #overview-frame-box exists when there are no slide cards (media_1790130642265.png & media_1790134536388.png)
   function ensureOverviewFrameBox() {
-    const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
+    const cards = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item, .user-image-wrapper'))
+      .filter(el => el.id !== 'overview-frame-box');
     let frameBox = document.getElementById('overview-frame-box');
     if (cards.length === 0) {
       if (!frameBox) {
@@ -835,10 +878,10 @@ function initPreziApp() {
     const newIndex = STOPS.length;
     const newId = `frame-${newIndex < 10 ? '0' + newIndex : newIndex}-${Date.now()}`;
 
-    const vpRect = viewport.getBoundingClientRect();
+    const safe = getSafeWorkArea();
     const scale = currentCamera.scale || 1;
-    const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
-    const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
+    const centerX = (-currentCamera.x + safe.centerX) / scale;
+    const centerY = (-currentCamera.y + safe.centerY) / scale;
 
     const frameW = 860;
     const frameH = 484;
@@ -862,6 +905,7 @@ function initPreziApp() {
 
     world.appendChild(newFrame);
 
+    ensureOverviewFrameBox();
     setupSlideFrameInteractions(newFrame);
     syncStopsFromDOM();
 
@@ -1610,11 +1654,15 @@ function initPreziApp() {
     if (btnToolStyle && rightSidebar) {
       btnToolStyle.addEventListener('click', () => {
         rightSidebar.classList.toggle('collapsed');
+        btnToolStyle.classList.toggle('active', !rightSidebar.classList.contains('collapsed'));
+        setTimeout(() => goToStop(currentStopIndex, true), 150);
       });
     }
     if (btnCloseBg && rightSidebar) {
       btnCloseBg.addEventListener('click', () => {
         rightSidebar.classList.add('collapsed');
+        if (btnToolStyle) btnToolStyle.classList.remove('active');
+        setTimeout(() => goToStop(currentStopIndex, true), 150);
       });
     }
 
@@ -1797,10 +1845,7 @@ function initPreziApp() {
     if (btnHelp) btnHelp.addEventListener('click', showHelpModal);
 
     window.addEventListener('resize', () => {
-      if (currentStopIndex === 0) {
-        const ov = getOverviewTransform();
-        applyCamera(ov.x, ov.y, ov.scale, false);
-      }
+      goToStop(currentStopIndex, false);
     });
   }
 
