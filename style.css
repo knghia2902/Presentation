@@ -1965,7 +1965,89 @@ body.in-present-mode .prezi-present-right-controls {
 /* ==========================================================================
    PREZI FLOATING TOOLBARS (Text: Hình 2 & Image: Hình 1)
    ========================================================================== */
-.prezi-floating-text-toolbar,
+/* ==========================================================================
+   PREZI FLOATING TEXT BOX (Chuẩn Hình 1: media_1790145601676.png)
+   ========================================================================== */
+.prezi-textbox {
+  position: absolute;
+  background: transparent !important;
+  border: 1.5px solid transparent;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 2px 4px;
+  cursor: move;
+  z-index: 60;
+  min-width: 80px;
+  display: inline-block;
+  box-sizing: border-box;
+  user-select: none;
+  transition: border-color 0.15s;
+}
+
+.prezi-textbox:hover {
+  border: 1.5px dashed rgba(37, 99, 235, 0.5);
+}
+
+.prezi-textbox.selected,
+.prezi-textbox:focus-within {
+  border: 1.5px solid #2563eb !important;
+}
+
+.prezi-textbox .textbox-content {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  line-height: 1.35;
+  color: #1a1a24;
+  outline: none;
+  background: transparent;
+  cursor: text;
+  min-width: 60px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text !important;
+}
+
+/* 4 Corner handles chuẩn Prezi (Hình 1) */
+.prezi-textbox .box-handle {
+  display: none;
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  z-index: 10;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.prezi-textbox.selected .box-handle,
+.prezi-textbox:focus-within .box-handle {
+  display: block;
+}
+
+.prezi-textbox .box-handle.tl { top: -4px; left: -4px; }
+.prezi-textbox .box-handle.tr { top: -4px; right: -4px; }
+.prezi-textbox .box-handle.bl { bottom: -4px; left: -4px; }
+.prezi-textbox .box-handle.br { bottom: -4px; right: -4px; }
+
+/* ==========================================================================
+   PREZI FLOATING TOOLBARS (Text: Hình 1 & Image: Hình 1)
+   ========================================================================== */
+.prezi-floating-text-toolbar {
+  position: fixed;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: none;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 12px;
+  z-index: 9999;
+  user-select: none;
+  transition: opacity 0.18s cubic-bezier(0.2, 0, 0, 1);
+}
+
 .prezi-floating-image-toolbar {
   position: absolute;
   background: #ffffff;
@@ -1994,81 +2076,119 @@ body.in-present-mode .prezi-floating-image-toolbar {
 .fl-btn {
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 4px 8px;
+  border-radius: 6px;
+  padding: 4px 7px;
   font-size: 0.85rem;
   font-family: inherit;
   font-weight: 500;
-  color: #303133;
+  color: #374151;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  transition: all 0.15s;
+  gap: 3px;
+  transition: all 0.12s;
+  position: relative;
 }
 
 .fl-btn:hover {
-  background: #f2f3f5;
-  border-color: #e4e7ed;
+  background: #f3f4f6;
+  color: #111827;
 }
 
 .fl-btn.active {
-  background: #e6f7ff;
-  border-color: #91d5ff;
-  color: #1890ff;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #2563eb;
 }
 
 .fl-btn.font-ask-ai {
-  background: #fdf2ff;
-  color: #a825ba;
+  background: #faf5ff;
+  color: #9333ea;
   font-weight: 600;
-  border-color: #f0c9ff;
+  border-color: #f3e8ff;
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+
+.fl-btn.font-ask-ai:hover {
+  background: #f3e8ff;
+  color: #7e22ce;
 }
 
 .fl-divider {
   width: 1px;
   height: 18px;
-  background: #e4e7ed;
-  margin: 0 4px;
+  background: #e5e7eb;
+  margin: 0 3px;
 }
 
 .fl-select {
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  padding: 3px 6px;
-  font-size: 0.82rem;
-  background: #ffffff;
-  color: #303133;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 0.84rem;
+  background: transparent;
+  color: #374151;
   outline: none;
   font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.fl-select:hover {
+  background: #f3f4f6;
 }
 
 .fl-size-label {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 600;
   min-width: 24px;
   text-align: center;
+  color: #1f2937;
 }
 
-.fl-color-input {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 4px;
+.fl-color-btn {
   cursor: pointer;
-  background: transparent;
 }
 
-/* Selection bounding boxes (Viền xanh chọn khung giống ảnh mẫu) */
+.fl-color-a {
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-decoration-color: #2563eb;
+  text-decoration-thickness: 3px;
+}
+
+.fl-color-hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.btn-del-text {
+  color: #dc2626;
+  border-radius: 50%;
+  padding: 4px 6px;
+}
+
+.btn-del-text:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Selection bounding boxes */
 .prezi-selected-el {
-  outline: 2px solid #1890ff !important;
+  outline: 2px solid #2563eb !important;
   outline-offset: 3px;
   position: relative;
 }
 
 .prezi-selected-img {
-  outline: 2px solid #1890ff !important;
+  outline: 2px solid #2563eb !important;
   outline-offset: 2px;
 }
+
 
 

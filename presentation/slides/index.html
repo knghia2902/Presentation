@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=20260923_v17">
+  <link rel="stylesheet" href="style.css?v=20260923_v19">
 </head>
 <body class="prezi-app">
 
@@ -275,31 +275,58 @@
       </button>
     </div>
 
-    <!-- PREZI FLOATING TEXT TOOLBAR (Hình 2: Xuất hiện khi click chọn bất kỳ văn bản nào) -->
+    <!-- PREZI FLOATING TEXT TOOLBAR (Chuẩn Hình 1: media_1790145601676.png) -->
     <div class="prezi-floating-text-toolbar" id="text-floating-toolbar">
-      <button class="fl-btn font-ask-ai" title="Gợi ý AI">✨ Ask AI ▾</button>
+      <button class="fl-btn font-ask-ai" id="btn-ask-ai" title="✨ Hỏi AI / Viết lại">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2L14.4 7.6L20 10L14.4 12.4L12 18L9.6 12.4L4 10L9.6 7.6z"/></svg>
+        <span>Ask AI</span>
+        <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
       <div class="fl-divider"></div>
-      <select class="fl-select" id="text-tag-select" title="Định dạng tiêu đề/nội dung">
-        <option value="p">Body</option>
-        <option value="h1">Title</option>
-        <option value="h3">Subtitle</option>
+      <select class="fl-select" id="text-tag-select" title="Loại văn bản">
+        <option value="p">Body ▾</option>
+        <option value="h1">Title ▾</option>
+        <option value="h2">Subtitle ▾</option>
       </select>
-      <select class="fl-select" id="text-font-select" title="Chọn Font chữ">
-        <option value="'Playfair Display', serif">Playfair Display</option>
-        <option value="'Be Vietnam Pro', sans-serif">Be Vietnam Pro</option>
-        <option value="'Caveat', cursive">Caveat</option>
+      <select class="fl-select" id="text-font-select" title="Phông chữ">
+        <option value="'Playfair Display', serif">Alegreya... ▾</option>
+        <option value="'Be Vietnam Pro', sans-serif">Be Vietnam Pro ▾</option>
+        <option value="'Caveat', cursive">Caveat ▾</option>
+        <option value="sans-serif">Sans-serif ▾</option>
       </select>
       <div class="fl-divider"></div>
       <button class="fl-btn font-size-dec" id="btn-font-dec" title="Giảm cỡ chữ">－</button>
-      <span class="fl-size-label" id="fl-font-size">24</span>
+      <span class="fl-size-label" id="fl-font-size">26</span>
       <button class="fl-btn font-size-inc" id="btn-font-inc" title="Tăng cỡ chữ">＋</button>
       <div class="fl-divider"></div>
       <button class="fl-btn fl-bold" id="btn-format-bold" title="In đậm (Ctrl+B)"><strong>B</strong></button>
       <button class="fl-btn fl-italic" id="btn-format-italic" title="In nghiêng (Ctrl+I)"><em>I</em></button>
-      <button class="fl-btn fl-underline" id="btn-format-underline" title="Gạch chân (Ctrl+U)"><u>U</u></button>
+      <label class="fl-btn fl-color-btn" title="Màu chữ">
+        <span class="fl-color-a">A</span>
+        <input type="color" id="text-color-picker" class="fl-color-hidden" value="#1a1a24">
+      </label>
+      <label class="fl-btn fl-color-btn" title="Tô màu nền (Highlight)">
+        <span class="fl-bucket">🪣</span>
+        <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+        <input type="color" id="text-bg-picker" class="fl-color-hidden" value="#ffffff">
+      </label>
+      <button class="fl-btn fl-link" id="btn-format-link" title="Chèn liên kết">🔗</button>
       <div class="fl-divider"></div>
-      <input type="color" id="text-color-picker" class="fl-color-input" title="Đổi màu chữ" value="#1a1a24">
-      <button class="fl-btn btn-del-text" id="btn-del-text-el" title="Xóa đoạn này">🗑️</button>
+      <button class="fl-btn fl-align" id="btn-format-align" title="Căn lề">
+        <span>≡</span>
+        <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
+      <button class="fl-btn fl-spacing" id="btn-format-spacing" title="Khoảng cách dòng">
+        <span>↕</span>
+        <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
+      <button class="fl-btn fl-list" id="btn-format-list" title="Danh sách">
+        <span>⋮≡</span>
+        <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+      </button>
+      <button class="fl-btn fl-presets" id="btn-format-presets" title="Phong cách & Màu sắc">🎨</button>
+      <div class="fl-divider"></div>
+      <button class="fl-btn btn-del-text" id="btn-del-text-el" title="Xóa hộp văn bản (Delete)">🗑️</button>
     </div>
 
     <!-- PREZI FLOATING IMAGE TOOLBAR (Hình 1: Xuất hiện khi click chọn bất kỳ hình ảnh nào) -->
@@ -317,6 +344,6 @@
 
   </div>
 
-  <script src="script.js?v=20260923_v18"></script>
+  <script src="script.js?v=20260923_v19"></script>
 </body>
 </html>

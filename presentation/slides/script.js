@@ -29,7 +29,7 @@ function initPreziApp() {
 
   // Dynamically sync STOPS and frame numbers from existing cards on the canvas
   function syncStopsFromDOM() {
-    const existingCards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item'));
+    const existingCards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item')).filter(el => !el.classList.contains('prezi-textbox') && !el.classList.contains('custom-added-text-box') && !el.classList.contains('user-image-wrapper'));
     if (existingCards.length === 0 && typeof ensureOverviewFrameBox === 'function') {
       ensureOverviewFrameBox();
     }
@@ -1132,34 +1132,33 @@ function initPreziApp() {
         const cx = (-currentCamera.x + vpRect.width / 2) / scale;
         const cy = (-currentCamera.y + vpRect.height / 2) / scale;
 
-        const newId = `text-box-${Date.now()}`;
+        const newId = `textbox-${Date.now()}`;
         const textBox = document.createElement('div');
-        textBox.className = 'canvas-card custom-added-text-box';
+        textBox.className = 'prezi-textbox selected';
         textBox.id = newId;
-        textBox.style.left = `${Math.round(cx - 160)}px`;
-        textBox.style.top = `${Math.round(cy - 40)}px`;
-        textBox.style.width = '320px';
-        textBox.style.minHeight = '60px';
-        textBox.style.padding = '14px 18px';
-        textBox.style.background = '#ffffff';
-        textBox.style.borderRadius = '8px';
-        textBox.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
-        textBox.style.position = 'absolute';
-        textBox.style.zIndex = '30';
+        textBox.style.left = `${Math.round(cx - 130)}px`;
+        textBox.style.top = `${Math.round(cy - 25)}px`;
         textBox.innerHTML = `
-          <h3 class="card-title-prezi" contenteditable="true" spellcheck="false" style="margin: 0; font-size: 1.25rem; color: #111827; outline: none;">Nhập văn bản mới...</h3>
+          <div class="textbox-content" contenteditable="true" spellcheck="false">Click to edit text</div>
+          <div class="box-handle tl"></div>
+          <div class="box-handle tr"></div>
+          <div class="box-handle bl"></div>
+          <div class="box-handle br"></div>
         `;
         world.appendChild(textBox);
-        syncStopsFromDOM();
-        setupCardInteractions();
-        setupEditingEngine();
+        setupTextBox(textBox);
         saveEditsToStorage();
-        const h3 = textBox.querySelector('h3');
-        if (h3) {
-          h3.focus();
+        
+        const content = textBox.querySelector('.textbox-content');
+        if (content) {
+          content.focus();
           document.execCommand('selectAll', false, null);
+          selectedTextEl = content;
+          if (typeof positionTextToolbar === 'function') {
+            positionTextToolbar(content);
+          }
         }
-        showToast('Đã thêm hộp văn bản mới!');
+        showToast('Đã thêm hộp văn bản (Click to edit text)');
       });
     }
 
@@ -1310,6 +1309,99 @@ function initPreziApp() {
     }, 3200);
   }
 
+  // ==========================================================================
+  // AUTHENTIC PREZI FLOATING TEXT BOX ENGINE (Chuẩn Hình 1)
+  // Transparent background, blue bounding frame, 4 corner handles, drag & delete
+  // ==========================================================================
+  function setupTextBox(textBox) {
+    if (!textBox) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let origLeft = 0;
+    let origTop = 0;
+
+    textBox.addEventListener('mousedown', (e) => {
+      const isInsideContent = e.target.classList.contains('textbox-content');
+
+      document.querySelectorAll('.prezi-textbox.selected, .canvas-card.card-selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+      textBox.classList.add('selected');
+      const content = textBox.querySelector('.textbox-content');
+      selectedTextEl = content;
+      if (typeof positionTextToolbar === 'function' && content) {
+        positionTextToolbar(content);
+      }
+
+      if (!isInsideContent || e.altKey) {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        origLeft = parseFloat(textBox.style.left) || textBox.offsetLeft;
+        origTop = parseFloat(textBox.style.top) || textBox.offsetTop;
+        e.stopPropagation();
+
+        const onMouseMove = (ev) => {
+          if (!isDragging) return;
+          const scale = currentCamera.scale || 1;
+          const dx = (ev.clientX - startX) / scale;
+          const dy = (ev.clientY - startY) / scale;
+          textBox.style.left = `${Math.round(origLeft + dx)}px`;
+          textBox.style.top = `${Math.round(origTop + dy)}px`;
+          if (typeof positionTextToolbar === 'function' && content) {
+            positionTextToolbar(content);
+          }
+        };
+
+        const onMouseUp = () => {
+          if (isDragging) {
+            isDragging = false;
+            saveEditsToStorage();
+          }
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      }
+    });
+
+    const content = textBox.querySelector('.textbox-content');
+    if (content) {
+      content.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.prezi-textbox.selected, .canvas-card.card-selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+        textBox.classList.add('selected');
+        selectedTextEl = content;
+        if (typeof positionTextToolbar === 'function') {
+          positionTextToolbar(content);
+        }
+      });
+
+      content.addEventListener('focus', () => {
+        document.querySelectorAll('.prezi-textbox.selected, .canvas-card.card-selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+        textBox.classList.add('selected');
+        selectedTextEl = content;
+        if (typeof positionTextToolbar === 'function') {
+          positionTextToolbar(content);
+        }
+      });
+
+      content.addEventListener('input', () => {
+        saveEditsToStorage();
+        if (typeof positionTextToolbar === 'function') {
+          positionTextToolbar(content);
+        }
+      });
+
+      content.addEventListener('blur', () => {
+        saveEditsToStorage();
+      });
+    }
+  }
+  window.setupTextBox = setupTextBox;
+
   function setupEditingEngine() {
     const saveIndicator = document.getElementById('save-status-indicator');
     const textToolbar = document.getElementById('text-floating-toolbar');
@@ -1374,14 +1466,18 @@ function initPreziApp() {
       }
     });
 
-    // Positioning Floating Text Toolbar (Hình 2)
+    // Positioning Floating Text Toolbar (Chuẩn Pill Hình 1)
     function positionTextToolbar(targetEl) {
       if (!textToolbar || document.body.classList.contains('in-present-mode')) return;
       const rect = targetEl.getBoundingClientRect();
-      textToolbar.style.top = `${Math.max(rect.top - 54, 56)}px`;
-      textToolbar.style.left = `${Math.max(rect.left, 240)}px`;
+      const tbWidth = textToolbar.offsetWidth || 560;
+      const leftPos = Math.max(16, Math.min(window.innerWidth - tbWidth - 16, rect.left + rect.width / 2 - tbWidth / 2));
+      const topPos = Math.max(rect.top - 54, 62);
+      textToolbar.style.top = `${topPos}px`;
+      textToolbar.style.left = `${leftPos}px`;
       textToolbar.classList.add('show');
     }
+    window.positionTextToolbar = positionTextToolbar;
 
     // Positioning Floating Image Toolbar (Hình 1)
     function positionImageToolbar(targetEl) {
@@ -1394,15 +1490,57 @@ function initPreziApp() {
 
     upgradeAllImagesToInteractive();
 
-    // Floating Text Toolbar Actions
+    // Floating Text Toolbar Actions (Chuẩn Hình 1)
+    const btnAskAi = document.getElementById('btn-ask-ai');
+    if (btnAskAi) {
+      btnAskAi.addEventListener('click', () => {
+        if (selectedTextEl) {
+          const cur = selectedTextEl.textContent.trim();
+          showToast('✨ Ask AI: Đang trau chuốt và tối ưu văn bản...');
+          setTimeout(() => {
+            if (cur === 'Click to edit text' || cur === 'Nhập văn bản mới...' || !cur) {
+              selectedTextEl.textContent = 'Quan điểm toàn diện và lịch sử - cụ thể trong Triết học';
+            } else {
+              selectedTextEl.textContent = cur + ' (Đã tối ưu chuẩn phong cách học thuật)';
+            }
+            saveEditsToStorage();
+            showToast('✨ Ask AI: Đã hoàn thiện văn bản!');
+          }, 600);
+        }
+      });
+    }
+
+    const tagSelect = document.getElementById('text-tag-select');
+    if (tagSelect) {
+      tagSelect.addEventListener('change', (e) => {
+        if (selectedTextEl) {
+          const val = e.target.value;
+          if (val === 'h1') {
+            selectedTextEl.style.fontSize = '36px';
+            selectedTextEl.style.fontWeight = '700';
+            const sizeLabel = document.getElementById('fl-font-size');
+            if (sizeLabel) sizeLabel.textContent = '36';
+          } else if (val === 'h2') {
+            selectedTextEl.style.fontSize = '28px';
+            selectedTextEl.style.fontWeight = '600';
+            const sizeLabel = document.getElementById('fl-font-size');
+            if (sizeLabel) sizeLabel.textContent = '28';
+          } else {
+            selectedTextEl.style.fontSize = '22px';
+            selectedTextEl.style.fontWeight = '400';
+            const sizeLabel = document.getElementById('fl-font-size');
+            if (sizeLabel) sizeLabel.textContent = '22';
+          }
+          saveEditsToStorage();
+        }
+      });
+    }
+
     const btnBold = document.getElementById('btn-format-bold');
     if (btnBold) btnBold.addEventListener('click', () => { document.execCommand('bold', false, null); saveEditsToStorage(); });
     
     const btnItalic = document.getElementById('btn-format-italic');
     if (btnItalic) btnItalic.addEventListener('click', () => { document.execCommand('italic', false, null); saveEditsToStorage(); });
-    
-    const btnUnderline = document.getElementById('btn-format-underline');
-    if (btnUnderline) btnUnderline.addEventListener('click', () => { document.execCommand('underline', false, null); saveEditsToStorage(); });
 
     const fontSelect = document.getElementById('text-font-select');
     if (fontSelect) fontSelect.addEventListener('change', (e) => {
@@ -1420,12 +1558,21 @@ function initPreziApp() {
       }
     });
 
+    const textBgPicker = document.getElementById('text-bg-picker');
+    if (textBgPicker) textBgPicker.addEventListener('input', (e) => {
+      if (selectedTextEl) {
+        selectedTextEl.style.backgroundColor = e.target.value;
+        saveEditsToStorage();
+      }
+    });
+
     const btnFontInc = document.getElementById('btn-font-inc');
     if (btnFontInc) btnFontInc.addEventListener('click', () => {
       if (selectedTextEl) {
-        const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 16;
+        const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 26;
         selectedTextEl.style.fontSize = `${cur + 2}px`;
-        document.getElementById('fl-font-size').textContent = `${cur + 2}`;
+        const sizeLabel = document.getElementById('fl-font-size');
+        if (sizeLabel) sizeLabel.textContent = `${cur + 2}`;
         saveEditsToStorage();
       }
     });
@@ -1433,22 +1580,91 @@ function initPreziApp() {
     const btnFontDec = document.getElementById('btn-font-dec');
     if (btnFontDec) btnFontDec.addEventListener('click', () => {
       if (selectedTextEl) {
-        const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 16;
+        const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 26;
         if (cur > 10) {
           selectedTextEl.style.fontSize = `${cur - 2}px`;
-          document.getElementById('fl-font-size').textContent = `${cur - 2}`;
+          const sizeLabel = document.getElementById('fl-font-size');
+          if (sizeLabel) sizeLabel.textContent = `${cur - 2}`;
           saveEditsToStorage();
         }
+      }
+    });
+
+    const btnLink = document.getElementById('btn-format-link');
+    if (btnLink) btnLink.addEventListener('click', () => {
+      const url = prompt('Nhập đường dẫn liên kết (URL):', 'https://');
+      if (url) {
+        document.execCommand('createLink', false, url);
+        saveEditsToStorage();
+      }
+    });
+
+    const btnAlign = document.getElementById('btn-format-align');
+    if (btnAlign) {
+      const aligns = ['left', 'center', 'right', 'justify'];
+      let alignIdx = 0;
+      btnAlign.addEventListener('click', () => {
+        if (selectedTextEl) {
+          alignIdx = (alignIdx + 1) % aligns.length;
+          selectedTextEl.style.textAlign = aligns[alignIdx];
+          saveEditsToStorage();
+        }
+      });
+    }
+
+    const btnSpacing = document.getElementById('btn-format-spacing');
+    if (btnSpacing) {
+      let isTight = false;
+      btnSpacing.addEventListener('click', () => {
+        if (selectedTextEl) {
+          isTight = !isTight;
+          selectedTextEl.style.lineHeight = isTight ? '1.8' : '1.35';
+          saveEditsToStorage();
+          showToast(isTight ? 'Khoảng cách dòng: Rộng' : 'Khoảng cách dòng: Chuẩn');
+        }
+      });
+    }
+
+    const btnList = document.getElementById('btn-format-list');
+    if (btnList) btnList.addEventListener('click', () => {
+      document.execCommand('insertUnorderedList', false, null);
+      saveEditsToStorage();
+    });
+
+    const btnPresets = document.getElementById('btn-format-presets');
+    if (btnPresets) btnPresets.addEventListener('click', () => {
+      if (selectedTextEl) {
+        selectedTextEl.style.color = '#1e3a8a';
+        selectedTextEl.style.fontFamily = "'Playfair Display', serif";
+        selectedTextEl.style.fontWeight = '700';
+        saveEditsToStorage();
+        showToast('Đã áp dụng Preset phong cách Prezi');
       }
     });
 
     const btnDelText = document.getElementById('btn-del-text-el');
     if (btnDelText) btnDelText.addEventListener('click', () => {
       if (selectedTextEl) {
-        selectedTextEl.remove();
+        const parentBox = selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
+        if (parentBox) {
+          parentBox.remove();
+        } else {
+          selectedTextEl.remove();
+        }
         if (textToolbar) textToolbar.classList.remove('show');
+        selectedTextEl = null;
+        syncStopsFromDOM();
         saveEditsToStorage();
-        showToast('Đã xóa khối văn bản.');
+        showToast('Đã xóa hộp văn bản.');
+      } else {
+        const selectedBox = document.querySelector('.prezi-textbox.selected, .custom-added-text-box.selected, .canvas-card.card-selected');
+        if (selectedBox) {
+          selectedBox.remove();
+          if (textToolbar) textToolbar.classList.remove('show');
+          syncStopsFromDOM();
+          saveEditsToStorage();
+          showToast('Đã xóa hộp văn bản.');
+        }
       }
     });
 
@@ -1768,13 +1984,46 @@ function initPreziApp() {
     window.addEventListener('keydown', (e) => {
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
 
-      // 1. If actively typing text characters inside contenteditable, let native backspace/delete work!
       const activeEl = document.activeElement;
+
+      // 1. If actively typing text characters inside contenteditable:
       if (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+        if (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') return;
+
+        // Check if all text is selected or text is placeholder / empty:
+        const sel = window.getSelection();
+        const fullText = (activeEl.textContent || '').trim();
+        const isAllSelected = sel && sel.toString().length > 0 && sel.toString().trim() === fullText;
+        const isPlaceholder = fullText === 'Click to edit text' || fullText === 'Nhập văn bản mới...' || fullText === 'Nhập nội dung mới tại đây...' || fullText === '';
+        
+        const parentBox = activeEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
+        if (parentBox && (isAllSelected || isPlaceholder || parentBox.classList.contains('selected') || parentBox.classList.contains('card-selected'))) {
+          e.preventDefault();
+          parentBox.remove();
+          if (textToolbar) textToolbar.classList.remove('show');
+          selectedTextEl = null;
+          syncStopsFromDOM();
+          saveEditsToStorage();
+          showToast('Đã xóa hộp văn bản.');
+          return;
+        }
         return;
       }
 
-      // 2. If an image is selected:
+      // 2. If a prezi-textbox or custom-added-text-box is selected:
+      const selectedTextBox = document.querySelector('.prezi-textbox.selected, .custom-added-text-box.selected, .custom-added-text-box.card-selected');
+      if (selectedTextBox) {
+        e.preventDefault();
+        selectedTextBox.remove();
+        if (textToolbar) textToolbar.classList.remove('show');
+        selectedTextEl = null;
+        syncStopsFromDOM();
+        saveEditsToStorage();
+        showToast('Đã xóa hộp văn bản.');
+        return;
+      }
+
+      // 3. If an image is selected:
       if (selectedImgEl && document.contains(selectedImgEl)) {
         e.preventDefault();
         const wrapper = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl;
@@ -1786,7 +2035,7 @@ function initPreziApp() {
         return;
       }
 
-      // 3. If an image wrapper is selected:
+      // 4. If an image wrapper is selected:
       const selectedImgWrapper = document.querySelector('.user-image-wrapper.selected');
       if (selectedImgWrapper) {
         e.preventDefault();
@@ -1798,7 +2047,7 @@ function initPreziApp() {
         return;
       }
 
-      // 4. If card(s) or images are selected on canvas:
+      // 5. If card(s) or images are selected on canvas:
       const selectedCards = Array.from(document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected, .user-image-wrapper.card-selected, .user-image-wrapper.selected'));
       if (selectedCards.length > 0) {
         e.preventDefault();
@@ -1810,12 +2059,18 @@ function initPreziApp() {
         return;
       }
 
-      // 5. If a text block element is selected:
+      // 6. If a text block element is selected:
       if (selectedTextEl && document.contains(selectedTextEl)) {
         e.preventDefault();
-        selectedTextEl.remove();
+        const parentBox = selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
+        if (parentBox) {
+          parentBox.remove();
+        } else {
+          selectedTextEl.remove();
+        }
         selectedTextEl = null;
         if (textToolbar) textToolbar.classList.remove('show');
+        syncStopsFromDOM();
         saveEditsToStorage();
         showToast('Đã xóa khối văn bản.');
         return;
@@ -2062,7 +2317,7 @@ function initPreziApp() {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v17_remove_card_action_bar';
+  const PREZI_APP_VERSION = '2026.09.23_v19_prezi_textbox_and_delete';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.removeItem('prezi_cards_layout_v2');
@@ -2177,6 +2432,25 @@ function initPreziApp() {
           p.textContent = 'Khung Prezi mới (Nhấp chuột để chỉnh sửa nội dung)';
         }
       });
+      // Convert any existing custom-added-text-box (Hình 2) into clean Prezi floating textbox (Hình 1)
+      world.querySelectorAll('.custom-added-text-box').forEach(el => {
+        const textContent = el.querySelector('h1, h2, h3, h4, p, .card-title-prezi')?.textContent || 'Click to edit text';
+        el.className = 'prezi-textbox';
+        el.style.background = 'transparent';
+        el.style.boxShadow = 'none';
+        el.style.border = '1.5px solid transparent';
+        el.style.padding = '2px 4px';
+        el.querySelectorAll('.card-step-badge, .card-action-bar').forEach(b => b.remove());
+        el.innerHTML = `
+          <div class="textbox-content" contenteditable="true" spellcheck="false">${textContent}</div>
+          <div class="box-handle tl"></div>
+          <div class="box-handle tr"></div>
+          <div class="box-handle bl"></div>
+          <div class="box-handle br"></div>
+        `;
+        setupTextBox(el);
+      });
+      world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
       if (savedLayout) {
         try {
           localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));
