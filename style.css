@@ -44,12 +44,40 @@ html, body {
   font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text-main);
   background-color: var(--bg-canvas);
-  user-select: none;
 }
 
-/* Allow text selection and cursor highlighting inside all editable presentation content */
+/* Vivid Text Selection Highlight */
+::selection {
+  background-color: #74c0fc !important;
+  color: #0c4a6e !important;
+}
+
+::-moz-selection {
+  background-color: #74c0fc !important;
+  color: #0c4a6e !important;
+}
+
+/* Disallow selection only on UI chrome and background artwork */
+.prezi-viewport,
+.bg-manuscript-layer,
+.bg-splash-layer,
+.bg-note-paper-layer,
+.prezi-topbar,
+.prezi-sidebar,
+.prezi-bottom-bar,
+.card-action-bar,
+.card-resize-handle,
+.img-resize-handle,
+.btn-del-img {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Fully enable text selection and cursor highlighting inside all cards & presentation content */
 [contenteditable="true"],
 [contenteditable="true"] *,
+.canvas-card,
+.canvas-card *,
 .card-body-text,
 .card-title-prezi,
 .card-title-large,

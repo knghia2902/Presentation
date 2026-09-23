@@ -835,19 +835,42 @@ document.addEventListener('DOMContentLoaded', () => {
       const isEditingText = (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) ||
                             (e.target && e.target.closest && (e.target.closest('[contenteditable="true"]') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'));
 
-      // Special shortcut: Ctrl + A (Select All text inside the current editable element)
+      // Special shortcut: Ctrl + A (Select All)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
-        const editableTarget = (activeEl && activeEl.isContentEditable) ? activeEl : (selectedTextEl && document.contains(selectedTextEl) ? selectedTextEl : null);
-        if (editableTarget) {
+        const targetText = (activeEl && activeEl.isContentEditable) ? activeEl : (selectedTextEl && document.contains(selectedTextEl) ? selectedTextEl : null);
+        if (targetText) {
           e.preventDefault();
-          editableTarget.focus();
+          targetText.focus();
           const range = document.createRange();
-          range.selectNodeContents(editableTarget);
+          range.selectNodeContents(targetText);
           const sel = window.getSelection();
           sel.removeAllRanges();
           sel.addRange(range);
           return;
         }
+
+        // If a card is selected, select all text inside that card
+        const selectedCard = document.querySelector('.canvas-card.card-selected');
+        if (selectedCard) {
+          const p = selectedCard.querySelector('[contenteditable="true"]');
+          if (p) {
+            e.preventDefault();
+            p.focus();
+            const range = document.createRange();
+            range.selectNodeContents(selectedCard.querySelector('.card-inner-layout') || selectedCard);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            return;
+          }
+        }
+
+        // On Canvas: Select all cards!
+        e.preventDefault();
+        const allCards = document.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper');
+        allCards.forEach(c => c.classList.add('card-selected'));
+        showToast(`Đã chọn tất cả ${allCards.length} thẻ trên bài thuyết trình!`);
+        return;
       }
 
       if (isEditingText) {
@@ -956,6 +979,14 @@ document.addEventListener('DOMContentLoaded', () => {
       
       el.setAttribute('contenteditable', 'true');
       el.setAttribute('spellcheck', 'false');
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedTextEl = el;
+        document.querySelectorAll('.prezi-selected-el').forEach(item => item.classList.remove('prezi-selected-el'));
+        el.classList.add('prezi-selected-el');
+        positionTextToolbar(el);
+      });
 
       el.addEventListener('focus', () => {
         selectedTextEl = el;
@@ -1556,7 +1587,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v7_paste_text_and_zoom_fix';
+  const PREZI_APP_VERSION = '2026.09.23_v8_native_ctrl_a';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
