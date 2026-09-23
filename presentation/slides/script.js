@@ -27,9 +27,9 @@ function initPreziApp() {
   ];
   window.STOPS = STOPS;
 
-  // Dynamically sync STOPS and frame numbers from existing cards on the canvas
+  // Dynamically sync STOPS and frame numbers from existing cards and slide frames on canvas
   function syncStopsFromDOM() {
-    const existingCards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item')).filter(el => !el.classList.contains('prezi-textbox') && !el.classList.contains('custom-added-text-box') && !el.classList.contains('user-image-wrapper'));
+    const existingCards = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item')).filter(el => !el.classList.contains('prezi-textbox') && !el.classList.contains('custom-added-text-box') && !el.classList.contains('user-image-wrapper') && el.id !== 'overview-frame-box');
     if (existingCards.length === 0 && typeof ensureOverviewFrameBox === 'function') {
       ensureOverviewFrameBox();
     }
@@ -724,42 +724,148 @@ function initPreziApp() {
   }
   window.clearAllCards = clearAllCards;
 
-  // Add a brand new frame / slide
+  // ==========================================================================
+  // AUTHENTIC PREZI SLIDE FRAME ENGINE (Chuẩn Hình 2: media_1790146335671.png)
+  // 16:9 transparent boundary frame for slides on canvas
+  // ==========================================================================
+  function setupSlideFrameInteractions(frame) {
+    if (!frame || frame.dataset.eventsBound) return;
+    frame.dataset.eventsBound = 'true';
+
+    let isResizing = false;
+    let resizeType = '';
+    let isDragging = false;
+    let sX = 0, sY = 0;
+    let iW = 0, iH = 0, iLeft = 0, iTop = 0;
+
+    frame.querySelectorAll('.frame-handle').forEach(h => {
+      h.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        isResizing = true;
+        if (h.classList.contains('top-left')) resizeType = 'tl';
+        else if (h.classList.contains('top-right')) resizeType = 'tr';
+        else if (h.classList.contains('bottom-left')) resizeType = 'bl';
+        else if (h.classList.contains('bottom-right')) resizeType = 'br';
+
+        sX = e.clientX;
+        sY = e.clientY;
+        iW = frame.offsetWidth;
+        iH = frame.offsetHeight;
+        iLeft = frame.offsetLeft;
+        iTop = frame.offsetTop;
+      });
+    });
+
+    frame.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.frame-handle') || e.target.closest('.prezi-textbox') || e.target.closest('.user-image-wrapper') || e.target.isContentEditable) return;
+      
+      document.querySelectorAll('.canvas-slide-frame.selected, .canvas-card.card-selected, .prezi-textbox.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+      frame.classList.add('selected');
+      
+      isDragging = true;
+      sX = e.clientX;
+      sY = e.clientY;
+      iLeft = frame.offsetLeft;
+      iTop = frame.offsetTop;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      const scale = currentCamera.scale || 1;
+      if (isResizing) {
+        const dx = (e.clientX - sX) / scale;
+        const dy = (e.clientY - sY) / scale;
+        let newW = iW, newH = iH, newLeft = iLeft, newTop = iTop;
+
+        if (resizeType === 'br') {
+          newW = Math.max(240, iW + dx);
+          newH = Math.max(135, iH + dy);
+        } else if (resizeType === 'bl') {
+          newW = Math.max(240, iW - dx);
+          newH = Math.max(135, iH + dy);
+          newLeft = iLeft + (iW - newW);
+        } else if (resizeType === 'tr') {
+          newW = Math.max(240, iW + dx);
+          newH = Math.max(135, iH - dy);
+          newTop = iTop + (iH - newH);
+        } else if (resizeType === 'tl') {
+          newW = Math.max(240, iW - dx);
+          newH = Math.max(135, iH - dy);
+          newLeft = iLeft + (iW - newW);
+          newTop = iTop + (iH - newH);
+        }
+
+        frame.style.width = `${Math.round(newW)}px`;
+        frame.style.height = `${Math.round(newH)}px`;
+        frame.style.left = `${Math.round(newLeft)}px`;
+        frame.style.top = `${Math.round(newTop)}px`;
+      } else if (isDragging) {
+        const dx = (e.clientX - sX) / scale;
+        const dy = (e.clientY - sY) / scale;
+        frame.style.left = `${Math.round(iLeft + dx)}px`;
+        frame.style.top = `${Math.round(iTop + dy)}px`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizing || isDragging) {
+        isResizing = false;
+        isDragging = false;
+        saveEditsToStorage();
+      }
+    });
+
+    frame.addEventListener('click', (e) => {
+      if (e.target.closest('.prezi-textbox') || e.target.closest('.user-image-wrapper')) return;
+      document.querySelectorAll('.canvas-slide-frame.selected, .canvas-card.card-selected, .prezi-textbox.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+      frame.classList.add('selected');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!frame.contains(e.target) && !e.target.closest('.frame-thumb-item')) {
+        frame.classList.remove('selected');
+      }
+    });
+  }
+  window.setupSlideFrameInteractions = setupSlideFrameInteractions;
+
+  // Add a brand new frame / slide (Chuẩn Prezi Hình 2: 16:9 transparent boundary frame)
   function addNewFrame() {
     const newIndex = STOPS.length;
-    const newId = `stop-custom-${Date.now()}`;
+    const newId = `frame-${newIndex < 10 ? '0' + newIndex : newIndex}-${Date.now()}`;
 
     const vpRect = viewport.getBoundingClientRect();
+    const scale = currentCamera.scale || 1;
     const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
     const centerY = (-currentCamera.y + vpRect.height / 2) / (currentCamera.scale || 1);
 
-    const newCard = document.createElement('div');
-    newCard.className = 'canvas-card custom-added-card';
-    newCard.id = newId;
-    newCard.style.left = `${Math.round(centerX - 360)}px`;
-    newCard.style.top = `${Math.round(centerY - 160)}px`;
-    newCard.style.width = '720px';
-    newCard.style.position = 'absolute';
-    newCard.style.zIndex = 25;
+    const frameW = 860;
+    const frameH = 484;
 
-    newCard.innerHTML = `
-      <div class="card-inner-layout">
-        <div class="card-text-col" style="width: 100%;">
-          <span class="card-step-badge">${newIndex}</span>
-          <h3 class="card-title-prezi" contenteditable="true" spellcheck="false">Tiêu Đề Trạm Mới</h3>
-          <p class="card-body-text" contenteditable="true" spellcheck="false">Nhấp vào đây để nhập nội dung... Bạn có thể kéo 8 chốt quanh thẻ để thay đổi kích thước, chèn ảnh, hoặc kéo di chuyển tự do.</p>
-        </div>
-      </div>
+    const newFrame = document.createElement('div');
+    newFrame.className = 'canvas-slide-frame selected';
+    newFrame.id = newId;
+    newFrame.style.left = `${Math.round(centerX - frameW / 2)}px`;
+    newFrame.style.top = `${Math.round(centerY - frameH / 2)}px`;
+    newFrame.style.width = `${frameW}px`;
+    newFrame.style.height = `${frameH}px`;
+    newFrame.style.position = 'absolute';
+    newFrame.style.zIndex = 5;
+
+    newFrame.innerHTML = `
+      <span class="frame-handle top-left"></span>
+      <span class="frame-handle top-right"></span>
+      <span class="frame-handle bottom-left"></span>
+      <span class="frame-handle bottom-right"></span>
     `;
 
-    world.appendChild(newCard);
+    world.appendChild(newFrame);
 
+    setupSlideFrameInteractions(newFrame);
     syncStopsFromDOM();
-    setupCardInteractions();
-    setupEditingEngine();
 
     goToStop(newIndex);
-    showToast(`Đã thêm trạm mới: Trạm ${newIndex}!`);
+    showToast(`Đã thêm khung trình chiếu mới (Khung ${newIndex < 10 ? '0' + newIndex : newIndex})`);
     saveEditsToStorage();
   }
 
@@ -2023,6 +2129,18 @@ function initPreziApp() {
         return;
       }
 
+      // 2.5. If a slide frame is selected:
+      const selectedFrame = document.querySelector('.canvas-slide-frame.selected');
+      if (selectedFrame) {
+        e.preventDefault();
+        selectedFrame.remove();
+        syncStopsFromDOM();
+        saveEditsToStorage();
+        showToast('Đã xóa khung trình chiếu.');
+        goToStop(Math.min(currentStopIndex, STOPS.length - 1));
+        return;
+      }
+
       // 3. If an image is selected:
       if (selectedImgEl && document.contains(selectedImgEl)) {
         e.preventDefault();
@@ -2317,7 +2435,7 @@ function initPreziApp() {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v19_prezi_textbox_and_delete';
+  const PREZI_APP_VERSION = '2026.09.23_v21_authentic_slide_frame';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.removeItem('prezi_cards_layout_v2');
@@ -2451,6 +2569,28 @@ function initPreziApp() {
         setupTextBox(el);
       });
       world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
+      // Convert any existing custom-added-card (Hình 1) into clean Prezi slide frame (Hình 2)
+      world.querySelectorAll('.custom-added-card').forEach(el => {
+        el.className = 'canvas-slide-frame';
+        el.style.background = 'transparent';
+        el.style.boxShadow = 'none';
+        el.style.border = '1.5px solid #64748b';
+        el.style.borderRadius = '8px';
+        el.style.padding = '0';
+        el.style.width = el.style.width || '860px';
+        el.style.height = el.style.height || '484px';
+        el.style.position = 'absolute';
+        el.style.zIndex = '5';
+        el.querySelectorAll('.card-inner-layout, .card-step-badge, .card-action-bar').forEach(b => b.remove());
+        el.innerHTML = `
+          <span class="frame-handle top-left"></span>
+          <span class="frame-handle top-right"></span>
+          <span class="frame-handle bottom-left"></span>
+          <span class="frame-handle bottom-right"></span>
+        `;
+        setupSlideFrameInteractions(el);
+      });
+      world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
       if (savedLayout) {
         try {
           localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));

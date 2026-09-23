@@ -643,6 +643,64 @@ input, textarea {
 }
 
 /* ==========================================================================
+   PREZI SLIDE FRAME (Chuẩn Hình 2: media_1790146335671.png)
+   16:9 transparent boundary frame for slides on canvas
+   ========================================================================== */
+.canvas-slide-frame {
+  position: absolute;
+  width: 860px;
+  height: 484px;
+  border: 1.5px solid #64748b;
+  border-radius: 8px;
+  background: transparent !important;
+  box-sizing: border-box;
+  cursor: move;
+  z-index: 5;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.canvas-slide-frame:hover {
+  border-color: #2563eb;
+}
+
+.canvas-slide-frame.selected,
+.canvas-slide-frame.current-active {
+  border: 2px solid #2563eb !important;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.canvas-slide-frame .frame-handle {
+  display: none;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 1px;
+  box-sizing: border-box;
+  z-index: 10;
+}
+
+.canvas-slide-frame.selected .frame-handle,
+.canvas-slide-frame.current-active .frame-handle {
+  display: block;
+}
+
+.canvas-slide-frame .frame-handle.top-left { top: -5px; left: -5px; cursor: nwse-resize; }
+.canvas-slide-frame .frame-handle.top-right { top: -5px; right: -5px; cursor: nesw-resize; }
+.canvas-slide-frame .frame-handle.bottom-left { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.canvas-slide-frame .frame-handle.bottom-right { bottom: -5px; right: -5px; cursor: nwse-resize; }
+
+body.in-present-mode .canvas-slide-frame {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+body.in-present-mode .canvas-slide-frame .frame-handle {
+  display: none !important;
+}
+
+/* ==========================================================================
    PREZI RIGHT SIDEBAR: BACKGROUND PANEL (media_1790129831208.png)
    ========================================================================== */
 .prezi-right-sidebar {
