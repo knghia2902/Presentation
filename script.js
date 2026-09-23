@@ -873,8 +873,28 @@ function initPreziApp() {
   }
   window.setupSlideFrameInteractions = setupSlideFrameInteractions;
 
-  // Add a brand new frame / slide (Chuẩn Prezi Hình 2: 16:9 transparent boundary frame)
+  // Separate any overlapping frames that were placed directly on top of each other
+  function separateOverlappingFrames() {
+    const frames = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item'))
+      .filter(el => el.id !== 'overview-frame-box');
+    for (let i = 1; i < frames.length; i++) {
+      const prev = frames[i - 1];
+      const curr = frames[i];
+      if (Math.abs(curr.offsetLeft - prev.offsetLeft) < 50 && Math.abs(curr.offsetTop - prev.offsetTop) < 50) {
+        const prevW = prev.offsetWidth || 860;
+        curr.style.left = `${prev.offsetLeft + prevW + 200}px`;
+      }
+    }
+  }
+  window.separateOverlappingFrames = separateOverlappingFrames;
+
+  // Add a brand new frame / slide (Chuẩn Prezi: Tự động xếp cạnh nhau theo hàng ngang)
   function addNewFrame() {
+    separateOverlappingFrames();
+
+    const existingFrames = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item'))
+      .filter(el => el.id !== 'overview-frame-box');
+
     const newIndex = STOPS.length;
     const newId = `frame-${newIndex < 10 ? '0' + newIndex : newIndex}-${Date.now()}`;
 
@@ -886,11 +906,30 @@ function initPreziApp() {
     const frameW = 860;
     const frameH = 484;
 
+    let targetLeft, targetTop;
+    if (existingFrames.length === 0) {
+      targetLeft = Math.round(centerX - frameW / 2);
+      targetTop = Math.round(centerY - frameH / 2);
+    } else {
+      // Find the furthest right frame to place the new frame neatly to its right
+      let maxRight = -Infinity;
+      let refTop = centerY - frameH / 2;
+      existingFrames.forEach(f => {
+        const r = f.offsetLeft + (f.offsetWidth || frameW);
+        if (r > maxRight) {
+          maxRight = r;
+          refTop = f.offsetTop;
+        }
+      });
+      targetLeft = Math.round(maxRight + 200);
+      targetTop = Math.round(refTop);
+    }
+
     const newFrame = document.createElement('div');
     newFrame.className = 'canvas-slide-frame selected';
     newFrame.id = newId;
-    newFrame.style.left = `${Math.round(centerX - frameW / 2)}px`;
-    newFrame.style.top = `${Math.round(centerY - frameH / 2)}px`;
+    newFrame.style.left = `${targetLeft}px`;
+    newFrame.style.top = `${targetTop}px`;
     newFrame.style.width = `${frameW}px`;
     newFrame.style.height = `${frameH}px`;
     newFrame.style.position = 'absolute';
@@ -3135,6 +3174,7 @@ function initPreziApp() {
       });
       world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
       world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
+      separateOverlappingFrames();
       if (savedLayout) {
         try {
           localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));
@@ -3201,6 +3241,7 @@ function initPreziApp() {
 
   // Initialize
   cleanUpLegacyCustomCards();
+  separateOverlappingFrames();
   syncStopsFromDOM();
   setupCardInteractions();
   setupPanning();
