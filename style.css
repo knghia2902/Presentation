@@ -594,8 +594,7 @@ input, textarea {
 }
 
 /* When clicked / selected: green border 2px with 2px radius */
-.canvas-empty-frame-box.selected,
-.canvas-empty-frame-box.active {
+.canvas-empty-frame-box.selected {
   border: 2px solid #107c41 !important;
   border-radius: 2px;
 }
@@ -613,8 +612,7 @@ input, textarea {
   z-index: 10;
 }
 
-.canvas-empty-frame-box.selected .frame-handle,
-.canvas-empty-frame-box.active .frame-handle {
+.canvas-empty-frame-box.selected .frame-handle {
   display: block;
 }
 
@@ -650,7 +648,7 @@ input, textarea {
   position: absolute;
   width: 860px;
   height: 484px;
-  border: 1.5px solid #64748b;
+  border: 1.5px solid #94a3b8;
   border-radius: 8px;
   background: transparent !important;
   box-sizing: border-box;
@@ -660,11 +658,11 @@ input, textarea {
 }
 
 .canvas-slide-frame:hover {
-  border-color: #2563eb;
+  border-color: #64748b;
 }
 
-.canvas-slide-frame.selected,
-.canvas-slide-frame.current-active {
+/* ONLY when explicitly clicked/selected does it get the blue selection box */
+.canvas-slide-frame.selected {
   border: 2px solid #2563eb !important;
   box-shadow: 0 0 0 1px #2563eb;
 }
@@ -681,8 +679,8 @@ input, textarea {
   z-index: 10;
 }
 
-.canvas-slide-frame.selected .frame-handle,
-.canvas-slide-frame.current-active .frame-handle {
+/* Handles ONLY appear when selected */
+.canvas-slide-frame.selected .frame-handle {
   display: block;
 }
 

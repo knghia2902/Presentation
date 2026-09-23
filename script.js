@@ -279,7 +279,9 @@ function initPreziApp() {
     currentStopIndex = index;
     const stop = STOPS[index];
 
-    document.querySelectorAll('.canvas-card').forEach(c => c.classList.remove('current-active'));
+    document.querySelectorAll('.canvas-card').forEach(c => c.classList.remove('current-active', 'card-selected'));
+    document.querySelectorAll('.canvas-slide-frame').forEach(f => f.classList.remove('current-active', 'selected'));
+    document.querySelectorAll('.canvas-empty-frame-box').forEach(b => b.classList.remove('selected'));
 
     if (stop.type === 'overview') {
       const ov = getOverviewTransform();
@@ -867,6 +869,12 @@ function initPreziApp() {
 
     document.addEventListener('click', (e) => {
       if (!frame.contains(e.target) && !e.target.closest('.frame-thumb-item')) {
+        frame.classList.remove('selected');
+      }
+    });
+
+    document.addEventListener('mousedown', (e) => {
+      if (!frame.contains(e.target) && !e.target.closest('.frame-thumb-item') && !e.target.closest('.prezi-floating-text-toolbar') && !e.target.closest('.prezi-context-menu')) {
         frame.classList.remove('selected');
       }
     });
@@ -3055,7 +3063,13 @@ function initPreziApp() {
   let d1SyncTimer = null;
   async function saveEditsToStorage() {
     const saveIndicator = document.getElementById('save-status-indicator');
-    const content = world.innerHTML;
+    let content = world.innerHTML;
+    // Sanitize ephemeral selection classes so elements are never persisted as permanently selected
+    content = content
+      .replace(/\bselected\b/g, '')
+      .replace(/\bcard-selected\b/g, '')
+      .replace(/\bcurrent-active\b/g, '')
+      .replace(/\s{2,}/g, ' ');
     try {
       localStorage.setItem('prezi_saved_world_content', content);
     } catch (err) {
@@ -3175,6 +3189,7 @@ function initPreziApp() {
       world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
       world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
       separateOverlappingFrames();
+      world.querySelectorAll('.selected, .card-selected, .current-active').forEach(el => el.classList.remove('selected', 'card-selected', 'current-active'));
       if (savedLayout) {
         try {
           localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));
