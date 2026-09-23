@@ -137,6 +137,23 @@ input, textarea {
   font-size: 0.95rem;
   font-weight: 600;
   color: #343a40;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.presentation-title:hover {
+  background: #f1f3f5;
+  border-color: #dee2e6;
+  cursor: text;
+}
+
+.presentation-title:focus {
+  background: #ffffff;
+  border-color: #1971c2;
+  box-shadow: 0 0 0 2px rgba(25, 113, 194, 0.15);
 }
 
 .badge-public {

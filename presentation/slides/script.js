@@ -16,114 +16,85 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentStopTitle = document.getElementById('current-stop-title');
   const stopCounter = document.getElementById('stop-counter');
 
-  // Navigation stops definition matching our layout
-  const STOPS = [
+  // Dynamic Navigation stops definition
+  let STOPS = [
     {
       id: 'overview',
       title: 'Toàn cảnh (Overview)',
       targetId: null,
       type: 'overview'
-    },
-    {
-      id: 'stop-01',
-      title: '01. Tựa Đề: Quy Luật Phủ Định Của Phủ Định',
-      targetId: 'stop-01',
-      scaleOffset: 1.05,
-      previewImg: 'assets/images/thumb_overview.png'
-    },
-    {
-      id: 'stop-02',
-      title: '02. Vị Trí Quy Luật & Karl Marx',
-      targetId: 'stop-02',
-      scaleOffset: 1.15,
-      previewImg: 'assets/images/karl_marx.jpg'
-    },
-    {
-      id: 'stop-03',
-      title: '03. Khái Niệm Phủ Định Biện Chứng',
-      targetId: 'stop-03',
-      scaleOffset: 1.25,
-      previewImg: 'assets/images/bust_portrait_card.png'
-    },
-    {
-      id: 'stop-04',
-      title: '04. Tiến Trình Phát Triển Tự Nhiên & Tư Duy',
-      targetId: 'stop-04',
-      scaleOffset: 1.2,
-      previewImg: 'assets/images/thumb_evolution_card.png'
-    },
-    {
-      id: 'stop-05',
-      title: '05. Các Nguyên Lý Cơ Bản',
-      targetId: 'stop-05',
-      scaleOffset: 1.15,
-      previewImg: 'assets/images/antique_book.jpg'
-    },
-    {
-      id: 'stop-06',
-      title: '06. Kế Thừa: Biện Chứng vs. Siêu Hình',
-      targetId: 'stop-06',
-      scaleOffset: 1.25,
-      previewImg: 'assets/images/thumb_overview.png'
-    },
-    {
-      id: 'stop-07',
-      title: '07. Phân Tích & Chu Kỳ Phát Triển',
-      targetId: 'stop-07',
-      scaleOffset: 1.15,
-      previewImg: 'assets/images/thumb_overview.png'
-    },
-    {
-      id: 'stop-08',
-      title: '08. Sơ Đồ Xoáy Ốc Không Gian 3D',
-      targetId: 'stop-08',
-      scaleOffset: 1.15,
-      previewImg: 'assets/images/thumb_overview.png'
-    },
-    {
-      id: 'stop-09',
-      title: '09. Ứng Dụng Trong Triết Học & Hegel',
-      targetId: 'stop-09',
-      scaleOffset: 1.2,
-      previewImg: 'assets/images/hegel.jpg'
-    },
-    {
-      id: 'stop-10',
-      title: '10. Ví Dụ Sinh Học: Hạt Lúa (§755)',
-      targetId: 'stop-10',
-      scaleOffset: 1.2,
-      previewImg: 'assets/images/rice_field.jpg'
-    },
-    {
-      id: 'stop-11',
-      title: '11. Ví Dụ Công Nghệ: Điện Thoại Thông Minh',
-      targetId: 'stop-11',
-      scaleOffset: 1.2,
-      previewImg: 'assets/images/smartphone_tech.jpg'
-    },
-    {
-      id: 'stop-12',
-      title: '12. Kết Luận & Triết Lý Tiến Bộ',
-      targetId: 'stop-12',
-      scaleOffset: 1.15,
-      previewImg: 'assets/images/greek_statue.jpg'
-    },
-    {
-      id: 'stop-13',
-      title: '13. 4 Ý Nghĩa Phương Pháp Luận',
-      targetId: 'stop-13',
-      scaleOffset: 1.25,
-      previewImg: 'assets/images/vintage_note_paper.png'
-    },
-    {
-      id: 'stop-14',
-      title: '14. Giao Lưu & Mini Game Quiz QR',
-      targetId: 'stop-14',
-      scaleOffset: 1.25,
-      previewImg: 'assets/images/thumb_overview.png'
     }
   ];
   window.STOPS = STOPS;
+
+  // Dynamically sync STOPS and frame numbers from existing cards on the canvas
+  function syncStopsFromDOM() {
+    const existingCards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item'));
+    const newStops = [
+      {
+        id: 'overview',
+        title: 'Toàn cảnh (Overview)',
+        targetId: null,
+        type: 'overview'
+      }
+    ];
+
+    existingCards.forEach((card, idx) => {
+      const num = idx + 1;
+      const cardId = card.id || `stop-${num < 10 ? '0' + num : num}`;
+      card.id = cardId;
+
+      let badge = card.querySelector('.card-step-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'card-step-badge';
+        const inner = card.querySelector('.card-inner-layout') || card;
+        inner.prepend(badge);
+      }
+      badge.textContent = `${num}`;
+
+      const titleEl = card.querySelector('h1, h2, h3, h4, .card-title-prezi, .card-title-large, .hero-title');
+      const titleText = titleEl ? titleEl.textContent.trim().replace(/\s+/g, ' ') : `Trạm ${num}`;
+
+      // Check if card has an image to use as preview thumb
+      const img = card.querySelector('img');
+      const previewImg = img ? img.src : 'assets/images/thumb_overview.png';
+
+      newStops.push({
+        id: cardId,
+        title: `${num < 10 ? '0' + num : num}. ${titleText}`,
+        targetId: cardId,
+        scaleOffset: 1.15,
+        previewImg: previewImg
+      });
+    });
+
+    STOPS = newStops;
+    window.STOPS = STOPS;
+    buildSidebar();
+    if (currentStopIndex >= STOPS.length) {
+      currentStopIndex = Math.max(0, STOPS.length - 1);
+    }
+    updateNavControls();
+  }
+  window.syncStopsFromDOM = syncStopsFromDOM;
+
+  function updateNavControls() {
+    if (currentStopIndex >= STOPS.length) {
+      currentStopIndex = Math.max(0, STOPS.length - 1);
+    }
+    const stop = STOPS[currentStopIndex] || STOPS[0];
+    if (currentStopTitle && stop) {
+      currentStopTitle.textContent = stop.title;
+    }
+    if (stopCounter) {
+      stopCounter.textContent = STOPS.length <= 1 ? 'Chưa có thẻ' : `Trạm ${currentStopIndex} / ${STOPS.length - 1}`;
+    }
+    document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
+      item.classList.toggle('active', i === currentStopIndex);
+    });
+  }
+  window.updateNavControls = updateNavControls;
 
   let currentStopIndex = 0;
   let isPanning = false;
@@ -179,18 +150,38 @@ document.addEventListener('DOMContentLoaded', () => {
     zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
   }
 
-  // Calculate Overview position to fit entire World on screen
+  // Calculate Overview position to fit entire World or existing cards on screen
   function getOverviewTransform() {
     const vpRect = viewport.getBoundingClientRect();
-    const worldWidth = 3400;
-    const worldHeight = 2400;
+    const cards = Array.from(world.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper'));
+    if (cards.length === 0) {
+      return { x: vpRect.width / 2 - 1700 * 0.45, y: vpRect.height / 2 - 1200 * 0.45, scale: 0.45 };
+    }
 
-    const scaleX = (vpRect.width * 0.94) / worldWidth;
-    const scaleY = (vpRect.height * 0.94) / worldHeight;
-    const fitScale = Math.min(scaleX, scaleY);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    cards.forEach(c => {
+      const left = c.offsetLeft;
+      const top = c.offsetTop;
+      const right = left + c.offsetWidth;
+      const bottom = top + c.offsetHeight;
+      if (left < minX) minX = left;
+      if (top < minY) minY = top;
+      if (right > maxX) maxX = right;
+      if (bottom > maxY) maxY = bottom;
+    });
 
-    const targetX = (vpRect.width - worldWidth * fitScale) / 2;
-    const targetY = (vpRect.height - worldHeight * fitScale) / 2;
+    const pad = 120;
+    const w = Math.max(maxX - minX + pad * 2, 800);
+    const h = Math.max(maxY - minY + pad * 2, 600);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+
+    const scaleX = (vpRect.width * 0.9) / w;
+    const scaleY = (vpRect.height * 0.9) / h;
+    const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.25), 1.25);
+
+    const targetX = vpRect.width / 2 - cx * fitScale;
+    const targetY = vpRect.height / 2 - cy * fitScale;
 
     return { x: targetX, y: targetY, scale: fitScale };
   }
@@ -581,13 +572,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const cardTitle = card.querySelector('h1, h2, h3, h4, .card-title-prezi')?.textContent?.trim() || 'thẻ này';
     if (!skipConfirm && !confirm(`Bạn có chắc chắn muốn xóa "${cardTitle}" khỏi bài thuyết trình?`)) return;
 
-    const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
-    if (stopIdx >= 0) {
-      STOPS.splice(stopIdx, 1);
-    }
     card.remove();
-
-    buildSidebar();
+    syncStopsFromDOM();
     saveEditsToStorage();
     showToast(`Đã xóa "${cardTitle}" khỏi bài thuyết trình.`);
 
@@ -604,8 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function clearAllCards() {
     if (!confirm('Bạn có chắc chắn muốn xóa sạch toàn bộ các thẻ trên bản vẽ để làm mới không?')) return;
     document.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper').forEach(c => c.remove());
-    STOPS.splice(1); // Keep only Overview
-    buildSidebar();
+    syncStopsFromDOM();
     saveEditsToStorage();
     showToast('Đã dọn sạch toàn bộ các thẻ trên bản vẽ!');
     goToStop(0);
@@ -616,7 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function addNewFrame() {
     const newIndex = STOPS.length;
     const newId = `stop-custom-${Date.now()}`;
-    const newTitle = `${newIndex < 10 ? '0' + newIndex : newIndex}. Nội Dung Mới`;
 
     const vpRect = viewport.getBoundingClientRect();
     const centerX = (-currentCamera.x + vpRect.width / 2) / (currentCamera.scale || 1);
@@ -633,26 +617,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     newCard.innerHTML = `
       <div class="card-inner-layout">
-        <div class="card-text-col">
+        <div class="card-text-col" style="width: 100%;">
           <span class="card-step-badge">${newIndex}</span>
           <h3 class="card-title-prezi" contenteditable="true" spellcheck="false">Tiêu Đề Trạm Mới</h3>
-          <p class="card-body-text" contenteditable="true" spellcheck="false">Nhập nội dung thuyết trình tại đây... Bạn có thể kéo 8 chốt quanh thẻ để thay đổi kích thước, chèn ảnh, hoặc kéo di chuyển tự do.</p>
+          <p class="card-body-text" contenteditable="true" spellcheck="false">Nhấp vào đây để nhập nội dung... Bạn có thể kéo 8 chốt quanh thẻ để thay đổi kích thước, chèn ảnh, hoặc kéo di chuyển tự do.</p>
         </div>
       </div>
     `;
 
     world.appendChild(newCard);
 
-    const newStop = {
-      id: newId,
-      title: newTitle,
-      targetId: newId,
-      scaleOffset: 1.15,
-      previewImg: 'assets/images/thumb_overview.png'
-    };
-    STOPS.push(newStop);
-
-    buildSidebar();
+    syncStopsFromDOM();
     setupCardInteractions();
     setupEditingEngine();
 
@@ -852,39 +827,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Special shortcut: Ctrl + A (Select All)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
-        const targetText = (activeEl && activeEl.isContentEditable) ? activeEl : (selectedTextEl && document.contains(selectedTextEl) ? selectedTextEl : null);
-        if (targetText) {
-          e.preventDefault();
-          targetText.focus();
-          const range = document.createRange();
-          range.selectNodeContents(targetText);
-          const sel = window.getSelection();
-          sel.removeAllRanges();
-          sel.addRange(range);
+        // If actively focused and typing inside a text element, let native select all text work!
+        if (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
           return;
         }
 
-        // If a card is selected, select all text inside that card
-        const selectedCard = document.querySelector('.canvas-card.card-selected');
-        if (selectedCard) {
-          const p = selectedCard.querySelector('[contenteditable="true"]');
-          if (p) {
-            e.preventDefault();
-            p.focus();
-            const range = document.createRange();
-            range.selectNodeContents(selectedCard.querySelector('.card-inner-layout') || selectedCard);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-            return;
-          }
-        }
-
-        // On Canvas: Select all cards!
+        // On Canvas: Select all cards & images!
         e.preventDefault();
         const allCards = document.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper');
         allCards.forEach(c => c.classList.add('card-selected'));
-        showToast(`Đã chọn tất cả ${allCards.length} thẻ trên bài thuyết trình!`);
+        if (allCards.length > 0) {
+          showToast(`Đã chọn tất cả ${allCards.length} thẻ trên bài thuyết trình (bấm Delete để xóa)!`);
+        }
         return;
       }
 
@@ -1383,11 +1337,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // 4. If card(s) are selected on canvas:
-      const selectedCards = Array.from(document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected'));
+      // 4. If card(s) or images are selected on canvas:
+      const selectedCards = Array.from(document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected, .user-image-wrapper.card-selected, .user-image-wrapper.selected'));
       if (selectedCards.length > 0) {
         e.preventDefault();
-        selectedCards.forEach(c => deleteCard(c, true));
+        selectedCards.forEach(c => c.remove());
+        syncStopsFromDOM();
+        saveEditsToStorage();
+        showToast(`Đã xóa ${selectedCards.length} mục đã chọn.`);
+        goToStop(Math.min(currentStopIndex, STOPS.length - 1));
         return;
       }
 
@@ -1643,10 +1601,21 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v11_curved_collapse_tab';
+  const PREZI_APP_VERSION = '2026.09.23_v12_clean_slate_dynamic_stops';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
+    localStorage.removeItem('prezi_cards_layout_v2');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
+  }
+
+  function isOldPhilosophyPreset(html) {
+    if (!html) return false;
+    return html.includes('cluster-principles') || 
+           html.includes('karl_marx') || 
+           html.includes('bust_portrait_card') ||
+           html.includes('Quy Luật Phủ Định Của Phủ') ||
+           html.includes('bg-manuscript-layer') ||
+           html.includes('cluster-intro');
   }
 
   // Persistence with LocalStorage, IndexedDB & Cloudflare D1 Database
@@ -1722,6 +1691,18 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // 3. Purge obsolete philosophy preset if detected
+    if (savedContent && isOldPhilosophyPreset(savedContent)) {
+      console.log('Purging obsolete philosophy demo content from storage...');
+      localStorage.removeItem('prezi_saved_world_content');
+      localStorage.removeItem('prezi_cards_layout_v2');
+      await saveToIndexedDB('world_backup', null);
+      savedContent = null;
+      savedLayout = null;
+      // Overwrite D1 with fresh clean slate
+      saveEditsToStorage();
+    }
+
     if (savedContent) {
       world.innerHTML = savedContent;
       if (savedLayout) {
@@ -1750,11 +1731,14 @@ document.addEventListener('DOMContentLoaded', () => {
       // Re-bind and upgrade all images to fully interactive
       upgradeAllImagesToInteractive();
     }
+
+    // Always dynamically sync STOPS from what is actually in the DOM!
+    syncStopsFromDOM();
   }
 
 
   // Initialize
-  buildSidebar();
+  syncStopsFromDOM();
   setupCardInteractions();
   setupPanning();
   generatePreziSpiral();

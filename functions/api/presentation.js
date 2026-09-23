@@ -48,8 +48,14 @@ export async function onRequestGet(context) {
       });
     }
 
+    let content = record.content;
     let parsedLayout = null;
-    if (record.cards_layout) {
+    if (content && (content.includes('cluster-principles') || content.includes('karl_marx') || content.includes('bg-manuscript-layer') || content.includes('cluster-intro'))) {
+      content = null;
+      try {
+        await env.DB.prepare('DELETE FROM presentations WHERE id = ?').bind('main').run();
+      } catch (e) {}
+    } else if (record.cards_layout) {
       try {
         parsedLayout = JSON.parse(record.cards_layout);
       } catch (e) {}
@@ -59,7 +65,7 @@ export async function onRequestGet(context) {
       success: true,
       data: {
         id: record.id,
-        content: record.content,
+        content: content,
         cardsLayout: parsedLayout,
         updatedAt: record.updated_at
       }
