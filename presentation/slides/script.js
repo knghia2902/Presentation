@@ -879,31 +879,48 @@ function initPreziApp() {
     btnClearAll.addEventListener('click', clearAllCards);
   }
 
+  // Spacebar tracking for universal pan across infinite canvas
+  let isSpacePressed = false;
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && !e.target.isContentEditable && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+      isSpacePressed = true;
+      if (!isPanning && viewport) viewport.style.cursor = 'grab';
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space') {
+      isSpacePressed = false;
+      if (!isPanning && viewport) {
+        viewport.style.cursor = window.preziToolMode === 'pan' ? 'grab' : 'default';
+      }
+    }
+  });
+
   // 5. Drag/Pan Canvas Engine
   function setupPanning() {
     viewport.addEventListener('mousedown', (e) => {
-      // If in Select mode or Shift-key is pressed, Marquee Selection handles it
-      if ((window.preziToolMode === 'select' || e.shiftKey) && e.button === 0) return;
-      if (e.button !== 0 && e.button !== 1) return;
+      // Pan is triggered if:
+      // 1. Middle mouse button (e.button === 1)
+      // 2. Spacebar held down with Left click (e.button === 0)
+      // 3. User actively switched to Pan tool in bottom pill (window.preziToolMode === 'pan' && e.button === 0)
+      const isMiddleClick = (e.button === 1);
+      const isSpaceDrag = (isSpacePressed && e.button === 0);
+      const isPanTool = (window.preziToolMode === 'pan' && e.button === 0);
 
-      // Do NOT pan canvas when clicking inside editable text, textboxes, slide frames, handles, or tools!
+      if (!isMiddleClick && !isSpaceDrag && !isPanTool) return;
+
+      // Do NOT pan canvas when clicking inside editable text or controls
       if (
         e.target.isContentEditable ||
         e.target.closest('[contenteditable="true"]') ||
-        e.target.closest('.canvas-card') ||
-        e.target.closest('.canvas-item') ||
-        e.target.closest('.canvas-slide-frame') ||
-        e.target.closest('.prezi-textbox') ||
-        e.target.closest('.textbox-content') ||
-        e.target.closest('.user-image-wrapper') ||
-        e.target.closest('.frame-handle') ||
         e.target.closest('.card-resize-handle') ||
+        e.target.closest('.frame-handle') ||
         e.target.closest('.nav-btn') ||
         e.target.closest('.nav-pill-btn') ||
         e.target.closest('.bottom-right-aux') ||
-        e.target.closest('.card-action-bar') ||
         e.target.closest('.prezi-floating-text-toolbar') ||
         e.target.closest('.prezi-floating-image-toolbar') ||
+        e.target.closest('.prezi-context-menu') ||
         e.target.closest('.prezi-right-sidebar') ||
         e.target.closest('.prezi-topbar') ||
         e.target.closest('.prezi-sidebar') ||
@@ -914,9 +931,7 @@ function initPreziApp() {
       startX = e.clientX - currentCamera.x;
       startY = e.clientY - currentCamera.y;
       world.style.transition = 'none';
-      if (window.preziToolMode === 'pan') {
-        viewport.style.cursor = 'grabbing';
-      }
+      viewport.style.cursor = 'grabbing';
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -930,9 +945,7 @@ function initPreziApp() {
       if (isPanning) {
         isPanning = false;
         world.style.transition = 'transform 0.4s ease-out';
-        if (window.preziToolMode === 'pan') {
-          viewport.style.cursor = 'grab';
-        }
+        viewport.style.cursor = (isSpacePressed || window.preziToolMode === 'pan') ? 'grab' : 'default';
       }
     });
 
@@ -952,7 +965,7 @@ function initPreziApp() {
     }, { passive: false });
   }
 
-  // 5.5 Marquee / Area Selection Engine (Bôi các vùng chọn trên canvas bằng kéo chuột)
+  // 5.5 Marquee / Area Selection Engine (Bấm chuột trái để kéo vùng chọn trên canvas)
   function setupMarqueeSelection() {
     let isMarquee = false;
     let mStartX = 0, mStartY = 0;
@@ -965,22 +978,13 @@ function initPreziApp() {
       viewport.appendChild(marqueeBox);
     }
 
-    // Prevent default browser context menu on viewport to allow smooth right-click dragging
-    viewport.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-    });
-
     viewport.addEventListener('mousedown', (e) => {
       if (document.body.classList.contains('in-present-mode')) return;
 
-      const isRightClick = (e.button === 2);
-      const isLeftClick = (e.button === 0);
-
-      // Support Right-Click drag anywhere on canvas, OR Left-Click in select mode or with Shift
-      if (!isRightClick && !isLeftClick) return;
-
-      const shouldMarquee = isRightClick || (isLeftClick && (window.preziToolMode === 'select' || e.shiftKey));
-      if (!shouldMarquee) return;
+      // Chuột trái để kéo vùng chọn
+      if (e.button !== 0) return;
+      if (isSpacePressed) return; // Spacebar is used for panning
+      if (window.preziToolMode === 'pan') return; // Pan tool is active
 
       // Do NOT start marquee when clicking directly on elements or controls
       if (
@@ -998,6 +1002,7 @@ function initPreziApp() {
         e.target.closest('.nav-pill-btn') ||
         e.target.closest('.prezi-floating-text-toolbar') ||
         e.target.closest('.prezi-floating-image-toolbar') ||
+        e.target.closest('.prezi-context-menu') ||
         e.target.closest('.prezi-topbar') ||
         e.target.closest('.prezi-sidebar') ||
         e.target.closest('.prezi-bottom-bar') ||
@@ -1063,6 +1068,301 @@ function initPreziApp() {
 
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  // 5.6 Prezi Custom Context Menu (Chuột phải mở menu)
+  function setupContextMenu() {
+    let contextMenu = document.getElementById('prezi-context-menu');
+    if (!contextMenu) {
+      contextMenu = document.createElement('div');
+      contextMenu.id = 'prezi-context-menu';
+      contextMenu.className = 'prezi-context-menu';
+      document.body.appendChild(contextMenu);
+    }
+
+    function hideContextMenu() {
+      if (contextMenu) {
+        contextMenu.style.display = 'none';
+      }
+    }
+
+    // Close context menu on outside click or escape
+    document.addEventListener('mousedown', (e) => {
+      if (contextMenu && !contextMenu.contains(e.target)) {
+        hideContextMenu();
+      }
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        hideContextMenu();
+      }
+    });
+
+    viewport.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (document.body.classList.contains('in-present-mode')) return;
+
+      const clickX = e.clientX;
+      const clickY = e.clientY;
+
+      // Calculate canvas coordinates for inserting text / frame at click location
+      const vpRect = viewport.getBoundingClientRect();
+      const scale = currentCamera.scale || 1;
+      const canvasX = (-currentCamera.x + (clickX - vpRect.left)) / scale;
+      const canvasY = (-currentCamera.y + (clickY - vpRect.top)) / scale;
+
+      // Check if clicked directly on an element or selected items
+      const targetElement = e.target.closest('.canvas-card, .canvas-slide-frame, .prezi-textbox, .user-image-wrapper, .canvas-item');
+      const hasSelection = document.querySelectorAll('.canvas-card.card-selected, .canvas-slide-frame.selected, .prezi-textbox.selected, .user-image-wrapper.selected').length > 0;
+
+      // If clicked on an unselected element, select it
+      if (targetElement) {
+        if (!targetElement.classList.contains('selected') && !targetElement.classList.contains('card-selected')) {
+          document.querySelectorAll('.canvas-card.card-selected, .canvas-slide-frame.selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+          if (targetElement.classList.contains('canvas-card')) {
+            targetElement.classList.add('card-selected');
+          } else {
+            targetElement.classList.add('selected');
+          }
+        }
+      }
+
+      const isItemContext = targetElement || hasSelection;
+
+      if (isItemContext) {
+        // MENU CHO MỤC ĐANG CHỌN (Selected Item Menu)
+        contextMenu.innerHTML = `
+          <div class="ctx-item" data-action="copy">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Sao chép</span>
+            </span>
+            <span class="ctx-shortcut">Ctrl+C</span>
+          </div>
+          <div class="ctx-item" data-action="cut">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+              <span>Cắt</span>
+            </span>
+            <span class="ctx-shortcut">Ctrl+X</span>
+          </div>
+          <div class="ctx-item" data-action="paste">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+              <span>Dán</span>
+            </span>
+            <span class="ctx-shortcut">Ctrl+V</span>
+          </div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-item" data-action="bring-front">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              <span>Đưa lên trên cùng</span>
+            </span>
+          </div>
+          <div class="ctx-item" data-action="send-back">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/><polygon points="12 2 2 7 12 12 22 7 12 2"/></svg>
+              <span>Đưa xuống dưới cùng</span>
+            </span>
+          </div>
+          <div class="ctx-item" data-action="zoom-to">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              <span>Phóng to vào mục này</span>
+            </span>
+          </div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-item danger" data-action="delete">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span>Xóa mục</span>
+            </span>
+            <span class="ctx-shortcut">Delete</span>
+          </div>
+        `;
+      } else {
+        // MENU CHO VÙNG TRỐNG (Empty Canvas Menu)
+        contextMenu.innerHTML = `
+          <div class="ctx-item" data-action="add-frame">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <span>Thêm khung slide mới (16:9)</span>
+            </span>
+          </div>
+          <div class="ctx-item" data-action="add-text">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+              <span>Thêm văn bản tại đây</span>
+            </span>
+          </div>
+          <div class="ctx-item" data-action="add-image">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Chèn hình ảnh...</span>
+            </span>
+          </div>
+          <div class="ctx-item" data-action="paste">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+              <span>Dán văn bản tại đây</span>
+            </span>
+            <span class="ctx-shortcut">Ctrl+V</span>
+          </div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-item" data-action="overview">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+              <span>Xem toàn cảnh (Overview)</span>
+            </span>
+          </div>
+          <div class="ctx-item" data-action="present">
+            <span class="ctx-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Bắt đầu trình chiếu</span>
+            </span>
+            <span class="ctx-shortcut">Alt+P</span>
+          </div>
+        `;
+      }
+
+      // Position context menu safely within screen bounds
+      contextMenu.style.display = 'block';
+      const menuW = contextMenu.offsetWidth || 220;
+      const menuH = contextMenu.offsetHeight || 260;
+      const posX = Math.min(clickX, window.innerWidth - menuW - 12);
+      const posY = Math.min(clickY, window.innerHeight - menuH - 12);
+      contextMenu.style.left = `${posX}px`;
+      contextMenu.style.top = `${posY}px`;
+
+      // Attach click action handlers
+      contextMenu.querySelectorAll('.ctx-item').forEach(item => {
+        item.onclick = async () => {
+          const action = item.dataset.action;
+          hideContextMenu();
+
+          if (action === 'add-frame') {
+            addNewFrame();
+          } else if (action === 'add-text') {
+            const newId = `textbox-${Date.now()}`;
+            const textBox = document.createElement('div');
+            textBox.className = 'prezi-textbox selected';
+            textBox.id = newId;
+            textBox.style.left = `${Math.round(canvasX)}px`;
+            textBox.style.top = `${Math.round(canvasY)}px`;
+            textBox.innerHTML = `
+              <div class="textbox-content" contenteditable="true" spellcheck="false">Click to edit text</div>
+              <div class="box-handle tl"></div>
+              <div class="box-handle tr"></div>
+              <div class="box-handle bl"></div>
+              <div class="box-handle br"></div>
+            `;
+            world.appendChild(textBox);
+            setupTextBox(textBox);
+            saveEditsToStorage();
+            const content = textBox.querySelector('.textbox-content');
+            if (content) {
+              content.focus();
+              document.execCommand('selectAll', false, null);
+              selectedTextEl = content;
+              if (typeof positionTextToolbar === 'function') positionTextToolbar(content);
+            }
+            showToast('Đã thêm hộp văn bản tại vị trí chuột!');
+          } else if (action === 'add-image') {
+            const fileInput = document.getElementById('file-input-image');
+            if (fileInput) fileInput.click();
+          } else if (action === 'paste') {
+            try {
+              if (navigator.clipboard && navigator.clipboard.readText) {
+                const text = await navigator.clipboard.readText();
+                if (text && text.trim()) {
+                  const newId = `textbox-${Date.now()}`;
+                  const textBox = document.createElement('div');
+                  textBox.className = 'prezi-textbox selected';
+                  textBox.id = newId;
+                  textBox.style.left = `${Math.round(canvasX)}px`;
+                  textBox.style.top = `${Math.round(canvasY)}px`;
+                  const contentDiv = document.createElement('div');
+                  contentDiv.className = 'textbox-content';
+                  contentDiv.setAttribute('contenteditable', 'true');
+                  contentDiv.setAttribute('spellcheck', 'false');
+                  contentDiv.textContent = text.trim();
+                  textBox.appendChild(contentDiv);
+                  textBox.insertAdjacentHTML('beforeend', `
+                    <div class="box-handle tl"></div>
+                    <div class="box-handle tr"></div>
+                    <div class="box-handle bl"></div>
+                    <div class="box-handle br"></div>
+                  `);
+                  world.appendChild(textBox);
+                  setupTextBox(textBox);
+                  saveEditsToStorage();
+                  showToast('Đã dán văn bản tại vị trí chuột!');
+                  return;
+                }
+              }
+            } catch(err) {}
+            showToast('Mẹo: Nhấn Ctrl+V để dán trực tiếp từ bộ nhớ đệm!');
+          } else if (action === 'overview') {
+            goToStop(0);
+          } else if (action === 'present') {
+            const btnPresent = document.getElementById('btn-present');
+            if (btnPresent) btnPresent.click();
+          } else if (action === 'copy') {
+            const selEl = document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
+            if (selEl) {
+              const text = selEl.textContent.trim();
+              if (navigator.clipboard && text) {
+                navigator.clipboard.writeText(text);
+              }
+              showToast('Đã sao chép vào bộ nhớ đệm!');
+            }
+          } else if (action === 'cut') {
+            const selEl = document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
+            if (selEl) {
+              const text = selEl.textContent.trim();
+              if (navigator.clipboard && text) {
+                navigator.clipboard.writeText(text);
+              }
+              selEl.remove();
+              syncStopsFromDOM();
+              saveEditsToStorage();
+              showToast('Đã cắt mục đã chọn!');
+            }
+          } else if (action === 'delete') {
+            const allSelected = Array.from(document.querySelectorAll('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .canvas-item.card-selected, .user-image-wrapper.selected')).filter(el => el.id !== 'overview-frame-box');
+            if (allSelected.length > 0) {
+              const c = allSelected.length;
+              allSelected.forEach(el => el.remove());
+              syncStopsFromDOM();
+              saveEditsToStorage();
+              showToast(c === 1 ? 'Đã xóa mục.' : `Đã xóa ${c} mục.`);
+            }
+          } else if (action === 'bring-front') {
+            const active = document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');
+            if (active) {
+              active.style.zIndex = '999';
+              saveEditsToStorage();
+              showToast('Đã đưa mục lên trên cùng!');
+            }
+          } else if (action === 'send-back') {
+            const active = document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');
+            if (active) {
+              active.style.zIndex = '2';
+              saveEditsToStorage();
+              showToast('Đã đưa mục xuống dưới cùng!');
+            }
+          } else if (action === 'zoom-to') {
+            const active = document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');
+            if (active) {
+              const focus = getElementFocusTransform(active, 1.25);
+              applyCamera(focus.x, focus.y, focus.scale, true);
+            }
+          }
+        };
+      });
     });
   }
 
@@ -1280,7 +1580,7 @@ function initPreziApp() {
     // --------------------------------------------------------------------------
     const btnPan = document.getElementById('btn-pan-tool');
     const btnSelect = document.getElementById('btn-select-tool');
-    window.preziToolMode = 'pan';
+    window.preziToolMode = 'select';
 
     if (btnPan && btnSelect) {
       btnPan.addEventListener('click', () => {
@@ -2860,6 +3160,7 @@ function initPreziApp() {
   setupCardInteractions();
   setupPanning();
   setupMarqueeSelection();
+  setupContextMenu();
   generatePreziSpiral();
   setupControls();
   setupEditingEngine();

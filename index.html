@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=20260923_v22">
+  <link rel="stylesheet" href="style.css?v=20260923_v24">
 </head>
 <body class="prezi-app">
 
@@ -226,10 +226,10 @@
     <!-- PREZI BOTTOM CONTROLS (Thanh pill nổi ở giữa + nút Help góc dưới phải trong ảnh) -->
     <nav class="prezi-bottom-bar">
       <div class="nav-control-floating-pill">
-        <button class="nav-pill-btn active" id="btn-pan-tool" title="Di chuyển bàn tay (Pan)">
+        <button class="nav-pill-btn" id="btn-pan-tool" title="Di chuyển bàn tay (Pan - hoặc giữ Phím cách)">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0m-4-2a2 2 0 0 0-2 2v6m-4-3a2 2 0 0 0-2 2v5a7 7 0 0 0 14 0v-4a2 2 0 0 0-2-2"/></svg>
         </button>
-        <button class="nav-pill-btn" id="btn-select-tool" title="Con trỏ chọn (Select)">
+        <button class="nav-pill-btn active" id="btn-select-tool" title="Kéo chuột trái khoanh vùng chọn (Select)">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M3 3l7 18 3-7 7-3L3 3z"/></svg>
         </button>
         <div class="pill-divider"></div>
@@ -342,8 +342,11 @@
       <button class="fl-btn btn-img-del" id="btn-img-delete" title="Xóa hình ảnh này">🗑️ Xóa</button>
     </div>
 
+    <!-- PREZI CONTEXT MENU (Menu ngữ cảnh khi nhấp chuột phải) -->
+    <div class="prezi-context-menu" id="prezi-context-menu"></div>
+
   </div>
 
-  <script src="script.js?v=20260923_v23"></script>
+  <script src="script.js?v=20260923_v24"></script>
 </body>
 </html>
