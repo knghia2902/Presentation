@@ -322,23 +322,13 @@ function initPreziApp() {
         }
       });
 
-      if (!card.querySelector('.card-action-bar')) {
-        const bar = document.createElement('div');
-        bar.className = 'card-action-bar';
-        bar.innerHTML = `
-          <button type="button" class="card-action-btn btn-drag-handle" title="Bấm giữ và kéo để di chuyển thẻ">⋮⋮ Kéo di chuyển</button>
-          <button type="button" class="card-action-btn btn-focus-card" title="Phóng to thẻ này">🎯 Focus</button>
-          <button type="button" class="card-action-btn btn-dup-card" title="Nhân bản thẻ này">⧉ Nhân bản</button>
-          <button type="button" class="card-action-btn btn-reset-card" title="Khôi phục kích thước & vị trí ban đầu">↺ Reset</button>
-          <button type="button" class="card-action-btn btn-del btn-del-card" title="Xóa thẻ khỏi bài thuyết trình">🗑 Xóa</button>
-        `;
-        card.appendChild(bar);
-      }
+      // Remove any leftover action bar from past versions
+      card.querySelectorAll('.card-action-bar').forEach(b => b.remove());
     });
 
     restoreCardsLayout();
 
-    // Card Selection & Button clicks (DO NOT JUMP CAMERA ON EDIT CLICK)
+    // Card Selection & Direct Dragging (Prezi style - no clunky action bar)
     cards.forEach(card => {
       card.addEventListener('click', (e) => {
         // If in present mode, ignore edit selection
@@ -346,47 +336,6 @@ function initPreziApp() {
 
         // If clicking on resize handle, handled by resize mousedown
         if (e.target.classList.contains('card-resize-handle')) return;
-
-        // Action Bar: Focus button
-        if (e.target.closest('.btn-focus-card')) {
-          e.stopPropagation();
-          const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
-          if (stopIdx >= 0) {
-            goToStop(stopIdx);
-          } else {
-            const focus = getElementFocusTransform(card, 1.15);
-            applyCamera(focus.x, focus.y, focus.scale, true);
-          }
-          return;
-        }
-
-        // Action Bar: Duplicate button
-        if (e.target.closest('.btn-dup-card')) {
-          e.stopPropagation();
-          duplicateCard(card);
-          return;
-        }
-
-        // Action Bar: Delete button
-        if (e.target.closest('.btn-del-card')) {
-          e.stopPropagation();
-          deleteCard(card);
-          return;
-        }
-
-        // Action Bar: Reset size & position
-        if (e.target.closest('.btn-reset-card')) {
-          e.stopPropagation();
-          card.style.width = '';
-          card.style.height = '';
-          card.style.transform = '';
-          saveCardsLayout();
-          showToast('Đã khôi phục kích thước và vị trí ban đầu của thẻ.');
-          return;
-        }
-
-        // Action Bar: Drag handle click
-        if (e.target.closest('.btn-drag-handle')) return;
 
         // Select this card for editing and resizing
         document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => {
@@ -398,8 +347,12 @@ function initPreziApp() {
         const stopIdx = STOPS.findIndex(s => s.targetId === card.id);
         if (stopIdx >= 0) {
           currentStopIndex = stopIdx;
-          currentStopTitle.textContent = STOPS[stopIdx].title;
-          stopCounter.textContent = `Trạm ${stopIdx} / ${STOPS.length - 1}`;
+          if (currentStopTitle && STOPS[stopIdx]) {
+            currentStopTitle.textContent = STOPS[stopIdx].title;
+          }
+          if (stopCounter) {
+            stopCounter.textContent = `Trạm ${stopIdx} / ${STOPS.length - 1}`;
+          }
           document.querySelectorAll('.frame-thumb-item').forEach((item, i) => {
             item.classList.toggle('active', i === stopIdx);
           });
@@ -474,14 +427,20 @@ function initPreziApp() {
     let dStartTransX = 0, dStartTransY = 0;
 
     world.addEventListener('mousedown', (e) => {
-      const dragBtn = e.target.closest('.btn-drag-handle');
-      if (!dragBtn) return;
-      e.stopPropagation();
-      e.preventDefault();
+      if (document.body.classList.contains('in-present-mode')) return;
+      if (e.target.closest('.card-resize-handle') || e.target.closest('.frame-handle') || e.target.closest('.user-image-wrapper')) return;
+      if (e.target.isContentEditable || e.target.closest('[contenteditable="true"]')) return;
 
-      activeDragCard = dragBtn.closest('.canvas-card, .canvas-item');
-      if (!activeDragCard) return;
+      const card = e.target.closest('.canvas-card, .canvas-item');
+      if (!card) return;
 
+      // Select card
+      document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => {
+        if (c !== card) c.classList.remove('card-selected');
+      });
+      card.classList.add('card-selected');
+
+      activeDragCard = card;
       dStartX = e.clientX;
       dStartY = e.clientY;
 
@@ -489,6 +448,12 @@ function initPreziApp() {
       const match = curTrans.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
       dStartTransX = match ? parseFloat(match[1]) : 0;
       dStartTransY = match ? parseFloat(match[2]) : 0;
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (!e.target.closest('.canvas-card') && !e.target.closest('.canvas-item') && !e.target.closest('.card-resize-handle') && !e.target.closest('.prezi-floating-text-toolbar') && !e.target.closest('.prezi-floating-image-toolbar')) {
+        document.querySelectorAll('.canvas-card.card-selected, .canvas-item.card-selected').forEach(c => c.classList.remove('card-selected'));
+      }
     });
 
     // Global MouseMove for Resize & Drag
@@ -2018,7 +1983,7 @@ function initPreziApp() {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v16_centered_camera_and_pill';
+  const PREZI_APP_VERSION = '2026.09.23_v17_remove_card_action_bar';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.removeItem('prezi_cards_layout_v2');
@@ -2123,7 +2088,9 @@ function initPreziApp() {
 
     if (savedContent) {
       savedContent = savedContent.replace(/<div class="canvas-watermark"[\s\S]*?<\/div>/gi, '');
+      savedContent = savedContent.replace(/<div class="card-action-bar"[\s\S]*?<\/div>/gi, '');
       world.innerHTML = savedContent;
+      world.querySelectorAll('.card-action-bar').forEach(el => el.remove());
       if (savedLayout) {
         try {
           localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));
