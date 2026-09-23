@@ -1643,7 +1643,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveEditsToStorage();
   }
 
-  const PREZI_APP_VERSION = '2026.09.23_v10_clear_all_cards';
+  const PREZI_APP_VERSION = '2026.09.23_v11_curved_collapse_tab';
   if (localStorage.getItem('prezi_app_version') !== PREZI_APP_VERSION) {
     localStorage.removeItem('prezi_saved_world_content');
     localStorage.setItem('prezi_app_version', PREZI_APP_VERSION);
