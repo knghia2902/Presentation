@@ -321,9 +321,13 @@ function initPreziApp() {
   window.goToStop = goToStop;
   window.applyCamera = applyCamera;
 
-  // 3. Navigation controller
+  // 3. Navigation controller — Prezi-style Zoom Out → Zoom In transition
+  let _goToStopTimer = null;
   function goToStop(index, smooth = true) {
     if (index < 0 || index >= STOPS.length) return;
+    clearTimeout(_goToStopTimer);
+
+    const prevIndex = currentStopIndex;
     currentStopIndex = index;
     const stop = STOPS[index];
 
@@ -331,23 +335,76 @@ function initPreziApp() {
     document.querySelectorAll('.canvas-slide-frame').forEach(f => f.classList.remove('current-active', 'selected'));
     document.querySelectorAll('.canvas-empty-frame-box').forEach(b => b.classList.remove('selected', 'current-active'));
 
+    // Compute the FINAL target camera position
+    let finalCam;
     if (stop.type === 'overview' || stop.targetId === 'overview-frame-box') {
       const ovBox = document.getElementById('overview-frame-box') || (typeof ensureOverviewFrameBox === 'function' ? ensureOverviewFrameBox() : null);
       if (ovBox) {
         ovBox.classList.add('selected', 'current-active');
-        const focus = getElementFocusTransform(ovBox, 1.0);
-        applyCamera(focus.x, focus.y, focus.scale, smooth);
+        finalCam = getElementFocusTransform(ovBox, 1.0);
       } else {
-        const ov = getOverviewTransform();
-        applyCamera(ov.x, ov.y, ov.scale, smooth);
+        finalCam = getOverviewTransform();
       }
     } else {
       const el = document.getElementById(stop.targetId);
       if (el) {
         el.classList.add('current-active');
-        const focus = getElementFocusTransform(el, stop.scaleOffset || 1.0);
-        applyCamera(focus.x, focus.y, focus.scale, smooth);
+        finalCam = getElementFocusTransform(el, stop.scaleOffset || 1.0);
       }
+    }
+
+    if (!finalCam) return;
+
+    // Decide whether to use zoom-out-then-in transition
+    // Skip zoom-out if: not smooth, going to overview, same frame, or first load
+    const isOverview = (stop.type === 'overview' || stop.targetId === 'overview-frame-box');
+    const sameFrame = (prevIndex === index);
+    const shouldFlyThrough = smooth && !isOverview && !sameFrame && prevIndex >= 0;
+
+    if (shouldFlyThrough) {
+      // ====== PREZI FLY-THROUGH: Zoom Out → Zoom In ======
+      const prevStop = STOPS[prevIndex];
+      const prevEl = prevStop ? document.getElementById(prevStop.targetId) : null;
+
+      // Calculate midpoint between current and target frame
+      let midX, midY, midScale;
+
+      if (prevEl && !isOverview) {
+        const prevFocus = getElementFocusTransform(prevEl, 1.0);
+        // Midpoint between the two camera positions
+        midX = (prevFocus.x + finalCam.x) / 2;
+        midY = (prevFocus.y + finalCam.y) / 2;
+        // Zoom out: use a scale that's smaller than both (shows wider view)
+        midScale = Math.min(prevFocus.scale, finalCam.scale) * 0.45;
+        midScale = Math.max(midScale, 0.05); // safety floor
+      } else {
+        // Fallback: zoom out to overview level
+        const ov = getOverviewTransform();
+        midX = ov.x;
+        midY = ov.y;
+        midScale = ov.scale;
+      }
+
+      // Step 1: Zoom OUT to midpoint (fast, 600ms)
+      world.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+      const rmx = Math.round(midX);
+      const rmy = Math.round(midY);
+      currentCamera = { x: rmx, y: rmy, scale: midScale };
+      world.style.transform = `translate(${rmx}px, ${rmy}px) scale(${midScale}) translateZ(0)`;
+      zoomIndicator.textContent = `${Math.round(midScale * 100)}%`;
+
+      // Step 2: After zoom-out completes, Zoom IN to target (smooth, 800ms)
+      _goToStopTimer = setTimeout(() => {
+        world.style.transition = 'transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+        const rfx = Math.round(finalCam.x);
+        const rfy = Math.round(finalCam.y);
+        currentCamera = { x: rfx, y: rfy, scale: finalCam.scale };
+        world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale}) translateZ(0)`;
+        zoomIndicator.textContent = `${Math.round(finalCam.scale * 100)}%`;
+      }, 620);
+    } else {
+      // Direct jump (no fly-through): overview, same frame, or instant
+      applyCamera(finalCam.x, finalCam.y, finalCam.scale, smooth);
     }
 
     if (currentStopTitle && stop) {
