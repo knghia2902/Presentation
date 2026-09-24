@@ -3027,7 +3027,7 @@ function initPreziApp() {
     }
 
     if (btnSaveTemplate) {
-      btnSaveTemplate.addEventListener('click', () => {
+      btnSaveTemplate.addEventListener('click', async () => {
         try {
           const sanitized = world.innerHTML
             .replace(/\s*data-events-bound="[^"]*"/g, '')
@@ -3042,13 +3042,18 @@ function initPreziApp() {
             layout = JSON.parse(localStorage.getItem('prezi_cards_layout_v2') || 'null');
           } catch (e) {}
 
+          const now = new Date();
           const templateData = {
-            savedAt: new Date().toISOString(),
+            savedAt: now.toISOString(),
             content: sanitized,
             cardsLayout: layout
           };
-          localStorage.setItem('prezi_user_template_v1', JSON.stringify(templateData));
-          showBackupStatus('⭐ Đã lưu bài hiện tại làm Template Mẫu an toàn!', 'success');
+
+          // Lưu an toàn vào IndexedDB (Dung lượng không giới hạn, không bị lỗi 5MB của localStorage)
+          await saveToIndexedDB('prezi_user_template_v1', templateData);
+
+          const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+          showBackupStatus(`⭐ Đã lưu thành công Template Mẫu (lúc ${timeStr})!`, 'success');
         } catch (err) {
           showBackupStatus('❌ Lỗi khi lưu template: ' + err.message, 'error');
         }
@@ -3058,18 +3063,26 @@ function initPreziApp() {
     if (btnRestoreTemplate) {
       btnRestoreTemplate.addEventListener('click', async () => {
         try {
-          const raw = localStorage.getItem('prezi_user_template_v1');
-          if (!raw) {
+          let data = await loadFromIndexedDB('prezi_user_template_v1');
+          if (!data || !data.content) {
+            // Fallback sang localStorage nếu có bản cũ
+            try {
+              const raw = localStorage.getItem('prezi_user_template_v1');
+              if (raw) data = JSON.parse(raw);
+            } catch (e) {}
+          }
+
+          if (!data || !data.content) {
             alert('Chưa có Template Mẫu nào được lưu trước đó! Bạn hãy nhấn "Lưu bài hiện tại làm Template Mẫu" trước.');
             return;
           }
-          const data = JSON.parse(raw);
-          if (!data || !data.content) {
-            alert('Dữ liệu Template Mẫu không hợp lệ!');
-            return;
-          }
 
-          if (confirm('Khôi phục lại toàn bộ bài trình chiếu từ Template Mẫu đã lưu?')) {
+          const timeFormatted = data.savedAt ? new Date(data.savedAt).toLocaleTimeString('vi-VN') : '';
+          const confirmMsg = timeFormatted 
+            ? `Khôi phục lại toàn bộ bài thuyết trình từ Template Mẫu (đã lưu lúc ${timeFormatted})? Mọi chỉnh sửa chưa lưu sẽ được thay thế.`
+            : 'Khôi phục lại toàn bộ bài thuyết trình từ Template Mẫu đã lưu? Mọi chỉnh sửa chưa lưu sẽ được thay thế.';
+
+          if (confirm(confirmMsg)) {
             applyLoadedPresentation(data.content, data.cardsLayout);
             await saveEditsToStorage();
             showBackupStatus('↺ Đã khôi phục thành công từ Template Mẫu!', 'success');
