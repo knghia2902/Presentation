@@ -395,12 +395,12 @@ function initPreziApp() {
 
     const leftSidebar = document.getElementById('prezi-sidebar');
     const isLeftCollapsed = leftSidebar ? leftSidebar.classList.contains('collapsed') : false;
-    const rightPanel = document.getElementById('prezi-right-panel');
-    const isRightCollapsed = rightPanel ? rightPanel.classList.contains('collapsed') : false;
+    const rightSidebar = document.getElementById('prezi-right-sidebar');
+    const isRightCollapsed = !rightSidebar || rightSidebar.classList.contains('collapsed');
 
     // In edit mode: comfortable insets around sidebars & controls
     const leftInset = isLeftCollapsed ? 48 : 224;
-    const rightInset = isRightCollapsed ? 24 : 260;
+    const rightInset = isRightCollapsed ? 24 : 330;
     const topInset = 20;
     const bottomInset = 70;
 
@@ -2447,7 +2447,7 @@ function initPreziApp() {
 
     // Auto sync when clicking canvas elements
     document.addEventListener('click', (e) => {
-      if (e.target.closest('#prezi-sidebar') || e.target.closest('#prezi-right-panel') || e.target.closest('.prezi-floating-text-toolbar') || e.target.closest('.prezi-floating-image-toolbar')) return;
+      if (e.target.closest('#prezi-sidebar') || e.target.closest('#prezi-right-sidebar') || e.target.closest('.prezi-floating-text-toolbar') || e.target.closest('.prezi-floating-image-toolbar')) return;
       setTimeout(() => {
         const el = getActiveElementForProperties();
         syncPropertyPanel(el);
@@ -2456,34 +2456,35 @@ function initPreziApp() {
   }
 
   function setupRightInspectorPanel() {
-    const rightPanel = document.getElementById('prezi-right-panel');
-    const toggleBtn = document.getElementById('btn-toggle-right-panel');
+    const rightSidebar = document.getElementById('prezi-right-sidebar');
     const tabBtns = document.querySelectorAll('#right-panel-tab-bar .right-tab-btn');
     const tabContents = document.querySelectorAll('.right-tab-content');
+    const btnClose = document.getElementById('btn-close-bg-panel');
+    const btnToolStyle = document.getElementById('btn-tool-style');
+    const btnToolAnimation = document.getElementById('btn-tool-animation');
 
-    if (toggleBtn && rightPanel) {
-      toggleBtn.addEventListener('click', (e) => {
+    if (btnClose && rightSidebar) {
+      btnClose.addEventListener('click', (e) => {
         e.stopPropagation();
-        rightPanel.classList.toggle('collapsed');
-        setTimeout(() => goToStop(currentStopIndex, true), 320);
-      });
-    }
-
-    if (rightPanel) {
-      rightPanel.addEventListener('click', (e) => {
-        if (rightPanel.classList.contains('collapsed')) {
-          rightPanel.classList.remove('collapsed');
-          setTimeout(() => goToStop(currentStopIndex, true), 320);
-        }
+        rightSidebar.classList.add('collapsed');
+        if (btnToolStyle) btnToolStyle.classList.remove('active');
+        if (btnToolAnimation) btnToolAnimation.classList.remove('active');
+        setTimeout(() => goToStop(currentStopIndex, true), 200);
       });
     }
 
     function switchRightTab(targetId) {
       tabBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === targetId));
       tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
-      if (rightPanel && rightPanel.classList.contains('collapsed')) {
-        rightPanel.classList.remove('collapsed');
-        setTimeout(() => goToStop(currentStopIndex, true), 320);
+      if (rightSidebar && rightSidebar.classList.contains('collapsed')) {
+        rightSidebar.classList.remove('collapsed');
+        setTimeout(() => goToStop(currentStopIndex, true), 200);
+      }
+      if (btnToolStyle) {
+        btnToolStyle.classList.toggle('active', targetId === 'tab-background' && !rightSidebar.classList.contains('collapsed'));
+      }
+      if (btnToolAnimation) {
+        btnToolAnimation.classList.toggle('active', targetId === 'tab-effects' && !rightSidebar.classList.contains('collapsed'));
       }
       if (targetId === 'tab-properties') {
         syncPropertyPanel(getActiveElementForProperties());
@@ -2500,17 +2501,33 @@ function initPreziApp() {
     });
 
     // Topbar shortcut buttons
-    const btnToolAnimation = document.getElementById('btn-tool-animation');
     if (btnToolAnimation) {
-      btnToolAnimation.addEventListener('click', () => {
-        switchRightTab('tab-effects');
+      btnToolAnimation.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isEffectsOpen = rightSidebar && !rightSidebar.classList.contains('collapsed') &&
+          document.querySelector('#right-panel-tab-bar .right-tab-btn.active')?.getAttribute('data-tab') === 'tab-effects';
+        if (isEffectsOpen) {
+          rightSidebar.classList.add('collapsed');
+          btnToolAnimation.classList.remove('active');
+          setTimeout(() => goToStop(currentStopIndex, true), 200);
+        } else {
+          switchRightTab('tab-effects');
+        }
       });
     }
 
-    const btnToolStyle = document.getElementById('btn-tool-style');
     if (btnToolStyle) {
-      btnToolStyle.addEventListener('click', () => {
-        switchRightTab('tab-properties');
+      btnToolStyle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isBgOpen = rightSidebar && !rightSidebar.classList.contains('collapsed') &&
+          document.querySelector('#right-panel-tab-bar .right-tab-btn.active')?.getAttribute('data-tab') === 'tab-background';
+        if (isBgOpen) {
+          rightSidebar.classList.add('collapsed');
+          btnToolStyle.classList.remove('active');
+          setTimeout(() => goToStop(currentStopIndex, true), 200);
+        } else {
+          switchRightTab('tab-background');
+        }
       });
     }
 
@@ -2907,20 +2924,7 @@ function initPreziApp() {
     const btnCloseBg = document.getElementById('btn-close-bg-panel');
     const bgPreviewBox = document.getElementById('bg-preview-box');
 
-    if (btnToolStyle && rightSidebar) {
-      btnToolStyle.addEventListener('click', () => {
-        rightSidebar.classList.toggle('collapsed');
-        btnToolStyle.classList.toggle('active', !rightSidebar.classList.contains('collapsed'));
-        setTimeout(() => goToStop(currentStopIndex, true), 150);
-      });
-    }
-    if (btnCloseBg && rightSidebar) {
-      btnCloseBg.addEventListener('click', () => {
-        rightSidebar.classList.add('collapsed');
-        if (btnToolStyle) btnToolStyle.classList.remove('active');
-        setTimeout(() => goToStop(currentStopIndex, true), 150);
-      });
-    }
+    // Right Sidebar controls are wired in setupRightInspectorPanel
 
     // Fill Color
     const bgColorPicker = document.getElementById('bg-color-picker');

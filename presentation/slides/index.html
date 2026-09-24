@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=20260924_v52">
+  <link rel="stylesheet" href="style.css?v=20260924_v53">
 </head>
 <body class="prezi-app">
 
@@ -568,76 +568,220 @@
       </div>
     </main>
 
-    <!-- RIGHT SIDEBAR: BACKGROUND PANEL (Khớp hoàn toàn bảng Background bên phải trong ảnh Prezi) -->
-    <aside class="prezi-right-sidebar" id="prezi-right-sidebar">
+    <!-- RIGHT SIDEBAR: UNIFIED INSPECTOR, EFFECTS & BACKGROUND PANEL -->
+    <aside class="prezi-right-sidebar collapsed" id="prezi-right-sidebar">
       <div class="right-sidebar-header">
-        <h3 class="panel-title">Background</h3>
-        <button class="btn-panel-close" id="btn-close-bg-panel" title="Đóng bảng Background">✕</button>
+        <div class="right-tab-bar" id="right-panel-tab-bar">
+          <button class="right-tab-btn active" data-tab="tab-properties" title="Độ mờ, Sắc độ & Góc xoay đối tượng">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.22 19.67 10.57 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+            <span>Thuộc tính</span>
+          </button>
+          <button class="right-tab-btn" data-tab="tab-effects" title="Chỉnh chuyên sâu hiệu ứng Zoom & Chuyển cảnh">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+            <span>Hiệu ứng</span>
+          </button>
+          <button class="right-tab-btn" data-tab="tab-background" title="Hình nền & Màu sắc">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+            <span>Nền</span>
+          </button>
+        </div>
+        <button class="btn-panel-close" id="btn-close-bg-panel" title="Đóng bảng">✕</button>
       </div>
 
       <div class="right-sidebar-content">
-        <!-- Preview Box -->
-        <div class="bg-preview-box" id="bg-preview-box"></div>
+        <!-- Tab 1: Properties (Opacity, Saturation, Rotation) -->
+        <div class="right-tab-content active" id="tab-properties">
+          <div class="panel-section">
+            <div class="panel-section-title">Thuộc Tính Đối Tượng</div>
+            <div class="panel-empty-hint" id="prop-empty-hint">Click chọn một hình ảnh, hộp chữ hoặc khung để tùy chỉnh.</div>
 
-        <!-- Control Rows -->
-        <div class="bg-control-row">
-          <span class="ctrl-label">Fill color</span>
-          <div class="color-picker-wrapper">
-            <input type="color" id="bg-color-picker" value="#ffffff" class="bg-color-swatch">
+            <div id="prop-controls-box" style="display: none;">
+              <div class="prop-target-badge" id="prop-target-title">Đang chọn: Hình ảnh</div>
+
+              <!-- Opacity -->
+              <div class="panel-field">
+                <div class="panel-field-header">
+                  <label class="panel-label">Độ mờ (Opacity):</label>
+                  <span class="panel-val-badge" id="prop-opacity-val">100%</span>
+                </div>
+                <input type="range" id="prop-opacity-slider" min="10" max="100" step="5" value="100" class="panel-slider">
+                <div class="prop-presets-row">
+                  <button type="button" class="prop-pill" data-set-opacity="1">100%</button>
+                  <button type="button" class="prop-pill" data-set-opacity="0.8">80%</button>
+                  <button type="button" class="prop-pill" data-set-opacity="0.5">50%</button>
+                  <button type="button" class="prop-pill" data-set-opacity="0.25">25%</button>
+                </div>
+              </div>
+
+              <!-- Saturation (Sắc độ) -->
+              <div class="panel-field" id="prop-saturation-group">
+                <div class="panel-field-header">
+                  <label class="panel-label">Sắc độ màu (Saturation):</label>
+                  <span class="panel-val-badge" id="prop-saturation-val">100%</span>
+                </div>
+                <input type="range" id="prop-saturation-slider" min="0" max="150" step="5" value="100" class="panel-slider">
+                <div class="prop-presets-row">
+                  <button type="button" class="prop-pill" data-set-sat="100">100% Gốc</button>
+                  <button type="button" class="prop-pill" data-set-sat="50">50% Dịu</button>
+                  <button type="button" class="prop-pill" data-set-sat="0">0% Đen trắng</button>
+                  <button type="button" class="prop-pill" data-set-sat="sepia">Vintage</button>
+                </div>
+              </div>
+
+              <!-- Rotation -->
+              <div class="panel-field">
+                <div class="panel-field-header">
+                  <label class="panel-label">Góc xoay (Rotation):</label>
+                  <span class="panel-val-badge" id="prop-rotation-val">0°</span>
+                </div>
+                <input type="range" id="prop-rotation-slider" min="0" max="360" step="1" value="0" class="panel-slider">
+                <div class="prop-presets-row">
+                  <button type="button" class="prop-pill" data-set-rot="0">↺ Đặt lại 0°</button>
+                  <button type="button" class="prop-pill" data-add-rot="45">+45°</button>
+                  <button type="button" class="prop-pill" data-add-rot="90">+90°</button>
+                  <button type="button" class="prop-pill" data-add-rot="180">180°</button>
+                </div>
+              </div>
+
+              <!-- Quick lock button -->
+              <div class="panel-btn-group" style="margin-top: 14px;">
+                <button type="button" class="panel-action-btn secondary" id="btn-prop-toggle-lock">
+                  🔒 Khóa / Mở khóa vị trí
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="bg-control-row">
-          <span class="ctrl-label">Background parallax</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="toggle-parallax" checked>
-            <span class="toggle-slider"></span>
-          </label>
+        <!-- Tab 2: Camera & Zoom Effects Settings -->
+        <div class="right-tab-content" id="tab-effects">
+          <div class="panel-section">
+            <div class="panel-section-title">Hiệu Ứng Chuyển Cảnh</div>
+            
+            <div class="panel-field">
+              <label class="panel-label">Kiểu chuyển động:</label>
+              <select id="cfg-cam-style" class="panel-select">
+                <option value="direct" selected>Trực tiếp (Direct Smooth) - Khuyên dùng</option>
+                <option value="flythrough">Prezi Fly-through (Zoom out rồi Zoom in)</option>
+                <option value="instant">Tức thì (Instant - Không hiệu ứng)</option>
+              </select>
+              <div class="panel-help-text">Kiểu "Trực tiếp" bay thẳng mượt mà, không giật lùi, hình ảnh sắc nét ngay.</div>
+            </div>
+
+            <div class="panel-field">
+              <div class="panel-field-header">
+                <label class="panel-label">Thời gian chuyển cảnh:</label>
+                <span class="panel-val-badge" id="cfg-cam-duration-val">0.65s</span>
+              </div>
+              <input type="range" id="cfg-cam-duration" min="0.2" max="2.0" step="0.05" value="0.65" class="panel-slider">
+              <div class="slider-ticks">
+                <span>0.2s</span>
+                <span>0.65s</span>
+                <span>2.0s</span>
+              </div>
+            </div>
+
+            <div class="panel-field" id="cfg-cam-depth-group" style="display: none;">
+              <div class="panel-field-header">
+                <label class="panel-label">Độ lùi góc rộng (Fly-through):</label>
+                <span class="panel-val-badge" id="cfg-cam-depth-val">75%</span>
+              </div>
+              <input type="range" id="cfg-cam-depth" min="10" max="90" step="5" value="75" class="panel-slider">
+              <div class="slider-ticks">
+                <span>Lùi rất xa</span>
+                <span>Lùi nhẹ</span>
+              </div>
+            </div>
+
+            <div class="panel-field">
+              <label class="panel-label">Đường cong mượt mà (Easing):</label>
+              <select id="cfg-cam-easing" class="panel-select">
+                <option value="prezi" selected>Prezi Smooth (Cubic-bezier tự nhiên)</option>
+                <option value="ease-in-out">Mượt mà 2 đầu (Ease-in-out)</option>
+                <option value="ease-out">Dịu dần ở đích (Ease-out)</option>
+                <option value="linear">Tốc độ đều (Linear)</option>
+              </select>
+            </div>
+
+            <div class="panel-btn-group">
+              <button type="button" class="panel-action-btn primary" id="btn-test-camera-effect">
+                <span>▶</span> Bay thử hiệu ứng ngay
+              </button>
+              <button type="button" class="panel-action-btn secondary" id="btn-reset-camera-effect">
+                Khôi phục mặc định
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div class="bg-control-row">
-          <span class="ctrl-label">Image fit</span>
-          <select class="bg-select" id="select-image-fit">
-            <option value="cover">Fill</option>
-            <option value="contain">Fit</option>
-            <option value="repeat">Tile</option>
-          </select>
-        </div>
+        <!-- Tab 3: Background Settings -->
+        <div class="right-tab-content" id="tab-background">
+          <div class="panel-section">
+            <div class="panel-section-title">Hình Nền & Màu Sắc</div>
+            <!-- Preview Box -->
+            <div class="bg-preview-box" id="bg-preview-box"></div>
 
-        <div class="bg-control-row">
-          <span class="ctrl-label">Screen ratio</span>
-          <select class="bg-select" id="select-screen-ratio">
-            <option value="16:9">16:9</option>
-            <option value="4:3">4:3</option>
-          </select>
-        </div>
+            <!-- Control Rows -->
+            <div class="bg-control-row">
+              <span class="ctrl-label">Fill color</span>
+              <div class="color-picker-wrapper">
+                <input type="color" id="bg-color-picker" value="#ffffff" class="bg-color-swatch">
+              </div>
+            </div>
 
-        <!-- Upload Image Button -->
-        <label class="btn-upload-bg-image" title="Tải ảnh nền lên từ máy tính">
-          <span>Upload image</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
-          <input type="file" id="input-bg-image" accept="image/*" style="display:none;">
-        </label>
+            <div class="bg-control-row">
+              <span class="ctrl-label">Background parallax</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-parallax" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
 
-        <!-- Unsplash Search -->
-        <div class="bg-section-title">Images by Unsplash &amp; Prezi</div>
-        <div class="search-input-box">
-          <input type="text" id="input-unsplash-search" placeholder="Search..." class="search-field">
-          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </div>
+            <div class="bg-control-row">
+              <span class="ctrl-label">Image fit</span>
+              <select class="bg-select" id="select-image-fit">
+                <option value="cover">Fill</option>
+                <option value="contain">Fit</option>
+                <option value="repeat">Tile</option>
+              </select>
+            </div>
 
-        <!-- AI Recommended Backgrounds -->
-        <div class="bg-section-header">
-          <span class="bg-section-title">AI recommended backgrounds</span>
-          <span class="ai-sparkle">✦</span>
-        </div>
-        <div class="bg-presets-grid" id="bg-presets-grid">
-          <div class="bg-preset-tile" data-bg="assets/images/watercolor_splash.png" style="background-image: url('assets/images/watercolor_splash.png');" title="Màu nước trừu tượng"></div>
-          <div class="bg-preset-tile" data-bg="assets/images/smartphone_tech.jpg" style="background-image: url('assets/images/smartphone_tech.jpg');" title="Thành phố ánh sáng"></div>
-          <div class="bg-preset-tile" data-bg="assets/images/rice_field.jpg" style="background-image: url('assets/images/rice_field.jpg');" title="Thiên nhiên hùng vĩ"></div>
-          <div class="bg-preset-tile" data-bg="assets/images/vintage_note_paper.png" style="background-image: url('assets/images/vintage_note_paper.png');" title="Giấy cổ điển"></div>
-          <div class="bg-preset-tile" data-bg="assets/images/thumb_overview.png" style="background-image: url('assets/images/thumb_overview.png');" title="Hình ảnh hiện đại"></div>
-          <div class="bg-preset-tile" data-bg="none" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);" title="Gradient công nghệ"></div>
+            <div class="bg-control-row">
+              <span class="ctrl-label">Screen ratio</span>
+              <select class="bg-select" id="select-screen-ratio">
+                <option value="16:9">16:9</option>
+                <option value="4:3">4:3</option>
+              </select>
+            </div>
+
+            <!-- Upload Image Button -->
+            <label class="btn-upload-bg-image" title="Tải ảnh nền lên từ máy tính">
+              <span>Upload image</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+              <input type="file" id="input-bg-image" accept="image/*" style="display:none;">
+            </label>
+
+            <!-- Unsplash Search -->
+            <div class="bg-section-title">Images by Unsplash &amp; Prezi</div>
+            <div class="search-input-box">
+              <input type="text" id="input-unsplash-search" placeholder="Search..." class="search-field">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+
+            <!-- AI Recommended Backgrounds -->
+            <div class="bg-section-header">
+              <span class="bg-section-title">AI recommended backgrounds</span>
+              <span class="ai-sparkle">✦</span>
+            </div>
+            <div class="bg-presets-grid" id="bg-presets-grid">
+              <div class="bg-preset-tile" data-bg="assets/images/watercolor_splash.png" style="background-image: url('assets/images/watercolor_splash.png');" title="Màu nước trừu tượng"></div>
+              <div class="bg-preset-tile" data-bg="assets/images/smartphone_tech.jpg" style="background-image: url('assets/images/smartphone_tech.jpg');" title="Thành phố ánh sáng"></div>
+              <div class="bg-preset-tile" data-bg="assets/images/rice_field.jpg" style="background-image: url('assets/images/rice_field.jpg');" title="Thiên nhiên hùng vĩ"></div>
+              <div class="bg-preset-tile" data-bg="assets/images/vintage_note_paper.png" style="background-image: url('assets/images/vintage_note_paper.png');" title="Giấy cổ điển"></div>
+              <div class="bg-preset-tile" data-bg="assets/images/thumb_overview.png" style="background-image: url('assets/images/thumb_overview.png');" title="Hình ảnh hiện đại"></div>
+              <div class="bg-preset-tile" data-bg="none" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);" title="Gradient công nghệ"></div>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
@@ -678,156 +822,6 @@
       </div>
     </nav>
 
-    <!-- RIGHT PANEL: INSPECTOR & EFFECTS (Chuyên sâu Thuộc tính đối tượng & Hiệu ứng chuyển cảnh) -->
-    <aside class="prezi-right-panel" id="prezi-right-panel">
-      <!-- Curved Collapse Tab on left edge of right panel -->
-      <button class="right-panel-collapse-tab" id="btn-toggle-right-panel" title="Thu gọn / Mở rộng bảng điều khiển" aria-label="Toggle right panel">
-        <svg class="tab-shape-svg-right" viewBox="0 0 16 66" fill="none">
-          <path d="M 16 0 C 16 6, 13.5 11, 9 13.5 C 6 15, 4 18, 4 21 L 4 45 C 4 48, 6 51, 9 52.5 C 13.5 55, 16 60, 16 66 L 21 66 L 21 0 Z" fill="#ffffff" stroke="none"/>
-        </svg>
-        <svg class="chevron-icon-right" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#4b5563" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </button>
-
-      <div class="right-panel-header">
-        <div class="right-tab-bar" id="right-panel-tab-bar">
-          <button class="right-tab-btn active" data-tab="tab-properties" title="Độ mờ, Sắc độ & Góc xoay đối tượng">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.22 19.67 10.57 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
-            <span>Thuộc tính</span>
-          </button>
-          <button class="right-tab-btn" data-tab="tab-effects" title="Chỉnh chuyên sâu hiệu ứng Zoom & Chuyển cảnh">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-            <span>Hiệu ứng</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Tab 1: Properties (Opacity, Saturation, Rotation) -->
-      <div class="right-tab-content active" id="tab-properties">
-        <div class="panel-section">
-          <div class="panel-section-title">Thuộc Tính Đối Tượng</div>
-          <div class="panel-empty-hint" id="prop-empty-hint">Click chọn một hình ảnh, hộp chữ hoặc khung để tùy chỉnh.</div>
-
-          <div id="prop-controls-box" style="display: none;">
-            <div class="prop-target-badge" id="prop-target-title">Đang chọn: Hình ảnh</div>
-
-            <!-- Opacity -->
-            <div class="panel-field">
-              <div class="panel-field-header">
-                <label class="panel-label">Độ mờ (Opacity):</label>
-                <span class="panel-val-badge" id="prop-opacity-val">100%</span>
-              </div>
-              <input type="range" id="prop-opacity-slider" min="10" max="100" step="5" value="100" class="panel-slider">
-              <div class="prop-presets-row">
-                <button type="button" class="prop-pill" data-set-opacity="1">100%</button>
-                <button type="button" class="prop-pill" data-set-opacity="0.8">80%</button>
-                <button type="button" class="prop-pill" data-set-opacity="0.5">50%</button>
-                <button type="button" class="prop-pill" data-set-opacity="0.25">25%</button>
-              </div>
-            </div>
-
-            <!-- Saturation (Sắc độ) -->
-            <div class="panel-field" id="prop-saturation-group">
-              <div class="panel-field-header">
-                <label class="panel-label">Sắc độ màu (Saturation):</label>
-                <span class="panel-val-badge" id="prop-saturation-val">100%</span>
-              </div>
-              <input type="range" id="prop-saturation-slider" min="0" max="150" step="5" value="100" class="panel-slider">
-              <div class="prop-presets-row">
-                <button type="button" class="prop-pill" data-set-sat="100">100% Gốc</button>
-                <button type="button" class="prop-pill" data-set-sat="50">50% Dịu</button>
-                <button type="button" class="prop-pill" data-set-sat="0">0% Đen trắng</button>
-                <button type="button" class="prop-pill" data-set-sat="sepia">Vintage</button>
-              </div>
-            </div>
-
-            <!-- Rotation -->
-            <div class="panel-field">
-              <div class="panel-field-header">
-                <label class="panel-label">Góc xoay (Rotation):</label>
-                <span class="panel-val-badge" id="prop-rotation-val">0°</span>
-              </div>
-              <input type="range" id="prop-rotation-slider" min="0" max="360" step="1" value="0" class="panel-slider">
-              <div class="prop-presets-row">
-                <button type="button" class="prop-pill" data-set-rot="0">↺ Đặt lại 0°</button>
-                <button type="button" class="prop-pill" data-add-rot="45">+45°</button>
-                <button type="button" class="prop-pill" data-add-rot="90">+90°</button>
-                <button type="button" class="prop-pill" data-add-rot="180">180°</button>
-              </div>
-            </div>
-
-            <!-- Quick lock button -->
-            <div class="panel-btn-group" style="margin-top: 14px;">
-              <button type="button" class="panel-action-btn secondary" id="btn-prop-toggle-lock">
-                🔒 Khóa / Mở khóa vị trí
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab 2: Camera & Zoom Effects Settings -->
-      <div class="right-tab-content" id="tab-effects">
-        <div class="panel-section">
-          <div class="panel-section-title">Hiệu Ứng Chuyển Cảnh</div>
-          
-          <div class="panel-field">
-            <label class="panel-label">Kiểu chuyển động:</label>
-            <select id="cfg-cam-style" class="panel-select">
-              <option value="direct" selected>Trực tiếp (Direct Smooth) - Khuyên dùng</option>
-              <option value="flythrough">Prezi Fly-through (Zoom out rồi Zoom in)</option>
-              <option value="instant">Tức thì (Instant - Không hiệu ứng)</option>
-            </select>
-            <div class="panel-help-text">Kiểu "Trực tiếp" bay thẳng mượt mà, không giật lùi, hình ảnh sắc nét ngay.</div>
-          </div>
-
-          <div class="panel-field">
-            <div class="panel-field-header">
-              <label class="panel-label">Thời gian chuyển cảnh:</label>
-              <span class="panel-val-badge" id="cfg-cam-duration-val">0.65s</span>
-            </div>
-            <input type="range" id="cfg-cam-duration" min="0.2" max="2.0" step="0.05" value="0.65" class="panel-slider">
-            <div class="slider-ticks">
-              <span>0.2s</span>
-              <span>0.65s</span>
-              <span>2.0s</span>
-            </div>
-          </div>
-
-          <div class="panel-field" id="cfg-cam-depth-group" style="display: none;">
-            <div class="panel-field-header">
-              <label class="panel-label">Độ lùi góc rộng (Fly-through):</label>
-              <span class="panel-val-badge" id="cfg-cam-depth-val">75%</span>
-            </div>
-            <input type="range" id="cfg-cam-depth" min="10" max="90" step="5" value="75" class="panel-slider">
-            <div class="slider-ticks">
-              <span>Lùi rất xa</span>
-              <span>Lùi nhẹ</span>
-            </div>
-          </div>
-
-          <div class="panel-field">
-            <label class="panel-label">Đường cong mượt mà (Easing):</label>
-            <select id="cfg-cam-easing" class="panel-select">
-              <option value="prezi" selected>Prezi Smooth (Cubic-bezier tự nhiên)</option>
-              <option value="ease-in-out">Mượt mà 2 đầu (Ease-in-out)</option>
-              <option value="ease-out">Dịu dần ở đích (Ease-out)</option>
-              <option value="linear">Tốc độ đều (Linear)</option>
-            </select>
-          </div>
-
-          <div class="panel-btn-group">
-            <button type="button" class="panel-action-btn primary" id="btn-test-camera-effect">
-              <span>▶</span> Bay thử hiệu ứng ngay
-            </button>
-            <button type="button" class="panel-action-btn secondary" id="btn-reset-camera-effect">
-              Khôi phục mặc định
-            </button>
-          </div>
-        </div>
-      </div>
-    </aside>
 
     <!-- PREZI RIGHT FLOATING CONTROLS (Hiển thị lúc trình chiếu như Hình 2) -->
     <div class="prezi-present-right-controls" id="present-right-controls">
@@ -928,6 +922,6 @@
 
   </div>
 
-  <script src="script.js?v=20260924_v52"></script>
+  <script src="script.js?v=20260924_v53"></script>
 </body>
 </html>
