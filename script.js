@@ -5279,7 +5279,12 @@ function initPreziApp() {
 
   // Persistence with LocalStorage, IndexedDB & Cloudflare D1 Database
   let d1SyncTimer = null;
+  let _contentLoaded = false; // Guard: prevent saving until loadEditsFromStorage() completes
   async function saveEditsToStorage() {
+    // CRITICAL: Do NOT save until user content has been loaded from D1/localStorage first
+    // Otherwise, the empty/template HTML from index.html will overwrite user's real edits
+    if (!_contentLoaded) return;
+
     const saveIndicator = document.getElementById('save-status-indicator');
     if (saveIndicator) {
       saveIndicator.textContent = 'Đang lưu...';
@@ -5481,6 +5486,9 @@ function initPreziApp() {
         goToStop(0, false);
       }, 60);
     }
+
+    // Content is now loaded — enable saving
+    _contentLoaded = true;
   }
 
   function cleanUpLegacyCustomCards() {
