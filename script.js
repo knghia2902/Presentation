@@ -921,19 +921,19 @@ function initPreziApp() {
         let newW = iW, newH = iH, newLeft = iLeft, newTop = iTop;
 
         if (resizeType === 'br') {
-          newW = Math.max(240, iW + dx);
-          newH = Math.max(135, iH + dy);
+          newW = Math.max(40, iW + dx);
+          newH = Math.max(22, iH + dy);
         } else if (resizeType === 'bl') {
-          newW = Math.max(240, iW - dx);
-          newH = Math.max(135, iH + dy);
+          newW = Math.max(40, iW - dx);
+          newH = Math.max(22, iH + dy);
           newLeft = iLeft + (iW - newW);
         } else if (resizeType === 'tr') {
-          newW = Math.max(240, iW + dx);
-          newH = Math.max(135, iH - dy);
+          newW = Math.max(40, iW + dx);
+          newH = Math.max(22, iH - dy);
           newTop = iTop + (iH - newH);
         } else if (resizeType === 'tl') {
-          newW = Math.max(240, iW - dx);
-          newH = Math.max(135, iH - dy);
+          newW = Math.max(40, iW - dx);
+          newH = Math.max(22, iH - dy);
           newLeft = iLeft + (iW - newW);
           newTop = iTop + (iH - newH);
         }
