@@ -885,6 +885,10 @@ function initPreziApp() {
     if (!overviewBox || overviewBox.dataset.eventsBound) return;
     overviewBox.dataset.eventsBound = 'true';
 
+    // Attach rotation handle to overview frame
+    const rotH = ensureRotateHandle(overviewBox);
+    if (rotH) setupElementRotation(overviewBox, rotH);
+
     let isResizing = false;
     let resizeType = '';
     let isDragging = false;
@@ -1081,12 +1085,154 @@ function initPreziApp() {
   window.clearAllCards = clearAllCards;
 
   // ==========================================================================
+  // ELEMENT ROTATION ENGINE (Xoay góc hình ảnh, văn bản, và slide frame)
+  // ==========================================================================
+  function getElementRotation(el) {
+    if (!el) return 0;
+    if (el.dataset.rotation !== undefined && el.dataset.rotation !== '') {
+      return parseFloat(el.dataset.rotation) || 0;
+    }
+    const tr = el.style.transform || '';
+    const match = tr.match(/rotate\(([-0-9.]+)deg\)/);
+    return match ? parseFloat(match[1]) : 0;
+  }
+  window.getElementRotation = getElementRotation;
+
+  function applyElementRotation(el, deg) {
+    if (!el) return;
+    deg = ((deg % 360) + 360) % 360; // Normalize 0 - 359
+    el.dataset.rotation = String(deg);
+    let cur = el.style.transform || '';
+    // Strip existing rotate(...) from transform
+    cur = cur.replace(/rotate\([^)]+\)/g, '').trim();
+    if (deg !== 0) {
+      el.style.transform = `${cur} rotate(${deg}deg)`.trim();
+    } else {
+      el.style.transform = cur;
+    }
+  }
+  window.applyElementRotation = applyElementRotation;
+
+  function ensureRotateHandle(el) {
+    if (!el) return null;
+    let h = el.querySelector(':scope > .element-rotate-handle');
+    if (!h) {
+      h = document.createElement('div');
+      h.className = 'element-rotate-handle';
+      h.title = 'Nhấn giữ và xoay góc đối tượng (Giữ Shift để xoay nấc 15°)';
+      h.innerHTML = `
+        <div class="rotate-knob">
+          <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+          </svg>
+        </div>
+        <div class="rotate-stem"></div>
+      `;
+      el.appendChild(h);
+    }
+    return h;
+  }
+  window.ensureRotateHandle = ensureRotateHandle;
+
+  function setupElementRotation(element, rotateHandle, onRotate) {
+    if (!element || !rotateHandle || rotateHandle.dataset.rotBound) return;
+    rotateHandle.dataset.rotBound = 'true';
+
+    let isRotating = false;
+    let startAngle = 0;
+    let initialRotation = 0;
+    let centerX = 0;
+    let centerY = 0;
+    let badgeEl = null;
+
+    rotateHandle.addEventListener('mousedown', (e) => {
+      if (element.classList.contains('is-locked') || element.getAttribute('data-locked') === 'true') return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      isRotating = true;
+      initialRotation = getElementRotation(element);
+
+      const rect = element.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2;
+      centerY = rect.top + rect.height / 2;
+
+      startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+
+      badgeEl = document.createElement('div');
+      badgeEl.className = 'rotate-angle-badge';
+      badgeEl.textContent = `${Math.round(initialRotation)}°`;
+      document.body.appendChild(badgeEl);
+      updateBadgePos(e.clientX, e.clientY, Math.round(initialRotation));
+
+      pushUndoState();
+
+      function onMouseMove(moveEv) {
+        if (!isRotating) return;
+        const curAngle = Math.atan2(moveEv.clientY - centerY, moveEv.clientX - centerX) * (180 / Math.PI);
+        let delta = curAngle - startAngle;
+        let newRot = (initialRotation + delta) % 360;
+        if (newRot < 0) newRot += 360;
+
+        if (moveEv.shiftKey) {
+          newRot = Math.round(newRot / 15) * 15;
+        } else {
+          [0, 90, 180, 270, 360].forEach(snap => {
+            if (Math.abs(newRot - snap) < 3.5) newRot = snap % 360;
+          });
+        }
+        newRot = Math.round(newRot) % 360;
+
+        applyElementRotation(element, newRot);
+        updateBadgePos(moveEv.clientX, moveEv.clientY, newRot);
+        if (typeof onRotate === 'function') onRotate(newRot);
+      }
+
+      function onMouseUp() {
+        if (isRotating) {
+          isRotating = false;
+          if (badgeEl) {
+            badgeEl.remove();
+            badgeEl = null;
+          }
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          saveEditsToStorage();
+        }
+      }
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+
+    function updateBadgePos(cx, cy, deg) {
+      if (!badgeEl) return;
+      badgeEl.textContent = `${deg}°`;
+      badgeEl.style.left = (cx + 16) + 'px';
+      badgeEl.style.top = (cy - 24) + 'px';
+    }
+  }
+  window.setupElementRotation = setupElementRotation;
+
+  function ensureAllCanvasElementsRotateHandles() {
+    world.querySelectorAll('.user-image-wrapper, .prezi-textbox, .canvas-slide-frame, .canvas-empty-frame-box').forEach(el => {
+      const rotH = ensureRotateHandle(el);
+      if (rotH) setupElementRotation(el, rotH);
+    });
+  }
+  window.ensureAllCanvasElementsRotateHandles = ensureAllCanvasElementsRotateHandles;
+
+  // ==========================================================================
   // AUTHENTIC PREZI SLIDE FRAME ENGINE (Chuẩn Hình 2: media_1790146335671.png)
   // 16:9 transparent boundary frame for slides on canvas
   // ==========================================================================
   function setupSlideFrameInteractions(frame) {
     if (!frame || frame.dataset.eventsBound) return;
     frame.dataset.eventsBound = 'true';
+
+    // Attach rotation handle to slide frame
+    const rotH = ensureRotateHandle(frame);
+    if (rotH) setupElementRotation(frame, rotH);
 
     let isResizing = false;
     let resizeType = '';
@@ -2991,6 +3137,10 @@ function initPreziApp() {
       }
     });
 
+    // Ensure rotation handle exists
+    const rotH = ensureRotateHandle(textBox);
+    if (rotH) setupElementRotation(textBox, rotH);
+
     let isDragging = false;
     let startX = 0;
     let startY = 0;
@@ -3645,6 +3795,20 @@ function initPreziApp() {
       }
     });
 
+    const btnImgRotate90 = document.getElementById('btn-img-rotate-90');
+    if (btnImgRotate90) {
+      btnImgRotate90.addEventListener('click', () => {
+        if (!selectedImgEl) return;
+        const target = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl;
+        pushUndoState();
+        const curRot = getElementRotation(target);
+        const newRot = (curRot + 90) % 360;
+        applyElementRotation(target, newRot);
+        saveEditsToStorage();
+        showToast(`Đã xoay hình ảnh: ${newRot}°`);
+      });
+    }
+
     const btnImgRadius = document.getElementById('btn-img-radius');
     if (btnImgRadius) btnImgRadius.addEventListener('click', () => {
       if (selectedImgEl) {
@@ -4181,6 +4345,9 @@ function initPreziApp() {
     }
 
     loadEditsFromStorage();
+    if (typeof ensureAllCanvasElementsRotateHandles === 'function') {
+      ensureAllCanvasElementsRotateHandles();
+    }
   }
 
   // Positioning Floating Image Toolbar (Hình 1)
@@ -4256,6 +4423,10 @@ function initPreziApp() {
     } else {
       img.addEventListener('load', syncAspectRatio, { once: true });
     }
+
+    // Attach rotation handle to image wrapper
+    const rotH = ensureRotateHandle(wrapper);
+    if (rotH) setupElementRotation(wrapper, rotH);
 
     // 1. Select & Open Floating Toolbar
     wrapper.addEventListener('click', (e) => {
@@ -4903,6 +5074,9 @@ function initPreziApp() {
       // Re-bind and upgrade all images to fully interactive
       upgradeAllImagesToInteractive();
       restoreLockBadges();
+      if (typeof ensureAllCanvasElementsRotateHandles === 'function') {
+        ensureAllCanvasElementsRotateHandles();
+      }
     }
 
     // Always dynamically sync STOPS and frame box from what is actually in the DOM!

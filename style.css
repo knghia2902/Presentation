@@ -2714,3 +2714,104 @@ img {
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
+
+/* ==========================================================================
+   ELEMENT ROTATION ENGINE (Xoay góc hình ảnh, hộp text và frame)
+   ========================================================================== */
+
+/* Set transform origin to exact center for smooth visual rotation */
+.prezi-textbox,
+.user-image-wrapper,
+.canvas-slide-frame,
+.canvas-card {
+  transform-origin: center center;
+}
+
+/* Rotation Handle Stem & Knob (Chuẩn Figma / Google Slides / Prezi) */
+.element-rotate-handle {
+  display: none !important;
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 28px;
+  cursor: grab;
+  z-index: 120;
+  user-select: none;
+  -webkit-user-select: none;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.element-rotate-handle:active {
+  cursor: grabbing;
+}
+
+.element-rotate-handle .rotate-stem {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.5px;
+  height: 12px;
+  background: #2563eb;
+  pointer-events: none;
+}
+
+.element-rotate-handle .rotate-knob {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s, background 0.15s, color 0.15s;
+}
+
+.element-rotate-handle:hover .rotate-knob {
+  background: #2563eb;
+  color: #ffffff;
+  transform: translateX(-50%) scale(1.15);
+}
+
+/* Show rotate handle ONLY when element is selected */
+.user-image-wrapper.selected .element-rotate-handle,
+.prezi-textbox.selected .element-rotate-handle,
+.canvas-slide-frame.selected .element-rotate-handle {
+  display: flex !important;
+}
+
+/* Hide in presentation mode or when locked */
+body.in-present-mode .element-rotate-handle,
+.is-locked .element-rotate-handle,
+[data-locked="true"] .element-rotate-handle {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Floating Real-time Angle Tooltip Badge */
+.rotate-angle-badge {
+  position: fixed;
+  pointer-events: none;
+  z-index: 999999;
+  background: rgba(15, 23, 42, 0.92);
+  color: #ffffff;
+  font-family: 'Be Vietnam Pro', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
