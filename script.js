@@ -308,8 +308,8 @@ function initPreziApp() {
     const scaleY = (safe.safeH * fitFactor) / elH;
     let targetScale = Math.min(scaleX, scaleY) * scaleMultiplier;
 
-    // Infinite Zoom support: allows deep zoom from 0.01 (1%) up to 100.0 (10,000%) so nested frames fill screen
-    targetScale = Math.min(Math.max(targetScale, 0.01), 100.0);
+    // Truly Infinite Zoom: virtually no limits so any nested frame fills the screen
+    targetScale = Math.min(Math.max(targetScale, 0.001), 1000.0);
 
     // Target (X, Y) centers the specific element in the safe visible area
     const targetX = safe.centerX - elCenterX * targetScale;
@@ -1173,7 +1173,7 @@ function initPreziApp() {
       e.preventDefault();
       const zoomFactor = e.deltaY < 0 ? 1.14 : 0.88;
       const oldScale = currentCamera.scale || 1;
-      const newScale = Math.min(Math.max(oldScale * zoomFactor, 0.01), 100.0);
+      const newScale = Math.min(Math.max(oldScale * zoomFactor, 0.001), 1000.0);
 
       const mouseX = e.clientX;
       const mouseY = e.clientY;
@@ -1859,7 +1859,7 @@ function initPreziApp() {
         const cx = vpRect.width / 2;
         const cy = vpRect.height / 2;
         const oldScale = currentCamera.scale || 1;
-        const newScale = Math.min(oldScale * 1.25, 50.0);
+        const newScale = Math.min(oldScale * 1.25, 1000.0);
         const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
         const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
         applyCamera(newX, newY, newScale, true);
@@ -1873,7 +1873,7 @@ function initPreziApp() {
         const cx = vpRect.width / 2;
         const cy = vpRect.height / 2;
         const oldScale = currentCamera.scale || 1;
-        const newScale = Math.max(oldScale * 0.8, 0.02);
+        const newScale = Math.max(oldScale * 0.8, 0.001);
         const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
         const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
         applyCamera(newX, newY, newScale, true);
