@@ -98,15 +98,47 @@ function initPreziApp() {
   let startX = 0, startY = 0;
   let currentCamera = { x: 0, y: 0, scale: 1 };
 
-  // 1. Generate Sidebar items
+  // Helper to reorder frame stops and their DOM elements
+  function moveFrameOrder(fromIndex, toIndex) {
+    if (fromIndex < 1 || fromIndex >= STOPS.length) return;
+    if (toIndex < 1 || toIndex >= STOPS.length) return;
+    if (fromIndex === toIndex) return;
+
+    const fromStop = STOPS[fromIndex];
+    const toStop = STOPS[toIndex];
+    if (!fromStop || !toStop) return;
+
+    const fromCard = document.getElementById(fromStop.targetId);
+    const toCard = document.getElementById(toStop.targetId);
+    if (!fromCard || !toCard || fromCard === toCard) return;
+
+    if (fromIndex < toIndex) {
+      toCard.parentNode.insertBefore(fromCard, toCard.nextSibling);
+    } else {
+      toCard.parentNode.insertBefore(fromCard, toCard);
+    }
+
+    syncStopsFromDOM();
+    saveEditsToStorage();
+
+    const newIdx = STOPS.findIndex(s => s.targetId === fromCard.id);
+    if (newIdx > 0) {
+      goToStop(newIdx, true);
+    }
+    showToast(`Đã chuyển Frame sang vị trí thứ ${newIdx}!`);
+  }
+  window.moveFrameOrder = moveFrameOrder;
+
+  let draggedThumbIndex = null;
+  let hasJustDraggedThumb = false;
+
+  // 1. Generate Sidebar items with Drag & Drop Reordering
   function buildSidebar() {
     const overviewItem = framesList.querySelector('[data-target="overview"]');
     framesList.innerHTML = '';
-    if (overviewItem) {
-      framesList.appendChild(overviewItem);
-      overviewItem.onclick = () => goToStop(0);
-    } else {
-      const ov = document.createElement('div');
+    let ov = overviewItem;
+    if (!ov) {
+      ov = document.createElement('div');
       ov.className = 'frame-thumb-item' + (currentStopIndex === 0 ? ' active' : '');
       ov.dataset.target = 'overview';
       ov.dataset.index = 0;
@@ -118,28 +150,154 @@ function initPreziApp() {
         </div>
         <span class="thumb-caption">Overview</span>
       `;
-      ov.onclick = () => goToStop(0);
-      framesList.appendChild(ov);
     }
+    ov.onclick = () => goToStop(0);
+
+    // Overview item can be a drop target: dropping here moves frame to position #1
+    ov.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (draggedThumbIndex !== null && draggedThumbIndex > 1) {
+        ov.classList.add('drag-over-below');
+      }
+    });
+    ov.addEventListener('dragleave', () => {
+      ov.classList.remove('drag-over-below');
+    });
+    ov.addEventListener('drop', (e) => {
+      e.preventDefault();
+      ov.classList.remove('drag-over-below');
+      if (draggedThumbIndex === null || draggedThumbIndex <= 1) return;
+      hasJustDraggedThumb = true;
+      setTimeout(() => { hasJustDraggedThumb = false; }, 150);
+
+      const fromStop = STOPS[draggedThumbIndex];
+      if (!fromStop) return;
+      const fromCard = document.getElementById(fromStop.targetId);
+      const firstSlideStop = STOPS[1];
+      const firstSlide = firstSlideStop ? document.getElementById(firstSlideStop.targetId) : null;
+      if (fromCard && firstSlide && fromCard !== firstSlide) {
+        firstSlide.parentNode.insertBefore(fromCard, firstSlide);
+        syncStopsFromDOM();
+        saveEditsToStorage();
+        goToStop(1, true);
+        showToast('Đã chuyển Frame lên vị trí thứ 1!');
+      }
+    });
+
+    framesList.appendChild(ov);
 
     STOPS.slice(1).forEach((stop, index) => {
       const stopIndex = index + 1;
       const item = document.createElement('div');
       item.className = 'frame-thumb-item' + (currentStopIndex === stopIndex ? ' active' : '');
       item.dataset.index = stopIndex;
+      item.dataset.targetId = stop.targetId;
       item.setAttribute('tabindex', '0');
+      item.setAttribute('draggable', 'true');
       item.innerHTML = `
         <div class="thumb-card-preview blank-frame-preview">
           ${stop.previewImg ? `<img src="${stop.previewImg}" alt="Thumb" class="thumb-img-card">` : `<div class="thumb-blank-slide"></div>`}
           <div class="thumb-badge-index">${stopIndex}</div>
+          <div class="thumb-grip-handle" title="Kéo thả để đổi thứ tự frame">
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+              <path d="M9 3H11V5H9V3ZM13 3H15V5H13V3ZM9 7H11V9H9V7ZM13 7H15V9H13V7ZM9 11H11V13H9V11ZM13 11H15V13H13V11ZM9 15H11V17H9V15ZM13 15H15V17H13V15ZM9 19H11V21H9V19ZM13 19H15V21H13V19Z"/>
+            </svg>
+          </div>
           <button class="thumb-delete-btn" title="Xóa Frame ${stopIndex} (Delete)" type="button">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 12z"/>
             </svg>
           </button>
+          <div class="thumb-reorder-actions">
+            ${stopIndex > 1 ? `<button class="thumb-reorder-btn thumb-move-up" title="Chuyển lên vị trí ${stopIndex - 1}" type="button">▲</button>` : ''}
+            ${stopIndex < STOPS.length - 1 ? `<button class="thumb-reorder-btn thumb-move-down" title="Chuyển xuống vị trí ${stopIndex + 1}" type="button">▼</button>` : ''}
+          </div>
         </div>
         <span class="thumb-caption">Frame ${stopIndex}</span>
       `;
+
+      // Drag and Drop event listeners
+      item.addEventListener('dragstart', (e) => {
+        draggedThumbIndex = stopIndex;
+        item.classList.add('is-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(stopIndex));
+      });
+
+      item.addEventListener('dragend', () => {
+        draggedThumbIndex = null;
+        item.classList.remove('is-dragging');
+        document.querySelectorAll('.frame-thumb-item').forEach(el => {
+          el.classList.remove('drag-over-above', 'drag-over-below', 'is-dragging');
+        });
+      });
+
+      item.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (draggedThumbIndex === null || draggedThumbIndex === stopIndex) return;
+
+        const rect = item.getBoundingClientRect();
+        const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
+        item.classList.toggle('drag-over-above', isTopHalf);
+        item.classList.toggle('drag-over-below', !isTopHalf);
+      });
+
+      item.addEventListener('dragleave', () => {
+        item.classList.remove('drag-over-above', 'drag-over-below');
+      });
+
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const fromIdx = draggedThumbIndex;
+        item.classList.remove('drag-over-above', 'drag-over-below');
+        if (fromIdx === null || fromIdx === stopIndex) return;
+
+        hasJustDraggedThumb = true;
+        setTimeout(() => { hasJustDraggedThumb = false; }, 150);
+
+        const rect = item.getBoundingClientRect();
+        const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
+
+        const fromStop = STOPS[fromIdx];
+        const toStop = STOPS[stopIndex];
+        if (!fromStop || !toStop) return;
+
+        const fromCard = document.getElementById(fromStop.targetId);
+        const toCard = document.getElementById(toStop.targetId);
+        if (!fromCard || !toCard || fromCard === toCard) return;
+
+        if (isTopHalf) {
+          toCard.parentNode.insertBefore(fromCard, toCard);
+        } else {
+          toCard.parentNode.insertBefore(fromCard, toCard.nextSibling);
+        }
+
+        syncStopsFromDOM();
+        saveEditsToStorage();
+
+        const newIdx = STOPS.findIndex(s => s.targetId === fromCard.id);
+        if (newIdx > 0) goToStop(newIdx, true);
+        showToast(`Đã chuyển Frame sang vị trí thứ ${newIdx}!`);
+      });
+
+      // Quick Up / Down click buttons
+      const upBtn = item.querySelector('.thumb-move-up');
+      if (upBtn) {
+        upBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          moveFrameOrder(stopIndex, stopIndex - 1);
+        });
+      }
+
+      const downBtn = item.querySelector('.thumb-move-down');
+      if (downBtn) {
+        downBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          moveFrameOrder(stopIndex, stopIndex + 1);
+        });
+      }
 
       const delBtn = item.querySelector('.thumb-delete-btn');
       if (delBtn) {
@@ -153,6 +311,7 @@ function initPreziApp() {
       }
 
       item.addEventListener('click', () => {
+        if (hasJustDraggedThumb) return;
         goToStop(stopIndex);
         const targetEl = document.getElementById(stop.targetId);
         if (targetEl) {
@@ -1538,16 +1697,34 @@ function initPreziApp() {
         if (isSlideFrame) {
           frameReorderOptions = `
             <div class="ctx-divider"></div>
-            <div class="ctx-item" data-action="move-last-slide">
+            <div class="ctx-item" data-action="move-up-slide">
               <span class="ctx-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/><line x1="5" y1="19" x2="19" y2="19"/></svg>
-                <span>Chuyển xuống cuối thứ tự slide</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                <span>Di chuyển lên 1 vị trí (Move Up)</span>
+              </span>
+            </div>
+            <div class="ctx-item" data-action="move-down-slide">
+              <span class="ctx-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                <span>Di chuyển xuống 1 vị trí (Move Down)</span>
+              </span>
+            </div>
+            <div class="ctx-item" data-action="move-custom-index">
+              <span class="ctx-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <span>Đổi sang vị trí số... (Ví dụ: 2)</span>
               </span>
             </div>
             <div class="ctx-item" data-action="move-first-slide">
               <span class="ctx-left">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/><line x1="5" y1="5" x2="19" y2="5"/></svg>
-                <span>Chuyển lên đầu thứ tự slide</span>
+                <span>Chuyển lên đầu danh sách (Vị trí 1)</span>
+              </span>
+            </div>
+            <div class="ctx-item" data-action="move-last-slide">
+              <span class="ctx-left">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/><line x1="5" y1="19" x2="19" y2="19"/></svg>
+                <span>Chuyển xuống cuối danh sách</span>
               </span>
             </div>
           `;
@@ -1801,26 +1978,61 @@ function initPreziApp() {
             if (active && typeof toggleElementLock === 'function') {
               toggleElementLock(active);
             }
-          } else if (action === 'move-last-slide') {
+          } else if (action === 'move-up-slide') {
             const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
             if (frame && frame.id !== 'overview-frame-box') {
-              world.appendChild(frame);
-              syncStopsFromDOM();
-              saveEditsToStorage();
-              showToast('Đã chuyển Frame xuống cuối danh sách trình chiếu!');
+              const curIdx = STOPS.findIndex(s => s.targetId === frame.id);
+              if (curIdx > 1) {
+                moveFrameOrder(curIdx, curIdx - 1);
+              } else {
+                showToast('Frame này đã ở vị trí đầu tiên!');
+              }
+            }
+          } else if (action === 'move-down-slide') {
+            const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
+            if (frame && frame.id !== 'overview-frame-box') {
+              const curIdx = STOPS.findIndex(s => s.targetId === frame.id);
+              if (curIdx > 0 && curIdx < STOPS.length - 1) {
+                moveFrameOrder(curIdx, curIdx + 1);
+              } else {
+                showToast('Frame này đã ở vị trí cuối cùng!');
+              }
+            }
+          } else if (action === 'move-custom-index') {
+            const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
+            if (frame && frame.id !== 'overview-frame-box') {
+              const curIdx = STOPS.findIndex(s => s.targetId === frame.id);
+              const totalFrames = STOPS.length - 1;
+              const targetStr = prompt(`Nhập số thứ tự mới cho Frame này (1 đến ${totalFrames}):`, String(curIdx));
+              if (targetStr !== null) {
+                const targetNum = parseInt(targetStr.trim(), 10);
+                if (!isNaN(targetNum) && targetNum >= 1 && targetNum <= totalFrames) {
+                  moveFrameOrder(curIdx, targetNum);
+                } else {
+                  alert(`Vui lòng nhập số hợp lệ từ 1 đến ${totalFrames}!`);
+                }
+              }
             }
           } else if (action === 'move-first-slide') {
             const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
             if (frame && frame.id !== 'overview-frame-box') {
-              const firstFrame = Array.from(world.children).find(el =>
-                el.classList.contains('canvas-slide-frame') && el.id !== 'overview-frame-box' && el !== frame
-              );
-              if (firstFrame) {
-                world.insertBefore(frame, firstFrame);
+              const curIdx = STOPS.findIndex(s => s.targetId === frame.id);
+              if (curIdx > 1) {
+                moveFrameOrder(curIdx, 1);
+              } else {
+                showToast('Frame này đã ở vị trí đầu tiên!');
               }
-              syncStopsFromDOM();
-              saveEditsToStorage();
-              showToast('Đã chuyển Frame lên đầu danh sách trình chiếu!');
+            }
+          } else if (action === 'move-last-slide') {
+            const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
+            if (frame && frame.id !== 'overview-frame-box') {
+              const curIdx = STOPS.findIndex(s => s.targetId === frame.id);
+              const lastIdx = STOPS.length - 1;
+              if (curIdx < lastIdx) {
+                moveFrameOrder(curIdx, lastIdx);
+              } else {
+                showToast('Frame này đã ở vị trí cuối cùng!');
+              }
             }
           } else if (action === 'zoom-to') {
             const active = target || document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected');

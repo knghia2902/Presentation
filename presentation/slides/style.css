@@ -615,6 +615,130 @@ input, textarea {
   color: #374151;
 }
 
+/* ==========================================================================
+   SIDEBAR THUMBNAIL DRAG & DROP REORDERING
+   ========================================================================== */
+.frame-thumb-item[draggable="true"] {
+  cursor: grab;
+}
+
+.frame-thumb-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.frame-thumb-item.is-dragging {
+  opacity: 0.35 !important;
+  transform: scale(0.95);
+  cursor: grabbing;
+}
+
+.frame-thumb-item.drag-over-above {
+  position: relative;
+}
+
+.frame-thumb-item.drag-over-above::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 6px;
+  right: 6px;
+  height: 4px;
+  background: #2563eb;
+  border-radius: 4px;
+  z-index: 99;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.9);
+  pointer-events: none;
+}
+
+.frame-thumb-item.drag-over-below {
+  position: relative;
+}
+
+.frame-thumb-item.drag-over-below::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 6px;
+  right: 6px;
+  height: 4px;
+  background: #2563eb;
+  border-radius: 4px;
+  z-index: 99;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.9);
+  pointer-events: none;
+}
+
+/* Thumbnail drag grip indicator */
+.thumb-grip-handle {
+  display: none;
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 10;
+  color: #64748b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: all 0.15s;
+}
+
+.frame-thumb-item:hover .thumb-grip-handle {
+  display: flex;
+}
+
+.thumb-grip-handle:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+/* Quick reorder buttons ▲ ▼ on thumbnail */
+.thumb-reorder-actions {
+  display: none;
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  gap: 3px;
+  z-index: 15;
+}
+
+.frame-thumb-item:hover .thumb-reorder-actions {
+  display: flex;
+}
+
+.thumb-reorder-btn {
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.thumb-reorder-btn:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  transform: scale(1.12);
+}
+
+
+
 /* Center Frame Box (media_1790131134493.png & media_1790130642265.png) */
 .canvas-empty-frame-box {
   position: absolute;
