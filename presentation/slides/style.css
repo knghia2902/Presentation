@@ -1097,7 +1097,9 @@ body.in-present-mode .canvas-empty-frame-box .frame-handle {
   height: 2400px;
   transform-origin: 0 0;
   transition: transform 0.9s cubic-bezier(0.25, 1, 0.5, 1);
-  will-change: transform;
+  /* Không dùng will-change: transform vì Chrome sẽ đóng băng bitmap ở kích thước gốc → chữ mờ khi zoom */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* ==========================================================================
@@ -2515,5 +2517,40 @@ body.in-present-mode .element-lock-badge {
   display: none !important;
 }
 
+/* ==========================================================================
+   ANTI-BLUR: Crisp Text & Images at Any Zoom Level
+   Giải quyết vấn đề chữ mờ khi zoom vào các frame thu nhỏ.
+   Chrome rasterize nội dung ở kích thước gốc rồi kéo giãn bitmap → mờ.
+   Các thuộc tính dưới đây buộc trình duyệt re-render vector text sắc nét.
+   ========================================================================== */
 
+/* Force geometric precision text rendering across all canvas content */
+.prezi-world,
+.prezi-world * {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+}
 
+/* Each slide frame gets its own compositing layer for sharp re-rasterization */
+.canvas-slide-frame,
+.canvas-empty-frame-box {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Text boxes: ensure crisp font rendering at all scales */
+.prezi-textbox,
+.prezi-textbox .textbox-content,
+.prezi-textbox .textbox-content * {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* Images: use high-quality interpolation when scaled */
+.user-placed-image,
+.user-image-wrapper img,
+img {
+  image-rendering: auto;
+  -ms-interpolation-mode: bicubic;
+}

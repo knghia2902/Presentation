@@ -178,9 +178,13 @@ function initPreziApp() {
 
   // 2. Camera Transform Engine
   function applyCamera(x, y, scale, smooth = true) {
-    currentCamera = { x, y, scale };
+    // Round translate values to integer pixels to avoid sub-pixel blur
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    currentCamera = { x: rx, y: ry, scale };
     world.style.transition = smooth ? 'transform 0.9s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
-    world.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+    // translateZ(0) forces a new GPU compositing layer → Chrome re-rasterizes text at current zoom → sắc nét
+    world.style.transform = `translate(${rx}px, ${ry}px) scale(${scale}) translateZ(0)`;
     zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
   }
 
