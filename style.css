@@ -698,43 +698,40 @@ input, textarea {
   border-color: #2563eb;
 }
 
-/* Quick reorder buttons ▲ ▼ on thumbnail */
-.thumb-reorder-actions {
-  display: none;
-  position: absolute;
-  bottom: 5px;
-  right: 5px;
-  gap: 3px;
-  z-index: 15;
+/* Floating ghost element while dragging thumbnail */
+.frame-thumb-drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 99999;
+  width: 150px;
+  border-radius: 8px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 2px #2563eb;
+  opacity: 0.94;
+  transform: rotate(2deg) scale(1.04);
+  transition: transform 0.08s ease;
+  overflow: hidden;
+  background: #ffffff;
 }
 
-.frame-thumb-item:hover .thumb-reorder-actions {
-  display: flex;
+.frame-thumb-drag-ghost .thumb-card-preview {
+  height: 84px !important;
 }
 
-.thumb-reorder-btn {
-  width: 20px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  font-size: 8px;
-  font-weight: 700;
-  color: #334155;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-  padding: 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.frame-thumb-item {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
-.thumb-reorder-btn:hover {
-  background: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-  transform: scale(1.12);
+.frame-thumb-item * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.frame-thumb-item img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
 }
 
 
@@ -1222,10 +1219,7 @@ body.in-present-mode .canvas-empty-frame-box .frame-handle {
   width: 3400px;
   height: 2400px;
   transform-origin: 0 0;
-  transition: transform 0.9s cubic-bezier(0.25, 1, 0.5, 1);
-  /* Không dùng will-change: transform vì Chrome sẽ đóng băng bitmap ở kích thước gốc → chữ mờ khi zoom */
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  transition: transform 0.65s cubic-bezier(0.25, 1, 0.35, 1);
 }
 
 /* ==========================================================================
@@ -2658,11 +2652,12 @@ body.in-present-mode .element-lock-badge {
   -moz-osx-font-smoothing: auto;
 }
 
-/* Each slide frame gets its own compositing layer for sharp re-rasterization */
+/* Images and text: crisp rendering */
 .canvas-slide-frame,
 .canvas-empty-frame-box {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  /* Cho phép trình duyệt render vector trực tiếp, không ép GPU bitmap layer */
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
 }
 
 /* Text boxes: ensure crisp font rendering at all scales */
@@ -2679,4 +2674,43 @@ body.in-present-mode .element-lock-badge {
 img {
   image-rendering: auto;
   -ms-interpolation-mode: bicubic;
+}
+
+/* Floating Image Toolbar: Opacity & Saturation controls */
+.prezi-floating-image-toolbar .fl-control-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 4px;
+}
+
+.prezi-floating-image-toolbar .fl-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.prezi-floating-image-toolbar .fl-select {
+  height: 26px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 0 6px;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.prezi-floating-image-toolbar .fl-select:hover {
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+.prezi-floating-image-toolbar .fl-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }

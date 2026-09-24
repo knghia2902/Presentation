@@ -132,7 +132,7 @@ function initPreziApp() {
   let draggedThumbIndex = null;
   let hasJustDraggedThumb = false;
 
-  // 1. Generate Sidebar items with Drag & Drop Reordering
+  // 1. Generate Sidebar items with Bulletproof Mouse-Drag Reordering
   function buildSidebar() {
     const overviewItem = framesList.querySelector('[data-target="overview"]');
     framesList.innerHTML = '';
@@ -152,39 +152,6 @@ function initPreziApp() {
       `;
     }
     ov.onclick = () => goToStop(0);
-
-    // Overview item can be a drop target: dropping here moves frame to position #1
-    ov.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (draggedThumbIndex !== null && draggedThumbIndex > 1) {
-        ov.classList.add('drag-over-below');
-      }
-    });
-    ov.addEventListener('dragleave', () => {
-      ov.classList.remove('drag-over-below');
-    });
-    ov.addEventListener('drop', (e) => {
-      e.preventDefault();
-      ov.classList.remove('drag-over-below');
-      if (draggedThumbIndex === null || draggedThumbIndex <= 1) return;
-      hasJustDraggedThumb = true;
-      setTimeout(() => { hasJustDraggedThumb = false; }, 150);
-
-      const fromStop = STOPS[draggedThumbIndex];
-      if (!fromStop) return;
-      const fromCard = document.getElementById(fromStop.targetId);
-      const firstSlideStop = STOPS[1];
-      const firstSlide = firstSlideStop ? document.getElementById(firstSlideStop.targetId) : null;
-      if (fromCard && firstSlide && fromCard !== firstSlide) {
-        firstSlide.parentNode.insertBefore(fromCard, firstSlide);
-        syncStopsFromDOM();
-        saveEditsToStorage();
-        goToStop(1, true);
-        showToast('Đã chuyển Frame lên vị trí thứ 1!');
-      }
-    });
-
     framesList.appendChild(ov);
 
     STOPS.slice(1).forEach((stop, index) => {
@@ -194,12 +161,11 @@ function initPreziApp() {
       item.dataset.index = stopIndex;
       item.dataset.targetId = stop.targetId;
       item.setAttribute('tabindex', '0');
-      item.setAttribute('draggable', 'true');
       item.innerHTML = `
         <div class="thumb-card-preview blank-frame-preview">
           ${stop.previewImg ? `<img src="${stop.previewImg}" alt="Thumb" class="thumb-img-card">` : `<div class="thumb-blank-slide"></div>`}
           <div class="thumb-badge-index">${stopIndex}</div>
-          <div class="thumb-grip-handle" title="Kéo thả để đổi thứ tự frame">
+          <div class="thumb-grip-handle" title="Nhấn giữ và kéo để đổi thứ tự frame">
             <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
               <path d="M9 3H11V5H9V3ZM13 3H15V5H13V3ZM9 7H11V9H9V7ZM13 7H15V9H13V7ZM9 11H11V13H9V11ZM13 11H15V13H13V11ZM9 15H11V17H9V15ZM13 15H15V17H13V15ZM9 19H11V21H9V19ZM13 19H15V21H13V19Z"/>
             </svg>
@@ -209,96 +175,11 @@ function initPreziApp() {
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 12z"/>
             </svg>
           </button>
-          <div class="thumb-reorder-actions">
-            ${stopIndex > 1 ? `<button class="thumb-reorder-btn thumb-move-up" title="Chuyển lên vị trí ${stopIndex - 1}" type="button">▲</button>` : ''}
-            ${stopIndex < STOPS.length - 1 ? `<button class="thumb-reorder-btn thumb-move-down" title="Chuyển xuống vị trí ${stopIndex + 1}" type="button">▼</button>` : ''}
-          </div>
         </div>
         <span class="thumb-caption">Frame ${stopIndex}</span>
       `;
 
-      // Drag and Drop event listeners
-      item.addEventListener('dragstart', (e) => {
-        draggedThumbIndex = stopIndex;
-        item.classList.add('is-dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', String(stopIndex));
-      });
-
-      item.addEventListener('dragend', () => {
-        draggedThumbIndex = null;
-        item.classList.remove('is-dragging');
-        document.querySelectorAll('.frame-thumb-item').forEach(el => {
-          el.classList.remove('drag-over-above', 'drag-over-below', 'is-dragging');
-        });
-      });
-
-      item.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        if (draggedThumbIndex === null || draggedThumbIndex === stopIndex) return;
-
-        const rect = item.getBoundingClientRect();
-        const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
-        item.classList.toggle('drag-over-above', isTopHalf);
-        item.classList.toggle('drag-over-below', !isTopHalf);
-      });
-
-      item.addEventListener('dragleave', () => {
-        item.classList.remove('drag-over-above', 'drag-over-below');
-      });
-
-      item.addEventListener('drop', (e) => {
-        e.preventDefault();
-        const fromIdx = draggedThumbIndex;
-        item.classList.remove('drag-over-above', 'drag-over-below');
-        if (fromIdx === null || fromIdx === stopIndex) return;
-
-        hasJustDraggedThumb = true;
-        setTimeout(() => { hasJustDraggedThumb = false; }, 150);
-
-        const rect = item.getBoundingClientRect();
-        const isTopHalf = (e.clientY - rect.top) < (rect.height / 2);
-
-        const fromStop = STOPS[fromIdx];
-        const toStop = STOPS[stopIndex];
-        if (!fromStop || !toStop) return;
-
-        const fromCard = document.getElementById(fromStop.targetId);
-        const toCard = document.getElementById(toStop.targetId);
-        if (!fromCard || !toCard || fromCard === toCard) return;
-
-        if (isTopHalf) {
-          toCard.parentNode.insertBefore(fromCard, toCard);
-        } else {
-          toCard.parentNode.insertBefore(fromCard, toCard.nextSibling);
-        }
-
-        syncStopsFromDOM();
-        saveEditsToStorage();
-
-        const newIdx = STOPS.findIndex(s => s.targetId === fromCard.id);
-        if (newIdx > 0) goToStop(newIdx, true);
-        showToast(`Đã chuyển Frame sang vị trí thứ ${newIdx}!`);
-      });
-
-      // Quick Up / Down click buttons
-      const upBtn = item.querySelector('.thumb-move-up');
-      if (upBtn) {
-        upBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveFrameOrder(stopIndex, stopIndex - 1);
-        });
-      }
-
-      const downBtn = item.querySelector('.thumb-move-down');
-      if (downBtn) {
-        downBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveFrameOrder(stopIndex, stopIndex + 1);
-        });
-      }
-
+      // Delete button listener
       const delBtn = item.querySelector('.thumb-delete-btn');
       if (delBtn) {
         delBtn.addEventListener('click', (e) => {
@@ -310,14 +191,124 @@ function initPreziApp() {
         });
       }
 
-      item.addEventListener('click', () => {
-        if (hasJustDraggedThumb) return;
-        goToStop(stopIndex);
-        const targetEl = document.getElementById(stop.targetId);
-        if (targetEl) {
-          document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
-          targetEl.classList.add('selected');
+      // Unified Mouse Drag & Click Listener (Nhấn giữ kéo thả đổi thứ tự 100% tin cậy)
+      item.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Only primary mouse button
+        if (e.target.closest('.thumb-delete-btn')) return;
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        let isDragging = false;
+        let ghostEl = null;
+        let dropTargetItem = null;
+        let dropPos = 'after'; // 'before' | 'after'
+
+        function onMouseMove(moveEv) {
+          const dist = Math.hypot(moveEv.clientX - startX, moveEv.clientY - startY);
+          if (!isDragging && dist > 5) {
+            isDragging = true;
+            item.classList.add('is-dragging');
+
+            ghostEl = document.createElement('div');
+            ghostEl.className = 'frame-thumb-drag-ghost';
+            ghostEl.innerHTML = item.innerHTML;
+            const ghostDel = ghostEl.querySelector('.thumb-delete-btn');
+            if (ghostDel) ghostDel.remove();
+            document.body.appendChild(ghostEl);
+          }
+
+          if (isDragging && ghostEl) {
+            ghostEl.style.left = (moveEv.clientX + 14) + 'px';
+            ghostEl.style.top = (moveEv.clientY - 30) + 'px';
+
+            const hits = document.elementsFromPoint(moveEv.clientX, moveEv.clientY);
+            const hovered = hits.find(el => el && el.classList && el.classList.contains('frame-thumb-item'));
+
+            document.querySelectorAll('.frame-thumb-item').forEach(el => {
+              el.classList.remove('drag-over-above', 'drag-over-below');
+            });
+
+            if (hovered) {
+              dropTargetItem = hovered;
+              const r = hovered.getBoundingClientRect();
+              const isTop = (moveEv.clientY - r.top) < (r.height / 2);
+              if (isTop) {
+                hovered.classList.add('drag-over-above');
+                dropPos = 'before';
+              } else {
+                hovered.classList.add('drag-over-below');
+                dropPos = 'after';
+              }
+            } else {
+              dropTargetItem = null;
+            }
+          }
         }
+
+        function onMouseUp(upEv) {
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+
+          if (ghostEl) {
+            ghostEl.remove();
+            ghostEl = null;
+          }
+
+          document.querySelectorAll('.frame-thumb-item').forEach(el => {
+            el.classList.remove('drag-over-above', 'drag-over-below', 'is-dragging');
+          });
+
+          if (isDragging) {
+            upEv.preventDefault();
+            upEv.stopPropagation();
+
+            if (dropTargetItem && dropTargetItem !== item) {
+              const fromCard = document.getElementById(stop.targetId);
+              const isOverviewDrop = dropTargetItem.dataset.target === 'overview';
+
+              if (isOverviewDrop) {
+                // Drop on Overview -> Move to position 1
+                const firstSlideStop = STOPS[1];
+                const firstCard = firstSlideStop ? document.getElementById(firstSlideStop.targetId) : null;
+                if (firstCard && fromCard && firstCard !== fromCard) {
+                  firstCard.parentNode.insertBefore(fromCard, firstCard);
+                  syncStopsFromDOM();
+                  saveEditsToStorage();
+                  goToStop(1, true);
+                  showToast('Đã chuyển Frame lên vị trí thứ 1!');
+                }
+              } else {
+                const targetIdx = parseInt(dropTargetItem.dataset.index, 10);
+                const targetStop = STOPS[targetIdx];
+                const targetCard = targetStop ? document.getElementById(targetStop.targetId) : null;
+
+                if (fromCard && targetCard && fromCard !== targetCard) {
+                  if (dropPos === 'before') {
+                    targetCard.parentNode.insertBefore(fromCard, targetCard);
+                  } else {
+                    targetCard.parentNode.insertBefore(fromCard, targetCard.nextSibling);
+                  }
+                  syncStopsFromDOM();
+                  saveEditsToStorage();
+                  const newIdx = STOPS.findIndex(s => s.targetId === fromCard.id);
+                  if (newIdx > 0) goToStop(newIdx, true);
+                  showToast(`Đã chuyển Frame sang vị trí thứ ${newIdx}!`);
+                }
+              }
+            }
+          } else {
+            // Normal click
+            goToStop(stopIndex);
+            const targetEl = document.getElementById(stop.targetId);
+            if (targetEl) {
+              document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
+              targetEl.classList.add('selected');
+            }
+          }
+        }
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
       });
 
       item.addEventListener('keydown', (e) => {
@@ -335,16 +326,29 @@ function initPreziApp() {
     });
   }
 
-  // 2. Camera Transform Engine
+  // 2. Camera Transform Engine — Native 2D Razor Sharp
+  let _cameraTransitionTimer = null;
   function applyCamera(x, y, scale, smooth = true) {
-    // Round translate values to integer pixels to avoid sub-pixel blur
+    clearTimeout(_cameraTransitionTimer);
     const rx = Math.round(x);
     const ry = Math.round(y);
     currentCamera = { x: rx, y: ry, scale };
-    world.style.transition = smooth ? 'transform 0.9s cubic-bezier(0.25, 1, 0.5, 1)' : 'none';
-    // translateZ(0) forces a new GPU compositing layer → Chrome re-rasterizes text at current zoom → sắc nét
-    world.style.transform = `translate(${rx}px, ${ry}px) scale(${scale}) translateZ(0)`;
+
+    if (!smooth) {
+      world.style.transition = 'none';
+      world.style.transform = `translate(${rx}px, ${ry}px) scale(${scale})`;
+      zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
+      return;
+    }
+
+    world.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.35, 1)';
+    world.style.transform = `translate(${rx}px, ${ry}px) scale(${scale})`;
     zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
+
+    // Immediately after transition ends, remove transition property so vector fonts & images render natively sharp with 0s lag
+    _cameraTransitionTimer = setTimeout(() => {
+      world.style.transition = 'none';
+    }, 620);
   }
 
   // Computes the unobstructed Safe Work Area between sidebars and controls
@@ -544,23 +548,28 @@ function initPreziApp() {
         midScale = ov.scale;
       }
 
-      // Step 1: Zoom OUT to midpoint (fast, 600ms)
-      world.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+      // Step 1: Swift zoom out (240ms)
+      world.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 0.2, 1)';
       const rmx = Math.round(midX);
       const rmy = Math.round(midY);
       currentCamera = { x: rmx, y: rmy, scale: midScale };
-      world.style.transform = `translate(${rmx}px, ${rmy}px) scale(${midScale}) translateZ(0)`;
+      world.style.transform = `translate(${rmx}px, ${rmy}px) scale(${midScale})`;
       zoomIndicator.textContent = `${Math.round(midScale * 100)}%`;
 
-      // Step 2: After zoom-out completes, Zoom IN to target (smooth, 800ms)
+      // Step 2: Smooth swoop in (360ms)
       _goToStopTimer = setTimeout(() => {
-        world.style.transition = 'transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+        world.style.transition = 'transform 0.36s cubic-bezier(0.25, 1, 0.35, 1)';
         const rfx = Math.round(finalCam.x);
         const rfy = Math.round(finalCam.y);
         currentCamera = { x: rfx, y: rfy, scale: finalCam.scale };
-        world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale}) translateZ(0)`;
+        world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale})`;
         zoomIndicator.textContent = `${Math.round(finalCam.scale * 100)}%`;
-      }, 620);
+
+        // Step 3: Immediate crisp rasterization upon arrival (no 1s lag!)
+        setTimeout(() => {
+          world.style.transition = 'none';
+        }, 380);
+      }, 250);
     } else {
       // Direct jump (no fly-through): overview, same frame, or instant
       applyCamera(finalCam.x, finalCam.y, finalCam.scale, smooth);
@@ -1693,42 +1702,7 @@ function initPreziApp() {
 
       if (targetElement) {
         // MENU CHO MỤC ĐANG CHỌN (Selected Item Menu)
-        let frameReorderOptions = '';
-        if (isSlideFrame) {
-          frameReorderOptions = `
-            <div class="ctx-divider"></div>
-            <div class="ctx-item" data-action="move-up-slide">
-              <span class="ctx-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-                <span>Di chuyển lên 1 vị trí (Move Up)</span>
-              </span>
-            </div>
-            <div class="ctx-item" data-action="move-down-slide">
-              <span class="ctx-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                <span>Di chuyển xuống 1 vị trí (Move Down)</span>
-              </span>
-            </div>
-            <div class="ctx-item" data-action="move-custom-index">
-              <span class="ctx-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                <span>Đổi sang vị trí số... (Ví dụ: 2)</span>
-              </span>
-            </div>
-            <div class="ctx-item" data-action="move-first-slide">
-              <span class="ctx-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/><line x1="5" y1="5" x2="19" y2="5"/></svg>
-                <span>Chuyển lên đầu danh sách (Vị trí 1)</span>
-              </span>
-            </div>
-            <div class="ctx-item" data-action="move-last-slide">
-              <span class="ctx-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/><line x1="5" y1="19" x2="19" y2="19"/></svg>
-                <span>Chuyển xuống cuối danh sách</span>
-              </span>
-            </div>
-          `;
-        }
+        // Context menu items
 
         contextMenu.innerHTML = `
           <div class="ctx-item" data-action="copy">
@@ -1778,7 +1752,6 @@ function initPreziApp() {
             </span>
             <span class="ctx-shortcut">Ctrl+L</span>
           </div>
-          ${frameReorderOptions}
           <div class="ctx-divider"></div>
           <div class="ctx-item" data-action="zoom-to">
             <span class="ctx-left">
@@ -3388,6 +3361,29 @@ function initPreziApp() {
       imgToolbar.style.top = `${Math.round(topPos)}px`;
       imgToolbar.style.left = `${Math.round(leftPos)}px`;
       imgToolbar.classList.add('show');
+
+      const selOpacity = document.getElementById('select-img-opacity');
+      const selSat = document.getElementById('select-img-saturation');
+      const imgTarget = targetEl.tagName === 'IMG' ? targetEl : targetEl.querySelector('img');
+      if (imgTarget) {
+        if (selOpacity) {
+          const curOp = imgTarget.style.opacity || targetEl.style.opacity || '1';
+          selOpacity.value = curOp;
+        }
+        if (selSat) {
+          const curFilt = imgTarget.style.filter || targetEl.style.filter || '';
+          if (curFilt.includes('sepia')) {
+            selSat.value = 'sepia';
+          } else if (curFilt.includes('saturate(')) {
+            const m = curFilt.match(/saturate\((\d+)%\)/);
+            if (m && m[1]) selSat.value = m[1];
+            else selSat.value = '100';
+          } else {
+            selSat.value = '100';
+          }
+        }
+      }
+
       if (typeof updateLockToolbarButtons === 'function') {
         updateLockToolbarButtons(targetEl ? (targetEl.closest('.user-image-wrapper') || targetEl) : null);
       }
@@ -3657,6 +3653,34 @@ function initPreziApp() {
         saveEditsToStorage();
       }
     });
+
+    const selectImgOpacity = document.getElementById('select-img-opacity');
+    if (selectImgOpacity) {
+      selectImgOpacity.addEventListener('change', () => {
+        if (!selectedImgEl) return;
+        pushUndoState();
+        const opVal = selectImgOpacity.value;
+        selectedImgEl.style.opacity = opVal;
+        const wrapper = selectedImgEl.closest('.user-image-wrapper');
+        if (wrapper) wrapper.style.opacity = opVal;
+        saveEditsToStorage();
+      });
+    }
+
+    const selectImgSaturation = document.getElementById('select-img-saturation');
+    if (selectImgSaturation) {
+      selectImgSaturation.addEventListener('change', () => {
+        if (!selectedImgEl) return;
+        pushUndoState();
+        const satVal = selectImgSaturation.value;
+        if (satVal === 'sepia') {
+          selectedImgEl.style.filter = 'sepia(70%) saturate(70%)';
+        } else {
+          selectedImgEl.style.filter = `saturate(${satVal}%)`;
+        }
+        saveEditsToStorage();
+      });
+    }
 
     const btnImgLayerFront = document.getElementById('btn-img-layer-front');
     if (btnImgLayerFront) {
@@ -4180,6 +4204,29 @@ function initPreziApp() {
     imgToolbar.style.top = `${Math.round(topPos)}px`;
     imgToolbar.style.left = `${Math.round(leftPos)}px`;
     imgToolbar.classList.add('show');
+
+    const selOpacity = document.getElementById('select-img-opacity');
+    const selSat = document.getElementById('select-img-saturation');
+    const imgTarget = targetEl.tagName === 'IMG' ? targetEl : targetEl.querySelector('img');
+    if (imgTarget) {
+      if (selOpacity) {
+        const curOp = imgTarget.style.opacity || targetEl.style.opacity || '1';
+        selOpacity.value = curOp;
+      }
+      if (selSat) {
+        const curFilt = imgTarget.style.filter || targetEl.style.filter || '';
+        if (curFilt.includes('sepia')) {
+          selSat.value = 'sepia';
+        } else if (curFilt.includes('saturate(')) {
+          const m = curFilt.match(/saturate\((\d+)%\)/);
+          if (m && m[1]) selSat.value = m[1];
+          else selSat.value = '100';
+        } else {
+          selSat.value = '100';
+        }
+      }
+    }
+
     if (typeof updateLockToolbarButtons === 'function') {
       updateLockToolbarButtons(targetEl ? (targetEl.closest('.user-image-wrapper') || targetEl) : null);
     }
