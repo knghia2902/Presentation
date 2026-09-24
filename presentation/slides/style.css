@@ -646,13 +646,14 @@ input, textarea {
 .canvas-empty-frame-box .frame-handle {
   display: none;
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 14px;
+  height: 14px;
   background: #ffffff;
-  border: 1.5px solid #3b82f6; /* Prezi selection blue */
-  border-radius: 1px;
+  border: 2px solid #3b82f6;
+  border-radius: 2px;
   box-sizing: border-box;
-  z-index: 10;
+  z-index: 100;
+  pointer-events: auto !important;
 }
 
 .canvas-empty-frame-box.selected .frame-handle {
@@ -660,26 +661,26 @@ input, textarea {
 }
 
 .canvas-empty-frame-box .frame-handle.top-left {
-  top: -5px;
-  left: -5px;
+  top: -7px;
+  left: -7px;
   cursor: nwse-resize;
 }
 
 .canvas-empty-frame-box .frame-handle.top-right {
-  top: -5px;
-  right: -5px;
+  top: -7px;
+  right: -7px;
   cursor: nesw-resize;
 }
 
 .canvas-empty-frame-box .frame-handle.bottom-left {
-  bottom: -5px;
-  left: -5px;
+  bottom: -7px;
+  left: -7px;
   cursor: nesw-resize;
 }
 
 .canvas-empty-frame-box .frame-handle.bottom-right {
-  bottom: -5px;
-  right: -5px;
+  bottom: -7px;
+  right: -7px;
   cursor: nwse-resize;
 }
 
@@ -713,13 +714,14 @@ input, textarea {
 .canvas-slide-frame .frame-handle {
   display: none;
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 14px;
+  height: 14px;
   background: #ffffff;
-  border: 1.5px solid #2563eb;
-  border-radius: 1px;
+  border: 2px solid #2563eb;
+  border-radius: 2px;
   box-sizing: border-box;
-  z-index: 10;
+  z-index: 100;
+  pointer-events: auto !important;
 }
 
 /* Handles ONLY appear when selected */
@@ -727,10 +729,10 @@ input, textarea {
   display: block;
 }
 
-.canvas-slide-frame .frame-handle.top-left { top: -5px; left: -5px; cursor: nwse-resize; }
-.canvas-slide-frame .frame-handle.top-right { top: -5px; right: -5px; cursor: nesw-resize; }
-.canvas-slide-frame .frame-handle.bottom-left { bottom: -5px; left: -5px; cursor: nesw-resize; }
-.canvas-slide-frame .frame-handle.bottom-right { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.canvas-slide-frame .frame-handle.top-left { top: -7px; left: -7px; cursor: nwse-resize; }
+.canvas-slide-frame .frame-handle.top-right { top: -7px; right: -7px; cursor: nesw-resize; }
+.canvas-slide-frame .frame-handle.bottom-left { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.canvas-slide-frame .frame-handle.bottom-right { bottom: -7px; right: -7px; cursor: nwse-resize; }
 
 body.in-present-mode .canvas-slide-frame,
 body.in-present-mode .canvas-empty-frame-box {
