@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=20260924_v54">
+  <link rel="stylesheet" href="style.css?v=20260924_v55">
 </head>
 <body class="prezi-app">
 
@@ -235,11 +235,16 @@
             <div class="panel-field">
               <label class="panel-label">Kiểu chuyển động:</label>
               <select id="cfg-cam-style" class="panel-select">
-                <option value="direct" selected>Trực tiếp (Direct Smooth) - Khuyên dùng</option>
-                <option value="flythrough">Prezi Fly-through (Zoom out rồi Zoom in)</option>
+                <option value="flythrough" selected>Prezi Vòng cung (Zoom out rồi Zoom in chuẩn tâm)</option>
+                <option value="direct">Trực tiếp (Direct Smooth Glide) - Chuẩn Prezi</option>
+                <option value="overview-leap">Nhảy qua Toàn cảnh (Overview Leap)</option>
+                <option value="cinematic-pan">Trượt ngang Điện ảnh (Cinematic Pan)</option>
+                <option value="zoom-bounce">Phóng to Nảy nhẹ (Zoom Bounce / Pop)</option>
+                <option value="rotate-swoop">Xoay lượn 3D (3D Dynamic Tilt Swoop)</option>
+                <option value="fade-swoop">Mờ & Hiện rõ (Fade & Swoop)</option>
                 <option value="instant">Tức thì (Instant - Không hiệu ứng)</option>
               </select>
-              <div class="panel-help-text">Kiểu "Trực tiếp" bay thẳng mượt mà, không giật lùi, hình ảnh sắc nét ngay.</div>
+              <div class="panel-help-text" id="cfg-cam-help">Prezi Vòng cung: Zoom out ngay trên trục nối giữa 2 frame rồi lướt êm vào frame tiếp theo, chuẩn xác 100%.</div>
             </div>
 
             <div class="panel-field">
@@ -496,6 +501,6 @@
 
   </div>
 
-  <script src="script.js?v=20260924_v54"></script>
+  <script src="script.js?v=20260924_v55"></script>
 </body>
 </html>

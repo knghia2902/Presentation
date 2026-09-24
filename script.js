@@ -462,7 +462,11 @@ function initPreziApp() {
     return {
       x: safe.centerX - cx * fitScale,
       y: safe.centerY - cy * fitScale,
-      scale: Math.round(fitScale * 100) / 100
+      scale: Math.round(fitScale * 100) / 100,
+      worldCenterX: cx,
+      worldCenterY: cy,
+      elW: w,
+      elH: h
     };
   }
 
@@ -504,13 +508,21 @@ function initPreziApp() {
     const targetX = safe.centerX - elCenterX * targetScale;
     const targetY = safe.centerY - elCenterY * targetScale;
 
-    return { x: targetX, y: targetY, scale: targetScale };
+    return {
+      x: targetX,
+      y: targetY,
+      scale: targetScale,
+      worldCenterX: elCenterX,
+      worldCenterY: elCenterY,
+      elW,
+      elH
+    };
   }
   window.getElementFocusTransform = getElementFocusTransform;
   window.goToStop = goToStop;
   window.applyCamera = applyCamera;
 
-  // 3. Navigation controller — Prezi-style Zoom Out → Zoom In transition
+  // 3. Navigation controller — Multi-Style Prezi Camera Transition Engine
   let _goToStopTimer = null;
   function goToStop(index, smooth = true) {
     if (index < 0 || index >= STOPS.length) return;
@@ -544,51 +556,78 @@ function initPreziApp() {
 
     if (!finalCam) return;
 
-    // Decide transition style based on CAMERA_CONFIG
-    const isOverview = (stop.type === 'overview' || stop.targetId === 'overview-frame-box');
+    const safe = getSafeWorkArea();
+    const style = CAMERA_CONFIG.style || 'flythrough';
+    const totalDur = CAMERA_CONFIG.duration || 0.7;
     const sameFrame = (prevIndex === index);
-    const canFlyThrough = smooth && !isOverview && !sameFrame && prevIndex >= 0 && CAMERA_CONFIG.style === 'flythrough';
 
-    if (CAMERA_CONFIG.style === 'instant' || !smooth) {
-      applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
-    } else if (canFlyThrough) {
-      // ====== PREZI FLY-THROUGH: Zoom Out → Zoom In ======
+    // Compute previous camera position with accurate world center
+    let prevCam = null;
+    if (prevIndex >= 0 && prevIndex < STOPS.length) {
       const prevStop = STOPS[prevIndex];
-      const prevEl = prevStop ? document.getElementById(prevStop.targetId) : null;
-      let midX, midY, midScale;
-
-      const depthFactor = Math.max(0.1, Math.min(0.9, (CAMERA_CONFIG.depth || 75) / 100));
-      const totalDur = CAMERA_CONFIG.duration || 0.65;
-      const step1Dur = totalDur * 0.42;
-      const step2Dur = totalDur * 0.58;
-      const easingCurve = EASING_MAP[CAMERA_CONFIG.easing] || 'cubic-bezier(0.25, 1, 0.35, 1)';
-
-      if (prevEl && !isOverview) {
-        const prevFocus = getElementFocusTransform(prevEl, 1.0);
-        midX = (prevFocus.x + finalCam.x) / 2;
-        midY = (prevFocus.y + finalCam.y) / 2;
-        midScale = Math.min(prevFocus.scale, finalCam.scale) * depthFactor;
-        midScale = Math.max(midScale, 0.02);
+      if (prevStop.type === 'overview' || prevStop.targetId === 'overview-frame-box') {
+        const ovBox = document.getElementById('overview-frame-box');
+        prevCam = ovBox ? getElementFocusTransform(ovBox, 1.0) : getOverviewTransform();
       } else {
-        const ov = getOverviewTransform();
-        midX = ov.x;
-        midY = ov.y;
-        midScale = ov.scale;
+        const prevEl = document.getElementById(prevStop.targetId);
+        if (prevEl) prevCam = getElementFocusTransform(prevEl, prevStop.scaleOffset || 1.0);
       }
+    }
+    if (!prevCam) {
+      const curScale = currentCamera.scale || 1;
+      const curWorldX = (safe.centerX - currentCamera.x) / curScale;
+      const curWorldY = (safe.centerY - currentCamera.y) / curScale;
+      prevCam = {
+        x: currentCamera.x,
+        y: currentCamera.y,
+        scale: curScale,
+        worldCenterX: curWorldX,
+        worldCenterY: curWorldY,
+        elW: safe.safeW,
+        elH: safe.safeH
+      };
+    }
 
-      // Step 1: Smooth Zoom Out
-      world.style.transition = `transform ${step1Dur.toFixed(2)}s ease-out`;
-      const rmx = Math.round(midX);
-      const rmy = Math.round(midY);
-      currentCamera = { x: rmx, y: rmy, scale: midScale };
-      world.style.transform = `translate(${rmx}px, ${rmy}px) scale(${midScale})`;
+    if (style === 'instant' || !smooth || sameFrame) {
+      applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
+    } else if (style === 'flythrough') {
+      // ====== 1. PREZI FLY-THROUGH (Arc: Zoom Out -> Zoom In chuẩn xác 100% tâm) ======
+      const xA = prevCam.worldCenterX;
+      const yA = prevCam.worldCenterY;
+      const xB = finalCam.worldCenterX;
+      const yB = finalCam.worldCenterY;
+
+      // True midpoint in world coordinates between the two frames
+      const midWorldX = (xA + xB) / 2;
+      const midWorldY = (yA + yB) / 2;
+      const dist = Math.hypot(xB - xA, yB - yA);
+
+      // Scale calculations: zoom out enough to smoothly show the journey between frames
+      const depthFactor = Math.max(0.1, Math.min(0.9, (CAMERA_CONFIG.depth || 75) / 100));
+      const minScale = Math.min(prevCam.scale, finalCam.scale);
+      const maxSpan = Math.max(dist + Math.max(prevCam.elW || 960, finalCam.elW || 960), 1200);
+      const fitBothScale = (safe.safeW * 0.85) / maxSpan;
+      let midScale = Math.min(minScale * depthFactor, fitBothScale);
+      midScale = Math.max(0.04, Math.min(midScale, minScale));
+
+      // Screen camera (x, y) that places midWorldX, midWorldY dead-center on screen
+      const midCamX = Math.round(safe.centerX - midWorldX * midScale);
+      const midCamY = Math.round(safe.centerY - midWorldY * midScale);
+
+      const step1Dur = totalDur * 0.44;
+      const step2Dur = totalDur * 0.56;
+
+      // Step 1: Smooth Zoom Out centered precisely on the trajectory
+      world.style.transition = `transform ${step1Dur.toFixed(2)}s cubic-bezier(0.2, 0, 0.4, 1)`;
+      currentCamera = { x: midCamX, y: midCamY, scale: midScale };
+      world.style.transform = `translate(${midCamX}px, ${midCamY}px) scale(${midScale})`;
       zoomIndicator.textContent = `${Math.round(midScale * 100)}%`;
 
-      // Step 2: Smooth swoop in
+      // Step 2: Smooth swoop in directly into destination frame
       _goToStopTimer = setTimeout(() => {
-        world.style.transition = `transform ${step2Dur.toFixed(2)}s ${easingCurve}`;
         const rfx = Math.round(finalCam.x);
         const rfy = Math.round(finalCam.y);
+        world.style.transition = `transform ${step2Dur.toFixed(2)}s cubic-bezier(0.15, 1, 0.3, 1)`;
         currentCamera = { x: rfx, y: rfy, scale: finalCam.scale };
         world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale})`;
         zoomIndicator.textContent = `${Math.round(finalCam.scale * 100)}%`;
@@ -597,9 +636,95 @@ function initPreziApp() {
           world.style.transition = 'none';
         }, Math.round(step2Dur * 1000) + 30);
       }, Math.round(step1Dur * 1000));
+
+    } else if (style === 'overview-leap') {
+      // ====== 2. OVERVIEW LEAP (Lùi về Toàn cảnh rồi phóng vào đích) ======
+      const ovCam = getOverviewTransform();
+      const step1Dur = totalDur * 0.45;
+      const step2Dur = totalDur * 0.55;
+
+      world.style.transition = `transform ${step1Dur.toFixed(2)}s cubic-bezier(0.2, 0, 0.4, 1)`;
+      const rox = Math.round(ovCam.x);
+      const roy = Math.round(ovCam.y);
+      currentCamera = { x: rox, y: roy, scale: ovCam.scale };
+      world.style.transform = `translate(${rox}px, ${roy}px) scale(${ovCam.scale})`;
+      zoomIndicator.textContent = `${Math.round(ovCam.scale * 100)}%`;
+
+      _goToStopTimer = setTimeout(() => {
+        const rfx = Math.round(finalCam.x);
+        const rfy = Math.round(finalCam.y);
+        world.style.transition = `transform ${step2Dur.toFixed(2)}s cubic-bezier(0.15, 1, 0.3, 1)`;
+        currentCamera = { x: rfx, y: rfy, scale: finalCam.scale };
+        world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale})`;
+        zoomIndicator.textContent = `${Math.round(finalCam.scale * 100)}%`;
+
+        setTimeout(() => {
+          world.style.transition = 'none';
+        }, Math.round(step2Dur * 1000) + 30);
+      }, Math.round(step1Dur * 1000));
+
+    } else if (style === 'rotate-swoop') {
+      // ====== 3. 3D ROTATION SWOOP (Nghiêng góc lượn theo hướng bay) ======
+      const xA = prevCam.worldCenterX;
+      const xB = finalCam.worldCenterX;
+      const tiltAngle = (xB >= xA ? 3.5 : -3.5);
+
+      const step1Dur = totalDur * 0.45;
+      const step2Dur = totalDur * 0.55;
+      const midWorldX = (xA + xB) / 2;
+      const midWorldY = (prevCam.worldCenterY + finalCam.worldCenterY) / 2;
+      const minScale = Math.min(prevCam.scale, finalCam.scale);
+      const midScale = Math.max(0.04, minScale * 0.82);
+      const midCamX = Math.round(safe.centerX - midWorldX * midScale);
+      const midCamY = Math.round(safe.centerY - midWorldY * midScale);
+
+      world.style.transition = `transform ${step1Dur.toFixed(2)}s cubic-bezier(0.2, 0, 0.4, 1)`;
+      world.style.transform = `translate(${midCamX}px, ${midCamY}px) scale(${midScale}) rotate(${tiltAngle}deg)`;
+
+      _goToStopTimer = setTimeout(() => {
+        const rfx = Math.round(finalCam.x);
+        const rfy = Math.round(finalCam.y);
+        world.style.transition = `transform ${step2Dur.toFixed(2)}s cubic-bezier(0.15, 1, 0.3, 1)`;
+        currentCamera = { x: rfx, y: rfy, scale: finalCam.scale };
+        world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale}) rotate(0deg)`;
+        zoomIndicator.textContent = `${Math.round(finalCam.scale * 100)}%`;
+
+        setTimeout(() => {
+          world.style.transition = 'none';
+        }, Math.round(step2Dur * 1000) + 30);
+      }, Math.round(step1Dur * 1000));
+
+    } else if (style === 'zoom-bounce') {
+      // ====== 4. ZOOM BOUNCE / POP ======
+      const bounceEasing = 'cubic-bezier(0.34, 1.35, 0.64, 1)';
+      applyCamera(finalCam.x, finalCam.y, finalCam.scale, true, totalDur, bounceEasing);
+
+    } else if (style === 'fade-swoop') {
+      // ====== 5. FADE & SWOOP (Mờ nhẹ khi bay rồi rực rỡ khi đến) ======
+      world.style.transition = `transform ${totalDur}s ${EASING_MAP[CAMERA_CONFIG.easing] || 'ease-out'}, opacity ${totalDur * 0.4}s ease`;
+      world.style.opacity = '0.65';
+      const rfx = Math.round(finalCam.x);
+      const rfy = Math.round(finalCam.y);
+      currentCamera = { x: rfx, y: rfy, scale: finalCam.scale };
+      world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale})`;
+      zoomIndicator.textContent = `${Math.round(finalCam.scale * 100)}%`;
+
+      _goToStopTimer = setTimeout(() => {
+        world.style.transition = `opacity ${totalDur * 0.6}s ease`;
+        world.style.opacity = '1';
+        setTimeout(() => {
+          world.style.transition = 'none';
+        }, Math.round(totalDur * 600));
+      }, Math.round(totalDur * 400));
+
+    } else if (style === 'cinematic-pan') {
+      // ====== 6. CINEMATIC PAN (Lướt ngang điện ảnh êm ái) ======
+      const panEasing = 'cubic-bezier(0.4, 0.0, 0.2, 1)';
+      applyCamera(finalCam.x, finalCam.y, finalCam.scale, true, totalDur, panEasing);
+
     } else {
-      // Direct Smooth Glide (default) - razor sharp single glide
-      applyCamera(finalCam.x, finalCam.y, finalCam.scale, true, CAMERA_CONFIG.duration, EASING_MAP[CAMERA_CONFIG.easing]);
+      // ====== 7. DIRECT (Bay lướt trực tiếp mặc định) ======
+      applyCamera(finalCam.x, finalCam.y, finalCam.scale, true, totalDur, EASING_MAP[CAMERA_CONFIG.easing]);
     }
 
     if (currentStopTitle && stop) {
@@ -2542,16 +2667,34 @@ function initPreziApp() {
     const btnTestCam = document.getElementById('btn-test-camera-effect');
     const btnResetCam = document.getElementById('btn-reset-camera-effect');
 
+    const CAM_STYLE_DESCS = {
+      'flythrough': 'Prezi Vòng cung: Zoom out ngay trên trục nối giữa 2 frame rồi lướt êm vào frame tiếp theo, chuẩn xác 100%.',
+      'direct': 'Trực tiếp (Direct Smooth Glide): Bay thẳng mượt mà, lướt ngang chuẩn xác không giật lùi, hình ảnh sắc nét ngay.',
+      'overview-leap': 'Nhảy qua Toàn cảnh (Overview Leap): Bay lùi ra bao quát toàn bộ bản đồ trước khi lướt sâu vào frame tiếp theo.',
+      'cinematic-pan': 'Trượt ngang Điện ảnh (Cinematic Pan): Camera lướt ngang đều đặn êm ái như thước phim điện ảnh.',
+      'zoom-bounce': 'Phóng to Nảy nhẹ (Zoom Bounce / Pop): Hiệu ứng đàn hồi nảy nhẹ hiện đại, tạo cảm giác sinh động bắt mắt.',
+      'rotate-swoop': 'Xoay lượn 3D (3D Dynamic Tilt Swoop): Nghiêng nhẹ góc lượn theo hướng bay tạo chiều sâu không gian 3 chiều.',
+      'fade-swoop': 'Mờ & Hiện rõ (Fade & Swoop): Mờ dịu khi rời frame cũ và bừng sáng rõ nét khi đến đích.',
+      'instant': 'Tức thì (Instant): Nhảy tức thì không có hoạt ảnh chuyển động.'
+    };
+    const helpCamStyle = document.getElementById('cfg-cam-help');
+
+    function updateCamStyleUI() {
+      const st = CAMERA_CONFIG.style;
+      if (groupCamDepth) {
+        groupCamDepth.style.display = (st === 'flythrough' || st === 'overview-leap' || st === 'rotate-swoop') ? 'flex' : 'none';
+      }
+      if (helpCamStyle && CAM_STYLE_DESCS[st]) {
+        helpCamStyle.textContent = CAM_STYLE_DESCS[st];
+      }
+    }
+
     if (selCamStyle) {
       selCamStyle.value = CAMERA_CONFIG.style;
-      if (groupCamDepth) {
-        groupCamDepth.style.display = CAMERA_CONFIG.style === 'flythrough' ? 'flex' : 'none';
-      }
+      updateCamStyleUI();
       selCamStyle.addEventListener('change', () => {
         CAMERA_CONFIG.style = selCamStyle.value;
-        if (groupCamDepth) {
-          groupCamDepth.style.display = CAMERA_CONFIG.style === 'flythrough' ? 'flex' : 'none';
-        }
+        updateCamStyleUI();
         try {
           localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
         } catch (e) {}
@@ -2601,21 +2744,21 @@ function initPreziApp() {
 
     if (btnResetCam) {
       btnResetCam.addEventListener('click', () => {
-        CAMERA_CONFIG.style = 'direct';
-        CAMERA_CONFIG.duration = 0.65;
+        CAMERA_CONFIG.style = 'flythrough';
+        CAMERA_CONFIG.duration = 0.75;
         CAMERA_CONFIG.depth = 75;
         CAMERA_CONFIG.easing = 'prezi';
-        if (selCamStyle) selCamStyle.value = 'direct';
-        if (sliderCamDuration) sliderCamDuration.value = '0.65';
-        if (badgeCamDuration) badgeCamDuration.textContent = '0.65s';
+        if (selCamStyle) selCamStyle.value = 'flythrough';
+        if (sliderCamDuration) sliderCamDuration.value = '0.75';
+        if (badgeCamDuration) badgeCamDuration.textContent = '0.75s';
         if (sliderCamDepth) sliderCamDepth.value = '75';
         if (badgeCamDepth) badgeCamDepth.textContent = '75%';
-        if (groupCamDepth) groupCamDepth.style.display = 'none';
+        updateCamStyleUI();
         if (selCamEasing) selCamEasing.value = 'prezi';
         try {
           localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
         } catch (e) {}
-        showToast('Đã khôi phục hiệu ứng mặc định: Trực tiếp mượt mà (0.65s)');
+        showToast('Đã khôi phục hiệu ứng mặc định: Prezi Vòng cung (0.75s)');
       });
     }
 
