@@ -395,10 +395,12 @@ function initPreziApp() {
 
     const leftSidebar = document.getElementById('prezi-sidebar');
     const isLeftCollapsed = leftSidebar ? leftSidebar.classList.contains('collapsed') : false;
+    const rightPanel = document.getElementById('prezi-right-panel');
+    const isRightCollapsed = rightPanel ? rightPanel.classList.contains('collapsed') : false;
 
     // In edit mode: comfortable insets around sidebars & controls
-    const leftInset = isLeftCollapsed ? 48 : 240;
-    const rightInset = 24;
+    const leftInset = isLeftCollapsed ? 48 : 224;
+    const rightInset = isRightCollapsed ? 24 : 260;
     const topInset = 20;
     const bottomInset = 70;
 
@@ -2445,7 +2447,7 @@ function initPreziApp() {
 
     // Auto sync when clicking canvas elements
     document.addEventListener('click', (e) => {
-      if (e.target.closest('#prezi-sidebar')) return;
+      if (e.target.closest('#prezi-sidebar') || e.target.closest('#prezi-right-panel') || e.target.closest('.prezi-floating-text-toolbar') || e.target.closest('.prezi-floating-image-toolbar')) return;
       setTimeout(() => {
         const el = getActiveElementForProperties();
         syncPropertyPanel(el);
@@ -2453,23 +2455,64 @@ function initPreziApp() {
     });
   }
 
-  function setupSidebarTabsAndPanels() {
-    // 1. Tab Bar Navigation
-    const tabBtns = document.querySelectorAll('#sidebar-tab-bar .sidebar-tab-btn');
-    const tabContents = document.querySelectorAll('.sidebar-tab-content');
+  function setupRightInspectorPanel() {
+    const rightPanel = document.getElementById('prezi-right-panel');
+    const toggleBtn = document.getElementById('btn-toggle-right-panel');
+    const tabBtns = document.querySelectorAll('#right-panel-tab-bar .right-tab-btn');
+    const tabContents = document.querySelectorAll('.right-tab-content');
+
+    if (toggleBtn && rightPanel) {
+      toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        rightPanel.classList.toggle('collapsed');
+        setTimeout(() => goToStop(currentStopIndex, true), 320);
+      });
+    }
+
+    if (rightPanel) {
+      rightPanel.addEventListener('click', (e) => {
+        if (rightPanel.classList.contains('collapsed')) {
+          rightPanel.classList.remove('collapsed');
+          setTimeout(() => goToStop(currentStopIndex, true), 320);
+        }
+      });
+    }
+
+    function switchRightTab(targetId) {
+      tabBtns.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === targetId));
+      tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
+      if (rightPanel && rightPanel.classList.contains('collapsed')) {
+        rightPanel.classList.remove('collapsed');
+        setTimeout(() => goToStop(currentStopIndex, true), 320);
+      }
+      if (targetId === 'tab-properties') {
+        syncPropertyPanel(getActiveElementForProperties());
+      }
+    }
+    window.switchRightTab = switchRightTab;
 
     tabBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const targetId = btn.getAttribute('data-tab');
-        tabBtns.forEach(b => b.classList.toggle('active', b === btn));
-        tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
-
-        if (targetId === 'tab-properties') {
-          syncPropertyPanel(getActiveElementForProperties());
-        }
+        switchRightTab(targetId);
       });
     });
+
+    // Topbar shortcut buttons
+    const btnToolAnimation = document.getElementById('btn-tool-animation');
+    if (btnToolAnimation) {
+      btnToolAnimation.addEventListener('click', () => {
+        switchRightTab('tab-effects');
+      });
+    }
+
+    const btnToolStyle = document.getElementById('btn-tool-style');
+    if (btnToolStyle) {
+      btnToolStyle.addEventListener('click', () => {
+        switchRightTab('tab-properties');
+      });
+    }
 
     // 2. Camera & Zoom Effects Settings (Tab 2)
     const selCamStyle = document.getElementById('cfg-cam-style');
@@ -2559,13 +2602,13 @@ function initPreziApp() {
       });
     }
 
-    // 3. Properties Panel Controls (Tab 3)
+    // 3. Properties Panel Controls (Tab 1)
     setupPropertyPanelEvents();
   }
 
   // 7. Keyboard & Controls
   function setupControls() {
-    setupSidebarTabsAndPanels();
+    setupRightInspectorPanel();
     const btnNext = document.getElementById('btn-next');
     if (btnNext) {
       btnNext.addEventListener('click', () => {
