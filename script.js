@@ -326,29 +326,53 @@ function initPreziApp() {
     });
   }
 
-  // 2. Camera Transform Engine — Native 2D Razor Sharp
+  // 2. Camera Transform Engine — Native 2D Razor Sharp & Granular Customization
+  const EASING_MAP = {
+    'prezi': 'cubic-bezier(0.25, 1, 0.35, 1)',
+    'ease-in-out': 'cubic-bezier(0.42, 0, 0.58, 1)',
+    'ease-out': 'cubic-bezier(0, 0, 0.2, 1)',
+    'linear': 'linear'
+  };
+
+  let CAMERA_CONFIG = {
+    style: 'direct', // 'direct', 'flythrough', 'instant'
+    duration: 0.65,
+    depth: 75,
+    easing: 'prezi'
+  };
+
+  try {
+    const savedCamCfg = localStorage.getItem('prezi_camera_config');
+    if (savedCamCfg) {
+      CAMERA_CONFIG = Object.assign(CAMERA_CONFIG, JSON.parse(savedCamCfg));
+    }
+  } catch (e) {}
+
   let _cameraTransitionTimer = null;
-  function applyCamera(x, y, scale, smooth = true) {
+  function applyCamera(x, y, scale, smooth = true, customDuration = null, customEasing = null) {
     clearTimeout(_cameraTransitionTimer);
     const rx = Math.round(x);
     const ry = Math.round(y);
     currentCamera = { x: rx, y: ry, scale };
 
-    if (!smooth) {
+    if (!smooth || (customDuration !== null && customDuration <= 0.05) || CAMERA_CONFIG.style === 'instant') {
       world.style.transition = 'none';
       world.style.transform = `translate(${rx}px, ${ry}px) scale(${scale})`;
       zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
       return;
     }
 
-    world.style.transition = 'transform 0.6s cubic-bezier(0.25, 1, 0.35, 1)';
+    const dur = customDuration !== null ? customDuration : (CAMERA_CONFIG.duration || 0.65);
+    const ease = customEasing || EASING_MAP[CAMERA_CONFIG.easing] || 'cubic-bezier(0.25, 1, 0.35, 1)';
+
+    world.style.transition = `transform ${dur}s ${ease}`;
     world.style.transform = `translate(${rx}px, ${ry}px) scale(${scale})`;
     zoomIndicator.textContent = `${Math.round(scale * 100)}%`;
 
     // Immediately after transition ends, remove transition property so vector fonts & images render natively sharp with 0s lag
     _cameraTransitionTimer = setTimeout(() => {
       world.style.transition = 'none';
-    }, 620);
+    }, Math.round(dur * 1000) + 30);
   }
 
   // Computes the unobstructed Safe Work Area between sidebars and controls
@@ -518,61 +542,62 @@ function initPreziApp() {
 
     if (!finalCam) return;
 
-    // Decide whether to use zoom-out-then-in transition
-    // Skip zoom-out if: not smooth, going to overview, same frame, or first load
+    // Decide transition style based on CAMERA_CONFIG
     const isOverview = (stop.type === 'overview' || stop.targetId === 'overview-frame-box');
     const sameFrame = (prevIndex === index);
-    const shouldFlyThrough = smooth && !isOverview && !sameFrame && prevIndex >= 0;
+    const canFlyThrough = smooth && !isOverview && !sameFrame && prevIndex >= 0 && CAMERA_CONFIG.style === 'flythrough';
 
-    if (shouldFlyThrough) {
+    if (CAMERA_CONFIG.style === 'instant' || !smooth) {
+      applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
+    } else if (canFlyThrough) {
       // ====== PREZI FLY-THROUGH: Zoom Out → Zoom In ======
       const prevStop = STOPS[prevIndex];
       const prevEl = prevStop ? document.getElementById(prevStop.targetId) : null;
-
-      // Calculate midpoint between current and target frame
       let midX, midY, midScale;
+
+      const depthFactor = Math.max(0.1, Math.min(0.9, (CAMERA_CONFIG.depth || 75) / 100));
+      const totalDur = CAMERA_CONFIG.duration || 0.65;
+      const step1Dur = totalDur * 0.42;
+      const step2Dur = totalDur * 0.58;
+      const easingCurve = EASING_MAP[CAMERA_CONFIG.easing] || 'cubic-bezier(0.25, 1, 0.35, 1)';
 
       if (prevEl && !isOverview) {
         const prevFocus = getElementFocusTransform(prevEl, 1.0);
-        // Midpoint between the two camera positions
         midX = (prevFocus.x + finalCam.x) / 2;
         midY = (prevFocus.y + finalCam.y) / 2;
-        // Zoom out: use a scale that's smaller than both (shows wider view)
-        midScale = Math.min(prevFocus.scale, finalCam.scale) * 0.45;
-        midScale = Math.max(midScale, 0.05); // safety floor
+        midScale = Math.min(prevFocus.scale, finalCam.scale) * depthFactor;
+        midScale = Math.max(midScale, 0.02);
       } else {
-        // Fallback: zoom out to overview level
         const ov = getOverviewTransform();
         midX = ov.x;
         midY = ov.y;
         midScale = ov.scale;
       }
 
-      // Step 1: Swift zoom out (240ms)
-      world.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 0.2, 1)';
+      // Step 1: Smooth Zoom Out
+      world.style.transition = `transform ${step1Dur.toFixed(2)}s ease-out`;
       const rmx = Math.round(midX);
       const rmy = Math.round(midY);
       currentCamera = { x: rmx, y: rmy, scale: midScale };
       world.style.transform = `translate(${rmx}px, ${rmy}px) scale(${midScale})`;
       zoomIndicator.textContent = `${Math.round(midScale * 100)}%`;
 
-      // Step 2: Smooth swoop in (360ms)
+      // Step 2: Smooth swoop in
       _goToStopTimer = setTimeout(() => {
-        world.style.transition = 'transform 0.36s cubic-bezier(0.25, 1, 0.35, 1)';
+        world.style.transition = `transform ${step2Dur.toFixed(2)}s ${easingCurve}`;
         const rfx = Math.round(finalCam.x);
         const rfy = Math.round(finalCam.y);
         currentCamera = { x: rfx, y: rfy, scale: finalCam.scale };
         world.style.transform = `translate(${rfx}px, ${rfy}px) scale(${finalCam.scale})`;
         zoomIndicator.textContent = `${Math.round(finalCam.scale * 100)}%`;
 
-        // Step 3: Immediate crisp rasterization upon arrival (no 1s lag!)
         setTimeout(() => {
           world.style.transition = 'none';
-        }, 380);
-      }, 250);
+        }, Math.round(step2Dur * 1000) + 30);
+      }, Math.round(step1Dur * 1000));
     } else {
-      // Direct jump (no fly-through): overview, same frame, or instant
-      applyCamera(finalCam.x, finalCam.y, finalCam.scale, smooth);
+      // Direct Smooth Glide (default) - razor sharp single glide
+      applyCamera(finalCam.x, finalCam.y, finalCam.scale, true, CAMERA_CONFIG.duration, EASING_MAP[CAMERA_CONFIG.easing]);
     }
 
     if (currentStopTitle && stop) {
@@ -1119,14 +1144,11 @@ function initPreziApp() {
     if (!h) {
       h = document.createElement('div');
       h.className = 'element-rotate-handle';
-      h.title = 'Nhấn giữ và xoay góc đối tượng (Giữ Shift để xoay nấc 15°)';
+      h.title = 'Nhấn giữ và kéo để xoay góc (Giữ Shift để xoay nấc 15°)';
       h.innerHTML = `
-        <div class="rotate-knob">
-          <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
-          </svg>
-        </div>
-        <div class="rotate-stem"></div>
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+          <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/>
+        </svg>
       `;
       el.appendChild(h);
     }
@@ -1185,6 +1207,10 @@ function initPreziApp() {
 
         applyElementRotation(element, newRot);
         updateBadgePos(moveEv.clientX, moveEv.clientY, newRot);
+        const rotSlider = document.getElementById('prop-rotation-slider');
+        const rotBadge = document.getElementById('prop-rotation-val');
+        if (rotSlider) rotSlider.value = newRot;
+        if (rotBadge) rotBadge.textContent = `${newRot}°`;
         if (typeof onRotate === 'function') onRotate(newRot);
       }
 
@@ -2217,8 +2243,329 @@ function initPreziApp() {
     if (t3) setTimeout(() => { t3.style.strokeDashoffset = 0; }, 1400);
   }
 
+  // Helper to find currently selected object for property inspector
+  function getActiveElementForProperties() {
+    return document.querySelector('.user-image-wrapper.selected, .prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected');
+  }
+  window.getActiveElementForProperties = getActiveElementForProperties;
+
+  function syncPropertyPanel(el) {
+    const hint = document.getElementById('prop-empty-hint');
+    const box = document.getElementById('prop-controls-box');
+    const title = document.getElementById('prop-target-title');
+    const satGroup = document.getElementById('prop-saturation-group');
+    const opSlider = document.getElementById('prop-opacity-slider');
+    const opBadge = document.getElementById('prop-opacity-val');
+    const satSlider = document.getElementById('prop-saturation-slider');
+    const satBadge = document.getElementById('prop-saturation-val');
+    const rotSlider = document.getElementById('prop-rotation-slider');
+    const rotBadge = document.getElementById('prop-rotation-val');
+
+    if (!el) {
+      if (hint) hint.style.display = 'block';
+      if (box) box.style.display = 'none';
+      return;
+    }
+
+    if (hint) hint.style.display = 'none';
+    if (box) box.style.display = 'block';
+
+    const isImg = el.classList.contains('user-image-wrapper') || el.tagName === 'IMG';
+    const isText = el.classList.contains('prezi-textbox');
+    const isFrame = el.classList.contains('canvas-slide-frame') || el.classList.contains('canvas-card');
+
+    if (title) {
+      if (isImg) title.textContent = 'Đang chọn: Hình ảnh';
+      else if (isText) title.textContent = 'Đang chọn: Hộp văn bản';
+      else if (isFrame) title.textContent = 'Đang chọn: Khung Frame';
+      else title.textContent = 'Đang chọn: Đối tượng';
+    }
+
+    if (satGroup) {
+      satGroup.style.display = isImg ? 'flex' : 'none';
+    }
+
+    // Opacity
+    let curOp = parseFloat(el.style.opacity);
+    if (isNaN(curOp)) curOp = 1.0;
+    const opPercent = Math.round(curOp * 100);
+    if (opSlider) opSlider.value = opPercent;
+    if (opBadge) opBadge.textContent = `${opPercent}%`;
+
+    // Saturation (images only)
+    if (isImg) {
+      const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+      let satVal = 100;
+      if (img && img.style.filter) {
+        if (img.style.filter.includes('sepia')) {
+          satVal = 'sepia';
+        } else {
+          const m = img.style.filter.match(/saturate\((\d+)%\)/);
+          if (m && m[1]) satVal = parseInt(m[1], 10);
+        }
+      }
+      if (satSlider) satSlider.value = typeof satVal === 'number' ? satVal : 50;
+      if (satBadge) satBadge.textContent = satVal === 'sepia' ? 'Vintage' : `${satVal}%`;
+    }
+
+    // Rotation
+    const rot = Math.round(getElementRotation(el));
+    if (rotSlider) rotSlider.value = rot;
+    if (rotBadge) rotBadge.textContent = `${rot}°`;
+
+    // Lock button text
+    const btnLock = document.getElementById('btn-prop-toggle-lock');
+    if (btnLock) {
+      const isLocked = el.classList.contains('is-locked') || el.getAttribute('data-locked') === 'true';
+      btnLock.textContent = isLocked ? '🔓 Mở khóa vị trí' : '🔒 Khóa vị trí';
+    }
+  }
+  window.syncPropertyPanel = syncPropertyPanel;
+
+  function setupPropertyPanelEvents() {
+    const opSlider = document.getElementById('prop-opacity-slider');
+    const opBadge = document.getElementById('prop-opacity-val');
+    const satSlider = document.getElementById('prop-saturation-slider');
+    const satBadge = document.getElementById('prop-saturation-val');
+    const rotSlider = document.getElementById('prop-rotation-slider');
+    const rotBadge = document.getElementById('prop-rotation-val');
+    const btnLock = document.getElementById('btn-prop-toggle-lock');
+
+    if (opSlider) {
+      opSlider.addEventListener('input', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        const val = parseInt(opSlider.value, 10) / 100;
+        el.style.opacity = val;
+        const img = el.querySelector('img');
+        if (img) img.style.opacity = val;
+        if (opBadge) opBadge.textContent = `${opSlider.value}%`;
+        saveEditsToStorage();
+      });
+    }
+
+    document.querySelectorAll('#tab-properties [data-set-opacity]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        const val = parseFloat(btn.getAttribute('data-set-opacity'));
+        pushUndoState();
+        el.style.opacity = val;
+        const img = el.querySelector('img');
+        if (img) img.style.opacity = val;
+        if (opSlider) opSlider.value = Math.round(val * 100);
+        if (opBadge) opBadge.textContent = `${Math.round(val * 100)}%`;
+        saveEditsToStorage();
+      });
+    });
+
+    if (satSlider) {
+      satSlider.addEventListener('input', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+        if (!img) return;
+        const val = satSlider.value;
+        img.style.filter = `saturate(${val}%)`;
+        if (satBadge) satBadge.textContent = `${val}%`;
+        saveEditsToStorage();
+      });
+    }
+
+    document.querySelectorAll('#tab-properties [data-set-sat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        const img = el.tagName === 'IMG' ? el : el.querySelector('img');
+        if (!img) return;
+        const mode = btn.getAttribute('data-set-sat');
+        pushUndoState();
+        if (mode === 'sepia') {
+          img.style.filter = 'sepia(70%) saturate(70%)';
+          if (satBadge) satBadge.textContent = 'Vintage';
+        } else {
+          const num = parseInt(mode, 10);
+          img.style.filter = `saturate(${num}%)`;
+          if (satSlider) satSlider.value = num;
+          if (satBadge) satBadge.textContent = `${num}%`;
+        }
+        saveEditsToStorage();
+      });
+    });
+
+    if (rotSlider) {
+      rotSlider.addEventListener('input', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        const val = parseInt(rotSlider.value, 10);
+        applyElementRotation(el, val);
+        if (rotBadge) rotBadge.textContent = `${val}°`;
+        saveEditsToStorage();
+      });
+    }
+
+    document.querySelectorAll('#tab-properties [data-set-rot]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        const val = parseInt(btn.getAttribute('data-set-rot'), 10);
+        pushUndoState();
+        applyElementRotation(el, val);
+        if (rotSlider) rotSlider.value = val;
+        if (rotBadge) rotBadge.textContent = `${val}°`;
+        saveEditsToStorage();
+      });
+    });
+
+    document.querySelectorAll('#tab-properties [data-add-rot]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        const delta = parseInt(btn.getAttribute('data-add-rot'), 10);
+        pushUndoState();
+        const cur = getElementRotation(el);
+        const next = (cur + delta) % 360;
+        applyElementRotation(el, next);
+        if (rotSlider) rotSlider.value = next;
+        if (rotBadge) rotBadge.textContent = `${next}°`;
+        saveEditsToStorage();
+      });
+    });
+
+    if (btnLock) {
+      btnLock.addEventListener('click', () => {
+        const el = getActiveElementForProperties();
+        if (!el) return;
+        if (typeof toggleLockCard === 'function') {
+          toggleLockCard(el);
+          syncPropertyPanel(el);
+        }
+      });
+    }
+
+    // Auto sync when clicking canvas elements
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#prezi-sidebar')) return;
+      setTimeout(() => {
+        const el = getActiveElementForProperties();
+        syncPropertyPanel(el);
+      }, 60);
+    });
+  }
+
+  function setupSidebarTabsAndPanels() {
+    // 1. Tab Bar Navigation
+    const tabBtns = document.querySelectorAll('#sidebar-tab-bar .sidebar-tab-btn');
+    const tabContents = document.querySelectorAll('.sidebar-tab-content');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-tab');
+        tabBtns.forEach(b => b.classList.toggle('active', b === btn));
+        tabContents.forEach(c => c.classList.toggle('active', c.id === targetId));
+
+        if (targetId === 'tab-properties') {
+          syncPropertyPanel(getActiveElementForProperties());
+        }
+      });
+    });
+
+    // 2. Camera & Zoom Effects Settings (Tab 2)
+    const selCamStyle = document.getElementById('cfg-cam-style');
+    const sliderCamDuration = document.getElementById('cfg-cam-duration');
+    const badgeCamDuration = document.getElementById('cfg-cam-duration-val');
+    const groupCamDepth = document.getElementById('cfg-cam-depth-group');
+    const sliderCamDepth = document.getElementById('cfg-cam-depth');
+    const badgeCamDepth = document.getElementById('cfg-cam-depth-val');
+    const selCamEasing = document.getElementById('cfg-cam-easing');
+    const btnTestCam = document.getElementById('btn-test-camera-effect');
+    const btnResetCam = document.getElementById('btn-reset-camera-effect');
+
+    if (selCamStyle) {
+      selCamStyle.value = CAMERA_CONFIG.style;
+      if (groupCamDepth) {
+        groupCamDepth.style.display = CAMERA_CONFIG.style === 'flythrough' ? 'flex' : 'none';
+      }
+      selCamStyle.addEventListener('change', () => {
+        CAMERA_CONFIG.style = selCamStyle.value;
+        if (groupCamDepth) {
+          groupCamDepth.style.display = CAMERA_CONFIG.style === 'flythrough' ? 'flex' : 'none';
+        }
+        try {
+          localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
+        } catch (e) {}
+      });
+    }
+
+    if (sliderCamDuration) {
+      sliderCamDuration.value = CAMERA_CONFIG.duration;
+      if (badgeCamDuration) badgeCamDuration.textContent = `${CAMERA_CONFIG.duration}s`;
+      sliderCamDuration.addEventListener('input', () => {
+        CAMERA_CONFIG.duration = parseFloat(sliderCamDuration.value);
+        if (badgeCamDuration) badgeCamDuration.textContent = `${CAMERA_CONFIG.duration}s`;
+        try {
+          localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
+        } catch (e) {}
+      });
+    }
+
+    if (sliderCamDepth) {
+      sliderCamDepth.value = CAMERA_CONFIG.depth;
+      if (badgeCamDepth) badgeCamDepth.textContent = `${CAMERA_CONFIG.depth}%`;
+      sliderCamDepth.addEventListener('input', () => {
+        CAMERA_CONFIG.depth = parseInt(sliderCamDepth.value, 10);
+        if (badgeCamDepth) badgeCamDepth.textContent = `${CAMERA_CONFIG.depth}%`;
+        try {
+          localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
+        } catch (e) {}
+      });
+    }
+
+    if (selCamEasing) {
+      selCamEasing.value = CAMERA_CONFIG.easing;
+      selCamEasing.addEventListener('change', () => {
+        CAMERA_CONFIG.easing = selCamEasing.value;
+        try {
+          localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
+        } catch (e) {}
+      });
+    }
+
+    if (btnTestCam) {
+      btnTestCam.addEventListener('click', () => {
+        const nextIdx = (currentStopIndex + 1) % STOPS.length;
+        goToStop(nextIdx, true);
+      });
+    }
+
+    if (btnResetCam) {
+      btnResetCam.addEventListener('click', () => {
+        CAMERA_CONFIG.style = 'direct';
+        CAMERA_CONFIG.duration = 0.65;
+        CAMERA_CONFIG.depth = 75;
+        CAMERA_CONFIG.easing = 'prezi';
+        if (selCamStyle) selCamStyle.value = 'direct';
+        if (sliderCamDuration) sliderCamDuration.value = '0.65';
+        if (badgeCamDuration) badgeCamDuration.textContent = '0.65s';
+        if (sliderCamDepth) sliderCamDepth.value = '75';
+        if (badgeCamDepth) badgeCamDepth.textContent = '75%';
+        if (groupCamDepth) groupCamDepth.style.display = 'none';
+        if (selCamEasing) selCamEasing.value = 'prezi';
+        try {
+          localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
+        } catch (e) {}
+        showToast('Đã khôi phục hiệu ứng mặc định: Trực tiếp mượt mà (0.65s)');
+      });
+    }
+
+    // 3. Properties Panel Controls (Tab 3)
+    setupPropertyPanelEvents();
+  }
+
   // 7. Keyboard & Controls
   function setupControls() {
+    setupSidebarTabsAndPanels();
     const btnNext = document.getElementById('btn-next');
     if (btnNext) {
       btnNext.addEventListener('click', () => {

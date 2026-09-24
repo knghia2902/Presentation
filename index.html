@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=20260924_v50">
+  <link rel="stylesheet" href="style.css?v=20260924_v51">
 </head>
 <body class="prezi-app">
 
@@ -122,15 +122,159 @@
         </svg>
       </button>
 
-      <div class="frames-list" id="frames-list">
-        <!-- Overview thumbnail: Thẻ bo tròn trắng tinh khôi viền xanh lục chuẩn Prezi -->
-        <div class="frame-thumb-item active" data-target="overview" data-index="0">
-          <div class="thumb-card-preview overview-card-blank">
-            <div class="thumb-home-icon">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="#374151"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <!-- Sidebar Navigation Tab Bar -->
+      <div class="sidebar-tab-bar" id="sidebar-tab-bar">
+        <button class="sidebar-tab-btn active" data-tab="tab-frames" title="Danh sách các frame trình chiếu">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+          <span>Frames</span>
+        </button>
+        <button class="sidebar-tab-btn" data-tab="tab-effects" title="Chỉnh chuyên sâu hiệu ứng Zoom & Chuyển cảnh">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+          <span>Hiệu ứng</span>
+        </button>
+        <button class="sidebar-tab-btn" data-tab="tab-properties" title="Độ mờ, Sắc độ & Góc xoay đối tượng">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.22 19.67 10.57 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 15c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/></svg>
+          <span>Thuộc tính</span>
+        </button>
+      </div>
+
+      <!-- Tab 1: Frames List -->
+      <div class="sidebar-tab-content active" id="tab-frames">
+        <div class="frames-list" id="frames-list">
+          <!-- Overview thumbnail -->
+          <div class="frame-thumb-item active" data-target="overview" data-index="0">
+            <div class="thumb-card-preview overview-card-blank">
+              <div class="thumb-home-icon">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="#374151"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+              </div>
+            </div>
+            <span class="thumb-caption">Overview</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Camera & Zoom Effects Settings -->
+      <div class="sidebar-tab-content" id="tab-effects">
+        <div class="panel-section">
+          <div class="panel-section-title">Hiệu Ứng Chuyển Cảnh</div>
+          
+          <div class="panel-field">
+            <label class="panel-label">Kiểu chuyển động:</label>
+            <select id="cfg-cam-style" class="panel-select">
+              <option value="direct" selected>Trực tiếp (Direct Smooth) - Khuyên dùng</option>
+              <option value="flythrough">Prezi Fly-through (Zoom out rồi Zoom in)</option>
+              <option value="instant">Tức thì (Instant - Không hiệu ứng)</option>
+            </select>
+            <div class="panel-help-text">Kiểu "Trực tiếp" bay thẳng mượt mà, không giật lùi, hình ảnh sắc nét ngay.</div>
+          </div>
+
+          <div class="panel-field">
+            <div class="panel-field-header">
+              <label class="panel-label">Thời gian chuyển cảnh:</label>
+              <span class="panel-val-badge" id="cfg-cam-duration-val">0.65s</span>
+            </div>
+            <input type="range" id="cfg-cam-duration" min="0.2" max="2.0" step="0.05" value="0.65" class="panel-slider">
+            <div class="slider-ticks">
+              <span>0.2s</span>
+              <span>0.65s</span>
+              <span>2.0s</span>
             </div>
           </div>
-          <span class="thumb-caption">Overview</span>
+
+          <div class="panel-field" id="cfg-cam-depth-group" style="display: none;">
+            <div class="panel-field-header">
+              <label class="panel-label">Độ lùi góc rộng (Fly-through):</label>
+              <span class="panel-val-badge" id="cfg-cam-depth-val">75%</span>
+            </div>
+            <input type="range" id="cfg-cam-depth" min="10" max="90" step="5" value="75" class="panel-slider">
+            <div class="slider-ticks">
+              <span>Lùi rất xa</span>
+              <span>Lùi nhẹ</span>
+            </div>
+          </div>
+
+          <div class="panel-field">
+            <label class="panel-label">Đường cong mượt mà (Easing):</label>
+            <select id="cfg-cam-easing" class="panel-select">
+              <option value="prezi" selected>Prezi Smooth (Cubic-bezier tự nhiên)</option>
+              <option value="ease-in-out">Mượt mà 2 đầu (Ease-in-out)</option>
+              <option value="ease-out">Dịu dần ở đích (Ease-out)</option>
+              <option value="linear">Tốc độ đều (Linear)</option>
+            </select>
+          </div>
+
+          <div class="panel-btn-group">
+            <button type="button" class="panel-action-btn primary" id="btn-test-camera-effect">
+              <span>▶</span> Bay thử hiệu ứng ngay
+            </button>
+            <button type="button" class="panel-action-btn secondary" id="btn-reset-camera-effect">
+              Khôi phục mặc định
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Properties (Opacity, Saturation, Rotation) -->
+      <div class="sidebar-tab-content" id="tab-properties">
+        <div class="panel-section">
+          <div class="panel-section-title">Thuộc Tính Đối Tượng</div>
+          <div class="panel-empty-hint" id="prop-empty-hint">Click chọn một hình ảnh, hộp chữ hoặc khung để tùy chỉnh.</div>
+
+          <div id="prop-controls-box" style="display: none;">
+            <div class="prop-target-badge" id="prop-target-title">Đang chọn: Hình ảnh</div>
+
+            <!-- Opacity -->
+            <div class="panel-field">
+              <div class="panel-field-header">
+                <label class="panel-label">Độ mờ (Opacity):</label>
+                <span class="panel-val-badge" id="prop-opacity-val">100%</span>
+              </div>
+              <input type="range" id="prop-opacity-slider" min="10" max="100" step="5" value="100" class="panel-slider">
+              <div class="prop-presets-row">
+                <button type="button" class="prop-pill" data-set-opacity="1">100%</button>
+                <button type="button" class="prop-pill" data-set-opacity="0.8">80%</button>
+                <button type="button" class="prop-pill" data-set-opacity="0.5">50%</button>
+                <button type="button" class="prop-pill" data-set-opacity="0.25">25%</button>
+              </div>
+            </div>
+
+            <!-- Saturation (Sắc độ) -->
+            <div class="panel-field" id="prop-saturation-group">
+              <div class="panel-field-header">
+                <label class="panel-label">Sắc độ màu (Saturation):</label>
+                <span class="panel-val-badge" id="prop-saturation-val">100%</span>
+              </div>
+              <input type="range" id="prop-saturation-slider" min="0" max="150" step="5" value="100" class="panel-slider">
+              <div class="prop-presets-row">
+                <button type="button" class="prop-pill" data-set-sat="100">100% Gốc</button>
+                <button type="button" class="prop-pill" data-set-sat="50">50% Dịu</button>
+                <button type="button" class="prop-pill" data-set-sat="0">0% Đen trắng</button>
+                <button type="button" class="prop-pill" data-set-sat="sepia">Vintage</button>
+              </div>
+            </div>
+
+            <!-- Rotation -->
+            <div class="panel-field">
+              <div class="panel-field-header">
+                <label class="panel-label">Góc xoay (Rotation):</label>
+                <span class="panel-val-badge" id="prop-rotation-val">0°</span>
+              </div>
+              <input type="range" id="prop-rotation-slider" min="0" max="360" step="1" value="0" class="panel-slider">
+              <div class="prop-presets-row">
+                <button type="button" class="prop-pill" data-set-rot="0">↺ Đặt lại 0°</button>
+                <button type="button" class="prop-pill" data-add-rot="45">+45°</button>
+                <button type="button" class="prop-pill" data-add-rot="90">+90°</button>
+                <button type="button" class="prop-pill" data-add-rot="180">180°</button>
+              </div>
+            </div>
+
+            <!-- Quick lock button -->
+            <div class="panel-btn-group" style="margin-top: 14px;">
+              <button type="button" class="panel-action-btn secondary" id="btn-prop-toggle-lock">
+                🔒 Khóa / Mở khóa vị trí
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
@@ -760,32 +904,8 @@
       </label>
       <div class="fl-divider"></div>
       <button class="fl-btn btn-img-edit" id="btn-img-flip" title="Lật ảnh ngang (Flip Horizontal)">⇄ Lật ảnh</button>
-      <button class="fl-btn btn-img-rotate" id="btn-img-rotate-90" title="Xoay ảnh 90 độ theo chiều kim đồng hồ">↻ Xoay 90°</button>
       <button class="fl-btn btn-img-crop" id="btn-img-radius" title="Bo tròn góc ảnh">⛶ Bo góc</button>
       <button class="fl-btn btn-img-fit" id="btn-img-fit-frame" title="Tự động khớp hình ảnh vừa khít toàn bộ khung Overview / Slide">⛶ Khớp khung</button>
-      <div class="fl-divider"></div>
-      <div class="fl-control-group" title="Độ trong suốt (Opacity) của hình ảnh">
-        <span class="fl-label">Độ mờ:</span>
-        <select id="select-img-opacity" class="fl-select">
-          <option value="1">100%</option>
-          <option value="0.85">85%</option>
-          <option value="0.7">70%</option>
-          <option value="0.5">50%</option>
-          <option value="0.35">35%</option>
-          <option value="0.2">20%</option>
-        </select>
-      </div>
-      <div class="fl-control-group" title="Sắc độ (Saturation) - Giảm sắc độ màu / Đen trắng / Vintage">
-        <span class="fl-label">Sắc độ:</span>
-        <select id="select-img-saturation" class="fl-select">
-          <option value="100">100% (Gốc)</option>
-          <option value="75">75% (Dịu nhẹ)</option>
-          <option value="50">50% (Giảm sắc độ)</option>
-          <option value="25">25% (Nhạt màu)</option>
-          <option value="0">0% (Đen trắng)</option>
-          <option value="sepia">Vintage (Sepia)</option>
-        </select>
-      </div>
       <div class="fl-divider"></div>
       <button class="fl-btn btn-img-layer-front" id="btn-img-layer-front" title="Đưa hình ảnh lên lớp trên cùng">⬆ Lên trên</button>
       <button class="fl-btn btn-img-layer-back" id="btn-img-layer-back" title="Đưa hình ảnh xuống lớp dưới cùng">⬇ Xuống dưới</button>
@@ -800,6 +920,6 @@
 
   </div>
 
-  <script src="script.js?v=20260924_v50"></script>
+  <script src="script.js?v=20260924_v51"></script>
 </body>
 </html>
