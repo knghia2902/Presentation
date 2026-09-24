@@ -2377,6 +2377,20 @@ function initPreziApp() {
       else title.textContent = 'Đang chọn: Đối tượng';
     }
 
+    const fsGroup = document.getElementById('prop-fontsize-group');
+    const fsSlider = document.getElementById('prop-fontsize-slider');
+    const fsBadge = document.getElementById('prop-fontsize-val');
+
+    if (fsGroup) {
+      fsGroup.style.display = isText ? 'flex' : 'none';
+      if (isText) {
+        const textContent = el.querySelector('.textbox-content') || el;
+        const curFs = parseInt(window.getComputedStyle(textContent).fontSize) || 24;
+        if (fsSlider) fsSlider.value = curFs;
+        if (fsBadge) fsBadge.textContent = `${curFs}px`;
+      }
+    }
+
     if (satGroup) {
       satGroup.style.display = isImg ? 'flex' : 'none';
     }
@@ -2426,6 +2440,49 @@ function initPreziApp() {
     const rotSlider = document.getElementById('prop-rotation-slider');
     const rotBadge = document.getElementById('prop-rotation-val');
     const btnLock = document.getElementById('btn-prop-toggle-lock');
+
+    const fsSlider = document.getElementById('prop-fontsize-slider');
+    const fsBadge = document.getElementById('prop-fontsize-val');
+    const btnAutoFit = document.getElementById('btn-prop-autofit-frame');
+
+    function applyFontSizeToText(el, targetPx) {
+      if (!el) return;
+      const textContent = el.querySelector('.textbox-content') || el;
+      textContent.style.fontSize = `${targetPx}px`;
+      textContent.querySelectorAll('h1, h2, h3, h4, h5, p, span, div').forEach(ch => {
+        ch.style.fontSize = `${targetPx}px`;
+      });
+      if (fsSlider) fsSlider.value = targetPx;
+      if (fsBadge) fsBadge.textContent = `${targetPx}px`;
+      const sizeLabel = document.getElementById('fl-font-size');
+      if (sizeLabel) sizeLabel.textContent = `${targetPx}`;
+      saveEditsToStorage();
+    }
+
+    if (fsSlider) {
+      fsSlider.addEventListener('input', () => {
+        const el = getActiveElementForProperties();
+        if (!el || !el.classList.contains('prezi-textbox')) return;
+        applyFontSizeToText(el, parseInt(fsSlider.value, 10));
+      });
+    }
+
+    document.querySelectorAll('#tab-properties [data-set-fsize]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = getActiveElementForProperties();
+        if (!el || !el.classList.contains('prezi-textbox')) return;
+        const sz = parseInt(btn.getAttribute('data-set-fsize'), 10);
+        applyFontSizeToText(el, sz);
+      });
+    });
+
+    if (btnAutoFit) {
+      btnAutoFit.addEventListener('click', () => {
+        const el = getActiveElementForProperties();
+        if (!el || !el.classList.contains('prezi-textbox')) return;
+        autoFitTextBoxToFrame(el);
+      });
+    }
 
     if (opSlider) {
       opSlider.addEventListener('input', () => {
@@ -3630,6 +3687,67 @@ function initPreziApp() {
   // AUTHENTIC PREZI FLOATING TEXT BOX ENGINE (Chuẩn Hình 1)
   // Transparent background, blue bounding frame, 4 corner handles, drag & delete
   // ==========================================================================
+  // Smart auto-fit text size to fit comfortably inside slide frame
+  function autoFitTextBoxToFrame(textBox) {
+    if (!textBox) return;
+    const content = textBox.querySelector('.textbox-content') || textBox;
+
+    // Find parent slide frame or nearest frame
+    let frame = textBox.closest('.canvas-slide-frame');
+    if (!frame) {
+      const tbRect = textBox.getBoundingClientRect();
+      const frames = Array.from(document.querySelectorAll('.canvas-slide-frame'));
+      frame = frames.find(f => {
+        const fr = f.getBoundingClientRect();
+        return !(tbRect.right < fr.left || tbRect.left > fr.right || tbRect.bottom < fr.top || tbRect.top > fr.bottom);
+      });
+    }
+
+    const frameH = frame ? (frame.offsetHeight || 540) : 540;
+    const frameW = frame ? (frame.offsetWidth || 960) : 960;
+
+    // Calculate maximum available height in frame (leave room for image/footer)
+    let maxAvailH = Math.round(frameH * 0.42);
+    if (frame) {
+      const imgInFrame = frame.querySelector('.user-image-wrapper');
+      if (imgInFrame) {
+        maxAvailH = Math.max(100, Math.round(frameH - imgInFrame.offsetHeight - 90));
+      }
+    }
+
+    // Step down font size until it fits comfortably
+    let curFs = parseInt(window.getComputedStyle(content).fontSize) || 24;
+    while (textBox.offsetHeight > maxAvailH && curFs > 11) {
+      curFs -= 1;
+      content.style.fontSize = `${curFs}px`;
+      content.querySelectorAll('h1, h2, h3, h4, h5, p, span, div').forEach(ch => {
+        ch.style.fontSize = `${curFs}px`;
+      });
+    }
+
+    // Also limit width if it exceeds frame
+    const currentW = textBox.offsetWidth;
+    const maxW = frameW - 80;
+    if (currentW > maxW) {
+      textBox.style.width = `${maxW}px`;
+    }
+
+    const sizeLabel = document.getElementById('fl-font-size');
+    if (sizeLabel) sizeLabel.textContent = `${curFs}`;
+    const propSizeVal = document.getElementById('prop-fontsize-val');
+    if (propSizeVal) propSizeVal.textContent = `${curFs}px`;
+    const propSizeSlider = document.getElementById('prop-fontsize-slider');
+    if (propSizeSlider) propSizeSlider.value = curFs;
+
+    saveEditsToStorage();
+    showToast(`⚡ Đã tự động thu nhỏ chữ (${curFs}px) vừa khít khung!`);
+  }
+  window.autoFitTextBoxToFrame = autoFitTextBoxToFrame;
+
+  // ==========================================================================
+  // AUTHENTIC PREZI FLOATING TEXT BOX ENGINE (Chuẩn Hình 1)
+  // Transparent background, blue bounding frame, 4 corner handles, drag & delete
+  // ==========================================================================
   function setupTextBox(textBox) {
     if (!textBox) return;
 
@@ -3653,7 +3771,7 @@ function initPreziApp() {
     let origLeft = 0;
     let origTop = 0;
 
-    // --- HANDLE RESIZING LOGIC (Thu nhỏ / nới rộng khung chữ) ---
+    // --- HANDLE RESIZING LOGIC (Thu nhỏ / nới rộng khung chữ & cỡ chữ) ---
     textBox.querySelectorAll('.box-handle').forEach(handle => {
       if (handle.dataset.handleBound) return;
       handle.dataset.handleBound = 'true';
@@ -3676,16 +3794,28 @@ function initPreziApp() {
         if (typeof positionTextToolbar === 'function' && content) {
           positionTextToolbar(content);
         }
+        if (typeof syncPropertyPanel === 'function') {
+          syncPropertyPanel(textBox);
+        }
 
         pushUndoState();
 
         const handleType = ['tl', 'tr', 'bl', 'br', 'ml', 'mr'].find(c => handle.classList.contains(c)) || 'mr';
+        const isCorner = (handleType === 'tl' || handleType === 'tr' || handleType === 'bl' || handleType === 'br');
         const sX = e.clientX;
         const sY = e.clientY;
         const origW = textBox.offsetWidth;
         const origH = textBox.offsetHeight;
         const origL = parseFloat(textBox.style.left) || textBox.offsetLeft || 0;
         const origT = parseFloat(textBox.style.top) || textBox.offsetTop || 0;
+
+        // Record starting font sizes of all text elements inside
+        const textNodes = Array.from(textBox.querySelectorAll('h1, h2, h3, h4, h5, p, span, div, .textbox-content'));
+        const origFontSizes = textNodes.map(node => {
+          const fs = parseFloat(window.getComputedStyle(node).fontSize) || 24;
+          return { node, fs };
+        });
+        const rootFs = parseFloat(window.getComputedStyle(content || textBox).fontSize) || 24;
 
         const onResizeMouseMove = (ev) => {
           const scale = currentCamera.scale || 1;
@@ -3698,9 +3828,9 @@ function initPreziApp() {
 
           // Horizontal resize
           if (handleType === 'mr' || handleType === 'br' || handleType === 'tr') {
-            newW = Math.max(100, origW + dx);
+            newW = Math.max(80, origW + dx);
           } else if (handleType === 'ml' || handleType === 'bl' || handleType === 'tl') {
-            newW = Math.max(100, origW - dx);
+            newW = Math.max(80, origW - dx);
             newL = origL + (origW - newW);
           }
 
@@ -3712,6 +3842,23 @@ function initPreziApp() {
 
           textBox.style.width = `${Math.round(newW)}px`;
           textBox.style.left = `${Math.round(newL)}px`;
+
+          // If dragging a CORNER handle: dynamically scale the font size proportionally!
+          if (isCorner && origW > 0) {
+            const ratio = Math.max(0.15, newW / origW);
+            origFontSizes.forEach(({ node, fs }) => {
+              const scaledFs = Math.max(8, Math.min(120, Math.round(fs * ratio)));
+              node.style.fontSize = `${scaledFs}px`;
+            });
+            const mainScaledFs = Math.max(8, Math.min(120, Math.round(rootFs * ratio)));
+            if (content) content.style.fontSize = `${mainScaledFs}px`;
+            const sizeLabel = document.getElementById('fl-font-size');
+            if (sizeLabel) sizeLabel.textContent = `${mainScaledFs}`;
+            const propSizeVal = document.getElementById('prop-fontsize-val');
+            if (propSizeVal) propSizeVal.textContent = `${mainScaledFs}px`;
+            const propSizeSlider = document.getElementById('prop-fontsize-slider');
+            if (propSizeSlider) propSizeSlider.value = mainScaledFs;
+          }
 
           if (typeof positionTextToolbar === 'function' && content) {
             positionTextToolbar(content);
@@ -3743,6 +3890,9 @@ function initPreziApp() {
       selectedTextEl = e.target.closest('[contenteditable="true"]') || content;
       if (typeof positionTextToolbar === 'function' && selectedTextEl) {
         positionTextToolbar(selectedTextEl);
+      }
+      if (typeof syncPropertyPanel === 'function') {
+        syncPropertyPanel(textBox);
       }
 
       // If user clicked inside the text content to edit or highlight text:
