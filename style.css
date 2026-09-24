@@ -2717,12 +2717,24 @@ body.in-present-mode .element-lock-badge {
   -webkit-font-smoothing: subpixel-antialiased;
 }
 
-/* Images: use high-quality interpolation when scaled */
+/* Images & Frames: Hardware-accelerated GPU layer promotion & instant crisp sharpness at all scales */
+.canvas-slide-frame,
+.user-image-wrapper,
+.prezi-textbox {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
 .user-placed-image,
 .user-image-wrapper img,
 img {
-  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: high-quality;
   -ms-interpolation-mode: bicubic;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 /* Floating Image Toolbar: Opacity & Saturation controls */
