@@ -218,36 +218,22 @@ function initPreziApp() {
   }
   window.getSafeWorkArea = getSafeWorkArea;
 
-  // Calculate Overview position to fit entire World or existing cards on screen
+  // Calculate Overview position to fit Overview frame directly on screen (or whole canvas as fallback)
   function getOverviewTransform() {
     const safe = getSafeWorkArea();
     if (typeof ensureOverviewFrameBox === 'function') ensureOverviewFrameBox();
     const overviewBox = document.getElementById('overview-frame-box');
+    if (overviewBox) {
+      return getElementFocusTransform(overviewBox, 1.0);
+    }
+
     const cards = Array.from(world.querySelectorAll('.canvas-slide-frame, .canvas-card, .canvas-item, .user-image-wrapper'))
       .filter(el => el.id !== 'overview-frame-box' && !el.classList.contains('prezi-textbox'));
 
-    if (cards.length === 0) {
-      const fw = overviewBox ? overviewBox.offsetWidth : 860;
-      const fh = overviewBox ? overviewBox.offsetHeight : 484;
-      const fLeft = overviewBox ? overviewBox.offsetLeft : 1270;
-      const fTop = overviewBox ? overviewBox.offsetTop : 958;
-      const cx = fLeft + fw / 2;
-      const cy = fTop + fh / 2;
-
-      const scaleX = (safe.safeW * 0.82) / fw;
-      const scaleY = (safe.safeH * 0.82) / fh;
-      const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.35), 1.25);
-      return {
-        x: safe.centerX - cx * fitScale,
-        y: safe.centerY - cy * fitScale,
-        scale: Math.round(fitScale * 100) / 100
-      };
-    }
-
-    let minX = overviewBox ? overviewBox.offsetLeft : Infinity;
-    let minY = overviewBox ? overviewBox.offsetTop : Infinity;
-    let maxX = overviewBox ? (overviewBox.offsetLeft + overviewBox.offsetWidth) : -Infinity;
-    let maxY = overviewBox ? (overviewBox.offsetTop + overviewBox.offsetHeight) : -Infinity;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
 
     cards.forEach(c => {
       const left = c.offsetLeft;
@@ -266,9 +252,9 @@ function initPreziApp() {
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;
 
-    const scaleX = (safe.safeW * 0.82) / w;
-    const scaleY = (safe.safeH * 0.82) / h;
-    const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.20), 1.25);
+    const scaleX = (safe.safeW * 0.90) / w;
+    const scaleY = (safe.safeH * 0.90) / h;
+    const fitScale = Math.min(scaleX, scaleY);
 
     return {
       x: safe.centerX - cx * fitScale,
@@ -287,17 +273,17 @@ function initPreziApp() {
     // Element's unscaled world coordinates relative to (0,0) of #prezi-world
     const elWorldX = (elRect.left - wRect.left) / currentScale;
     const elWorldY = (elRect.top - wRect.top) / currentScale;
-    const elW = el.offsetWidth;
-    const elH = el.offsetHeight;
+    const elW = el.offsetWidth || 100;
+    const elH = el.offsetHeight || 100;
 
     const elCenterX = elWorldX + elW / 2;
     const elCenterY = elWorldY + elH / 2;
 
-    const scaleX = (safe.safeW * 0.88) / elW;
-    const scaleY = (safe.safeH * 0.88) / elH;
+    const scaleX = (safe.safeW * 0.90) / elW;
+    const scaleY = (safe.safeH * 0.90) / elH;
     let targetScale = Math.min(scaleX, scaleY) * scaleMultiplier;
-    // Allow clean zoom bounds so cards comfortably fill the viewport
-    targetScale = Math.min(Math.max(targetScale, 0.4), 2.0);
+    // Infinite Zoom support: allows deep zoom up to 50.0 (5000%) so nested frames fill screen
+    targetScale = Math.min(Math.max(targetScale, 0.05), 50.0);
 
     // Target (X, Y) centers the specific element in the safe visible area
     const targetX = safe.centerX - elCenterX * targetScale;
@@ -532,6 +518,7 @@ function initPreziApp() {
 
       if (card.classList.contains('is-locked') || card.getAttribute('data-locked') === 'true') {
         // Locked: select card but do not drag
+        e.stopPropagation();
         return;
       }
 
@@ -543,6 +530,7 @@ function initPreziApp() {
       const match = curTrans.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
       dStartTransX = match ? parseFloat(match[1]) : 0;
       dStartTransY = match ? parseFloat(match[2]) : 0;
+      e.stopPropagation();
     });
 
     window.addEventListener('mousedown', (e) => {
@@ -556,6 +544,10 @@ function initPreziApp() {
       const scale = currentCamera.scale || 1;
 
       if (activeResizeCard) {
+        if (activeResizeCard.classList.contains('is-locked') || activeResizeCard.getAttribute('data-locked') === 'true') {
+          activeResizeCard = null;
+          return;
+        }
         const dx = (e.clientX - rStartX) / scale;
         const dy = (e.clientY - rStartY) / scale;
 
@@ -590,6 +582,10 @@ function initPreziApp() {
         activeResizeCard.style.height = `${newH}px`;
         activeResizeCard.style.transform = `translate(${newTransX}px, ${newTransY}px)`;
       } else if (activeDragCard) {
+        if (activeDragCard.classList.contains('is-locked') || activeDragCard.getAttribute('data-locked') === 'true') {
+          activeDragCard = null;
+          return;
+        }
         const dx = (e.clientX - dStartX) / scale;
         const dy = (e.clientY - dStartY) / scale;
         activeDragCard.style.transform = `translate(${dStartTransX + dx}px, ${dStartTransY + dy}px)`;
@@ -666,6 +662,9 @@ function initPreziApp() {
     overviewBox.addEventListener('mousedown', (e) => {
       if (e.target.closest('.frame-handle')) return;
       e.stopPropagation();
+      if (overviewBox.classList.contains('is-locked') || overviewBox.getAttribute('data-locked') === 'true') {
+        return;
+      }
       document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
       overviewBox.classList.add('selected');
       isDragging = true;
@@ -678,6 +677,10 @@ function initPreziApp() {
     window.addEventListener('mousemove', (e) => {
       const scale = currentCamera.scale || 1;
       if (isResizing) {
+        if (overviewBox.classList.contains('is-locked') || overviewBox.getAttribute('data-locked') === 'true') {
+          isResizing = false;
+          return;
+        }
         const dx = (e.clientX - sX) / scale;
         const dy = (e.clientY - sY) / scale;
         let newW = iW, newH = iH, newLeft = iLeft, newTop = iTop;
@@ -705,6 +708,10 @@ function initPreziApp() {
         overviewBox.style.left = `${Math.round(newLeft)}px`;
         overviewBox.style.top = `${Math.round(newTop)}px`;
       } else if (isDragging) {
+        if (overviewBox.classList.contains('is-locked') || overviewBox.getAttribute('data-locked') === 'true') {
+          isDragging = false;
+          return;
+        }
         const dx = (e.clientX - sX) / scale;
         const dy = (e.clientY - sY) / scale;
         overviewBox.style.left = `${Math.round(iLeft + dx)}px`;
@@ -864,6 +871,7 @@ function initPreziApp() {
 
       if (frame.classList.contains('is-locked') || frame.getAttribute('data-locked') === 'true') {
         // Locked: select frame but do not drag
+        e.stopPropagation();
         return;
       }
       
@@ -878,6 +886,10 @@ function initPreziApp() {
     window.addEventListener('mousemove', (e) => {
       const scale = currentCamera.scale || 1;
       if (isResizing) {
+        if (frame.classList.contains('is-locked') || frame.getAttribute('data-locked') === 'true') {
+          isResizing = false;
+          return;
+        }
         const dx = (e.clientX - sX) / scale;
         const dy = (e.clientY - sY) / scale;
         let newW = iW, newH = iH, newLeft = iLeft, newTop = iTop;
@@ -905,6 +917,10 @@ function initPreziApp() {
         frame.style.left = `${Math.round(newLeft)}px`;
         frame.style.top = `${Math.round(newTop)}px`;
       } else if (isDragging) {
+        if (frame.classList.contains('is-locked') || frame.getAttribute('data-locked') === 'true') {
+          isDragging = false;
+          return;
+        }
         const dx = (e.clientX - sX) / scale;
         const dy = (e.clientY - sY) / scale;
         frame.style.left = `${Math.round(iLeft + dx)}px`;
@@ -1107,7 +1123,7 @@ function initPreziApp() {
       e.preventDefault();
       const zoomFactor = e.deltaY < 0 ? 1.14 : 0.88;
       const oldScale = currentCamera.scale || 1;
-      const newScale = Math.min(Math.max(oldScale * zoomFactor, 0.15), 3.2);
+      const newScale = Math.min(Math.max(oldScale * zoomFactor, 0.02), 50.0);
 
       const mouseX = e.clientX;
       const mouseY = e.clientY;
@@ -1782,12 +1798,7 @@ function initPreziApp() {
     const btnHome = document.getElementById('btn-home');
     if (btnHome) {
       btnHome.addEventListener('click', () => {
-        if (currentStopIndex === 0) {
-          const ov = getOverviewTransform();
-          applyCamera(ov.x, ov.y, ov.scale, true);
-        } else {
-          goToStop(0);
-        }
+        goToStop(0, true);
       });
     }
 
@@ -1798,7 +1809,7 @@ function initPreziApp() {
         const cx = vpRect.width / 2;
         const cy = vpRect.height / 2;
         const oldScale = currentCamera.scale || 1;
-        const newScale = Math.min(oldScale * 1.25, 3.2);
+        const newScale = Math.min(oldScale * 1.25, 50.0);
         const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
         const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
         applyCamera(newX, newY, newScale, true);
@@ -1812,7 +1823,7 @@ function initPreziApp() {
         const cx = vpRect.width / 2;
         const cy = vpRect.height / 2;
         const oldScale = currentCamera.scale || 1;
-        const newScale = Math.max(oldScale * 0.8, 0.15);
+        const newScale = Math.max(oldScale * 0.8, 0.02);
         const newX = cx - (cx - currentCamera.x) * (newScale / oldScale);
         const newY = cy - (cy - currentCamera.y) * (newScale / oldScale);
         applyCamera(newX, newY, newScale, true);
@@ -2764,6 +2775,7 @@ function initPreziApp() {
       // User clicked border/handle or pressed Alt to move the textbox
       if (textBox.classList.contains('is-locked') || textBox.getAttribute('data-locked') === 'true') {
         // Textbox is locked: cannot be moved
+        e.stopPropagation();
         return;
       }
 
@@ -2776,6 +2788,10 @@ function initPreziApp() {
 
       const onMouseMove = (ev) => {
         if (!isDragging) return;
+        if (textBox.classList.contains('is-locked') || textBox.getAttribute('data-locked') === 'true') {
+          isDragging = false;
+          return;
+        }
         const scale = currentCamera.scale || 1;
         const dx = (ev.clientX - startX) / scale;
         const dy = (ev.clientY - startY) / scale;
@@ -3937,6 +3953,10 @@ function initPreziApp() {
     window.addEventListener('mousemove', (e) => {
       const scale = currentCamera.scale || 1;
       if (isDraggingImg) {
+        if (wrapper.classList.contains('is-locked') || wrapper.getAttribute('data-locked') === 'true') {
+          isDraggingImg = false;
+          return;
+        }
         const dx = (e.clientX - dragStartX) / scale;
         const dy = (e.clientY - dragStartY) / scale;
         if (isPositionAbsolute && !wrapper.style.transform) {
@@ -3992,6 +4012,10 @@ function initPreziApp() {
           positionImageToolbar(wrapper);
         }
       } else if (isResizingImg) {
+        if (wrapper.classList.contains('is-locked') || wrapper.getAttribute('data-locked') === 'true') {
+          isResizingImg = false;
+          return;
+        }
         const dx = (e.clientX - resizeStartX) / scale;
         const dy = (e.clientY - resizeStartY) / scale;
 

@@ -2426,33 +2426,49 @@ body.in-present-mode .prezi-floating-image-toolbar {
 /* ==========================================================================
    ELEMENT LOCKING ENGINE (Khóa thành phần không cho di chuyển / co giãn)
    ========================================================================== */
-.is-locked {
+img,
+.user-image-wrapper img {
+  user-drag: none !important;
+  -webkit-user-drag: none !important;
+}
+
+.is-locked,
+[data-locked="true"],
+.is-locked *,
+[data-locked="true"] * {
   cursor: default !important;
+  user-drag: none !important;
+  -webkit-user-drag: none !important;
 }
 
 .is-locked .box-handle,
 .is-locked .img-resize-handle,
 .is-locked .frame-handle,
 .is-locked .card-resize-handle,
-.is-locked .btn-del-img {
+.is-locked .btn-del-img,
+[data-locked="true"] .box-handle,
+[data-locked="true"] .img-resize-handle,
+[data-locked="true"] .frame-handle,
+[data-locked="true"] .card-resize-handle,
+[data-locked="true"] .btn-del-img {
   display: none !important;
   pointer-events: none !important;
 }
 
-.user-image-wrapper.is-locked {
-  cursor: default !important;
-}
-
-.user-image-wrapper.is-locked.selected {
+.user-image-wrapper.is-locked.selected,
+.user-image-wrapper[data-locked="true"].selected {
   outline: 2px solid #64748b !important;
 }
 
-.prezi-textbox.is-locked.selected {
+.prezi-textbox.is-locked.selected,
+.prezi-textbox[data-locked="true"].selected {
   border-color: #64748b !important;
 }
 
 .canvas-card.is-locked.card-selected,
-.canvas-slide-frame.is-locked.selected {
+.canvas-slide-frame.is-locked.selected,
+.canvas-card[data-locked="true"].card-selected,
+.canvas-slide-frame[data-locked="true"].selected {
   border-color: #64748b !important;
 }
 
