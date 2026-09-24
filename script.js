@@ -187,19 +187,29 @@ function initPreziApp() {
   // Computes the unobstructed Safe Work Area between sidebars and controls
   function getSafeWorkArea() {
     const vpRect = viewport ? viewport.getBoundingClientRect() : { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
-    const leftSidebar = document.getElementById('prezi-sidebar');
     const isPresent = document.body.classList.contains('in-present-mode');
+
+    // When presenting: Use 100% of screen with ZERO insets for true edge-to-edge full screen
+    if (isPresent) {
+      const fullW = vpRect.width || window.innerWidth;
+      const fullH = vpRect.height || window.innerHeight;
+      return {
+        safeW: fullW,
+        safeH: fullH,
+        centerX: fullW / 2,
+        centerY: fullH / 2,
+        vpRect
+      };
+    }
+
+    const leftSidebar = document.getElementById('prezi-sidebar');
     const isLeftCollapsed = leftSidebar ? leftSidebar.classList.contains('collapsed') : false;
 
-    // Left inset: In presentation mode = 24px margin. In edit mode:
-    // If expanded: 210px sidebar + 12px margin + 18px breathing room = 240px.
-    // If collapsed: small chevron tab = 48px.
-    const leftInset = isPresent ? 24 : (isLeftCollapsed ? 48 : 240);
-
-    // Right inset: Right sidebar is 320px flex child when open, so vpRect.width already reflects it.
+    // In edit mode: comfortable insets around sidebars & controls
+    const leftInset = isLeftCollapsed ? 48 : 240;
     const rightInset = 24;
     const topInset = 20;
-    const bottomInset = isPresent ? 24 : 70;
+    const bottomInset = 70;
 
     const safeW = Math.max(300, vpRect.width - leftInset - rightInset);
     const safeH = Math.max(200, vpRect.height - topInset - bottomInset);
@@ -266,24 +276,36 @@ function initPreziApp() {
   // Focus camera into a specific HTML element using exact coordinates relative to #prezi-world
   function getElementFocusTransform(el, scaleMultiplier = 1.0) {
     const safe = getSafeWorkArea();
+    const isPresent = document.body.classList.contains('in-present-mode');
     const wRect = world.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     const currentScale = currentCamera.scale || 1;
 
-    // Element's unscaled world coordinates relative to (0,0) of #prezi-world
-    const elWorldX = (elRect.left - wRect.left) / currentScale;
-    const elWorldY = (elRect.top - wRect.top) / currentScale;
+    // Calculate unscaled world coordinate cleanly
+    let elWorldX, elWorldY;
+    if (el.offsetParent === world) {
+      elWorldX = el.offsetLeft;
+      elWorldY = el.offsetTop;
+    } else {
+      elWorldX = (elRect.left - wRect.left) / currentScale;
+      elWorldY = (elRect.top - wRect.top) / currentScale;
+    }
+
     const elW = el.offsetWidth || 100;
     const elH = el.offsetHeight || 100;
 
     const elCenterX = elWorldX + elW / 2;
     const elCenterY = elWorldY + elH / 2;
 
-    const scaleX = (safe.safeW * 0.90) / elW;
-    const scaleY = (safe.safeH * 0.90) / elH;
+    // In presentation mode: 100% full screen fit factor (1.0). In edit mode: 0.92 for comfortable border viewing.
+    const fitFactor = isPresent ? 1.0 : 0.92;
+
+    const scaleX = (safe.safeW * fitFactor) / elW;
+    const scaleY = (safe.safeH * fitFactor) / elH;
     let targetScale = Math.min(scaleX, scaleY) * scaleMultiplier;
-    // Infinite Zoom support: allows deep zoom up to 50.0 (5000%) so nested frames fill screen
-    targetScale = Math.min(Math.max(targetScale, 0.05), 50.0);
+
+    // Infinite Zoom support: allows deep zoom from 0.01 (1%) up to 100.0 (10,000%) so nested frames fill screen
+    targetScale = Math.min(Math.max(targetScale, 0.01), 100.0);
 
     // Target (X, Y) centers the specific element in the safe visible area
     const targetX = safe.centerX - elCenterX * targetScale;
@@ -937,9 +959,31 @@ function initPreziApp() {
     });
 
     frame.addEventListener('click', (e) => {
+      if (document.body.classList.contains('in-present-mode')) {
+        e.stopPropagation();
+        const stopIdx = STOPS.findIndex(s => s.targetId === frame.id);
+        if (stopIdx >= 0) {
+          goToStop(stopIdx, true);
+        } else {
+          const focus = getElementFocusTransform(frame, 1.0);
+          applyCamera(focus.x, focus.y, focus.scale, true);
+        }
+        return;
+      }
       if (e.target.closest('.prezi-textbox') || e.target.closest('.user-image-wrapper')) return;
       document.querySelectorAll('.canvas-slide-frame.selected, .canvas-card.card-selected, .prezi-textbox.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
       frame.classList.add('selected');
+    });
+
+    frame.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      const stopIdx = STOPS.findIndex(s => s.targetId === frame.id);
+      if (stopIdx >= 0) {
+        goToStop(stopIdx, true);
+      } else {
+        const focus = getElementFocusTransform(frame, 1.0);
+        applyCamera(focus.x, focus.y, focus.scale, true);
+      }
     });
 
     document.addEventListener('click', (e) => {
@@ -1072,11 +1116,13 @@ function initPreziApp() {
       // 1. Middle mouse button (e.button === 1)
       // 2. Spacebar held down with Left click (e.button === 0)
       // 3. User actively switched to Pan tool in bottom pill (window.preziToolMode === 'pan' && e.button === 0)
+      // 4. In presentation mode: left-click dragging anywhere on canvas pans the slide
       const isMiddleClick = (e.button === 1);
       const isSpaceDrag = (isSpacePressed && e.button === 0);
       const isPanTool = (window.preziToolMode === 'pan' && e.button === 0);
+      const isPresentDrag = document.body.classList.contains('in-present-mode') && (e.button === 0) && !e.target.closest('.present-circle-btn') && !e.target.closest('button');
 
-      if (!isMiddleClick && !isSpaceDrag && !isPanTool) return;
+      if (!isMiddleClick && !isSpaceDrag && !isPanTool && !isPresentDrag) return;
 
       // Do NOT pan canvas when clicking inside editable text or controls
       if (
@@ -1118,12 +1164,12 @@ function initPreziApp() {
       }
     });
 
-    // Smooth Cursor-Centered Wheel Zoom (like Google Maps & Prezi)
+    // Smooth Cursor-Centered Wheel Zoom (like Google Maps & Prezi) - Infinite Zoom support
     viewport.addEventListener('wheel', (e) => {
       e.preventDefault();
       const zoomFactor = e.deltaY < 0 ? 1.14 : 0.88;
       const oldScale = currentCamera.scale || 1;
-      const newScale = Math.min(Math.max(oldScale * zoomFactor, 0.02), 50.0);
+      const newScale = Math.min(Math.max(oldScale * zoomFactor, 0.01), 100.0);
 
       const mouseX = e.clientX;
       const mouseY = e.clientY;
@@ -1852,11 +1898,17 @@ function initPreziApp() {
     const btnPresentMode = document.getElementById('btn-present-mode');
     if (btnPresentMode) {
       btnPresentMode.addEventListener('click', () => {
-        document.body.classList.toggle('in-present-mode');
-        if (document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen().catch(() => {});
+        const isPresent = document.body.classList.toggle('in-present-mode');
+        if (isPresent) {
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+        } else {
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+          }
         }
-        setTimeout(() => goToStop(currentStopIndex, true), 300);
+        setTimeout(() => goToStop(currentStopIndex, true), 250);
       });
     }
 
@@ -1870,6 +1922,14 @@ function initPreziApp() {
         }
       });
     }
+
+    // Tự động đồng bộ trạng thái khi người dùng thoát Fullscreen bằng phím ESC mặc định của trình duyệt
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && document.body.classList.contains('in-present-mode')) {
+        document.body.classList.remove('in-present-mode');
+        setTimeout(() => goToStop(currentStopIndex, true), 250);
+      }
+    });
 
     // Event listeners cho các nút tròn bên phải lúc trình chiếu (Hình 2)
     const btnPresentHome = document.getElementById('btn-present-home');
@@ -1895,7 +1955,7 @@ function initPreziApp() {
         if (document.fullscreenElement) {
           document.exitFullscreen().catch(() => {});
         }
-        setTimeout(() => goToStop(currentStopIndex, true), 300);
+        setTimeout(() => goToStop(currentStopIndex, true), 250);
       });
     }
 
@@ -2002,13 +2062,32 @@ function initPreziApp() {
       }
 
       // 7. Navigation shortcuts when NOT editing text and NO element is selected for nudging
+      // Presentation Mode toggle (Ctrl+Enter or F5)
+      if (((e.ctrlKey || e.metaKey) && e.key === 'Enter') || e.key === 'F5') {
+        e.preventDefault();
+        const btnPresentMode = document.getElementById('btn-present-mode');
+        if (btnPresentMode) btnPresentMode.click();
+        return;
+      }
+
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault();
         if (currentStopIndex < STOPS.length - 1) goToStop(currentStopIndex + 1);
       } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault();
         if (currentStopIndex > 0) goToStop(currentStopIndex - 1);
-      } else if (e.key === 'Escape' || e.key.toLowerCase() === 'h' || e.key.toLowerCase() === 'o') {
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        if (document.body.classList.contains('in-present-mode')) {
+          document.body.classList.remove('in-present-mode');
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+          }
+          setTimeout(() => goToStop(currentStopIndex, true), 250);
+        } else {
+          goToStop(0);
+        }
+      } else if (e.key.toLowerCase() === 'h' || e.key.toLowerCase() === 'o') {
         e.preventDefault();
         goToStop(0);
       }

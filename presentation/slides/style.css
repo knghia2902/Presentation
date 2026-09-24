@@ -732,12 +732,15 @@ input, textarea {
 .canvas-slide-frame .frame-handle.bottom-left { bottom: -5px; left: -5px; cursor: nesw-resize; }
 .canvas-slide-frame .frame-handle.bottom-right { bottom: -5px; right: -5px; cursor: nwse-resize; }
 
-body.in-present-mode .canvas-slide-frame {
+body.in-present-mode .canvas-slide-frame,
+body.in-present-mode .canvas-empty-frame-box {
   border: none !important;
   box-shadow: none !important;
+  border-radius: 0 !important;
 }
 
-body.in-present-mode .canvas-slide-frame .frame-handle {
+body.in-present-mode .canvas-slide-frame .frame-handle,
+body.in-present-mode .canvas-empty-frame-box .frame-handle {
   display: none !important;
 }
 
@@ -1995,12 +1998,16 @@ body.in-present-mode .prezi-bottom-bar {
   display: none !important;
 }
 
-body.in-present-mode .prezi-main-container {
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 100vh;
+body.in-present-mode .prezi-main-container,
+body.in-present-mode .prezi-viewport {
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Khi trình chiếu: Bỏ hoàn toàn lưới chấm, nền trắng tinh khôi chuẩn Hình 2 */
@@ -2019,6 +2026,12 @@ body.in-present-mode .prezi-viewport {
   flex-direction: column;
   gap: 12px;
   z-index: 1000;
+  opacity: 0.35;
+  transition: opacity 0.25s ease;
+}
+
+.prezi-present-right-controls:hover {
+  opacity: 1;
 }
 
 body.in-present-mode .prezi-present-right-controls {
