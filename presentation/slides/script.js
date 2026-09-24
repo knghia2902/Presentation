@@ -1597,27 +1597,30 @@ function initPreziApp() {
             const btnPresent = document.getElementById('btn-present');
             if (btnPresent) btnPresent.click();
           } else if (action === 'copy') {
-            const selEl = target || document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
-            if (selEl) {
-              const text = selEl.textContent.trim();
-              if (navigator.clipboard && text) {
-                navigator.clipboard.writeText(text);
+            if (typeof copySelectedCanvasElement === 'function') {
+              copySelectedCanvasElement();
+            } else {
+              const selEl = target || document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
+              if (selEl) {
+                const text = selEl.textContent.trim();
+                if (navigator.clipboard && text) {
+                  navigator.clipboard.writeText(text);
+                }
+                showToast('Đã sao chép vào bộ nhớ đệm!');
               }
-              showToast('Đã sao chép vào bộ nhớ đệm!');
             }
           } else if (action === 'cut') {
             const selEl = target || document.querySelector('.prezi-textbox.selected, .canvas-card.card-selected, .canvas-slide-frame.selected, .user-image-wrapper.selected');
             if (selEl) {
-              const text = selEl.textContent.trim();
-              if (navigator.clipboard && text) {
-                navigator.clipboard.writeText(text);
-              }
+              pushUndoState();
+              if (typeof copySelectedCanvasElement === 'function') copySelectedCanvasElement();
               selEl.remove();
               syncStopsFromDOM();
               saveEditsToStorage();
               showToast('Đã cắt mục đã chọn!');
             }
           } else if (action === 'delete') {
+            pushUndoState();
             const allSelected = Array.from(document.querySelectorAll('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .canvas-item.card-selected, .user-image-wrapper.selected')).filter(el => el.id !== 'overview-frame-box');
             if (allSelected.length > 0) {
               const c = allSelected.length;
@@ -1634,11 +1637,13 @@ function initPreziApp() {
           } else if (action === 'bring-front') {
             const active = target || document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected') || (selectedImgEl ? selectedImgEl.closest('.user-image-wrapper') : null);
             if (active) {
+              pushUndoState();
               bringElementToFront(active);
             }
           } else if (action === 'send-back') {
             const active = target || document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected') || (selectedImgEl ? selectedImgEl.closest('.user-image-wrapper') : null);
             if (active) {
+              pushUndoState();
               sendElementToBack(active);
             }
           } else if (action === 'move-last-slide') {
@@ -1853,19 +1858,68 @@ function initPreziApp() {
 
     // Keyboard Shortcuts (with strict guard so typing in text boxes is never hijacked)
     window.addEventListener('keydown', (e) => {
-      // 1. If typing inside an editable element or input:
       const activeEl = document.activeElement;
       const isEditingText = (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) ||
                             (e.target && e.target.closest && (e.target.closest('[contenteditable="true"]') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA'));
 
-      // Special shortcut: Ctrl + A (Select All)
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
-        // If actively focused and typing inside a text element, let native select all text work!
-        if (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
+      // 1. Undo / Redo Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+          return;
+        } else if (!isEditingText) {
+          e.preventDefault();
+          undo();
           return;
         }
+      }
 
-        // On Canvas: Select all cards & images!
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        if (!isEditingText) {
+          e.preventDefault();
+          redo();
+          return;
+        }
+      }
+
+      // 2. Copy Shortcut (Ctrl+C)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        if (isEditingText) {
+          const sel = window.getSelection();
+          if (sel && sel.toString().length > 0) return; // let native text copy work
+        }
+        if (typeof copySelectedCanvasElement === 'function') {
+          const copied = copySelectedCanvasElement();
+          if (copied) {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+
+      // 3. Paste Shortcut for Canvas Elements (Ctrl+V)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        if (isEditingText) return; // let native text paste work inside input/contenteditable
+        if (copiedCanvasData && typeof pasteCopiedCanvasElement === 'function') {
+          e.preventDefault();
+          pasteCopiedCanvasElement();
+          return;
+        }
+      }
+
+      // 4. Duplicate Shortcut (Ctrl+D)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        if (typeof duplicateSelectedElement === 'function') {
+          duplicateSelectedElement();
+        }
+        return;
+      }
+
+      // 5. Select All (Ctrl+A)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        if (isEditingText) return;
         e.preventDefault();
         const allCards = document.querySelectorAll('.canvas-card, .canvas-item, .user-image-wrapper');
         allCards.forEach(c => c.classList.add('card-selected'));
@@ -1875,12 +1929,22 @@ function initPreziApp() {
         return;
       }
 
+      // If user is editing text inside contenteditable or input, do not hijack other keys
       if (isEditingText) {
-        // Do not intercept Spacebar, Arrow keys, etc. when typing!
         return;
       }
 
-      // 2. Navigation shortcuts when NOT editing text
+      // 6. Arrow Keys: Nudge selected element OR navigate slides
+      const selectedCanvasEl = document.querySelector('.prezi-textbox.selected, .user-image-wrapper.selected, .canvas-card.card-selected, .canvas-slide-frame.selected');
+      if (selectedCanvasEl && selectedCanvasEl.id !== 'overview-frame-box' && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        if (typeof nudgeSelectedElement === 'function') {
+          nudgeSelectedElement(e.key, e.shiftKey ? 10 : 2);
+        }
+        return;
+      }
+
+      // 7. Navigation shortcuts when NOT editing text and NO element is selected for nudging
       if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault();
         if (currentStopIndex < STOPS.length - 1) goToStop(currentStopIndex + 1);
@@ -2100,7 +2164,7 @@ function initPreziApp() {
     const btnShortcuts = document.getElementById('btn-aux-shortcuts');
     const btnHelp = document.getElementById('btn-aux-help');
     const showHelpModal = () => {
-      alert("Phím tắt bài thuyết trình Prezi:\n\n• Mũi tên Phải (→) / Spacebar: Sang trạm tiếp theo\n• Mũi tên Trái (←): Về trạm trước\n• Phím H / Escape: Toàn cảnh (Overview)\n• Ctrl + A: Chọn tất cả các thẻ trên bản vẽ\n• Delete: Xóa thẻ / phần tử đang chọn\n• Cuộn chuột: Phóng to / Thu nhỏ mượt mà theo vị trí con trỏ\n• Giữ chuột trái & kéo: Di chuyển bản vẽ không gian");
+      alert("Phím tắt bài thuyết trình Prezi:\n\n• Ctrl + Z: Hoàn tác (Undo)\n• Ctrl + Y / Ctrl + Shift + Z: Làm lại (Redo)\n• Ctrl + C: Sao chép phần tử\n• Ctrl + V: Dán phần tử\n• Ctrl + D: Nhân bản nhanh\n• Phím mũi tên (↑ ↓ ← →): Vi chỉnh vị trí 2px (giữ Shift: 10px)\n• Delete / Backspace: Xóa phần tử đang chọn\n• Ctrl + A: Chọn tất cả các thẻ trên bản vẽ\n• Mũi tên Phải (→) / Spacebar: Sang trạm tiếp theo\n• Mũi tên Trái (←): Về trạm trước\n• Phím H / Escape: Toàn cảnh (Overview)\n• Cuộn chuột: Phóng to / Thu nhỏ mượt mà theo vị trí con trỏ\n• Giữ chuột trái & kéo: Di chuyển bản vẽ không gian");
     };
     if (btnShortcuts) btnShortcuts.addEventListener('click', showHelpModal);
     if (btnHelp) btnHelp.addEventListener('click', showHelpModal);
@@ -2168,6 +2232,283 @@ function initPreziApp() {
     setTimeout(() => {
       toast.classList.remove('show');
     }, 3200);
+  }
+
+  // ==========================================================================
+  // UNDO / REDO HISTORY ENGINE & CANVAS ELEMENT CLIPBOARD (CTRL+Z, CTRL+Y, CTRL+C, CTRL+V, CTRL+D)
+  // ==========================================================================
+  const undoStack = [];
+  const redoStack = [];
+  const MAX_HISTORY = 40;
+  let isApplyingHistory = false;
+  let copiedCanvasData = null;
+
+  function pushUndoState() {
+    if (isApplyingHistory) return;
+    try {
+      const snapshot = {
+        worldHTML: world.innerHTML,
+        cardsLayout: localStorage.getItem('prezi_cards_layout_v2') || null,
+        stopIndex: currentStopIndex,
+        timestamp: Date.now()
+      };
+      undoStack.push(snapshot);
+      if (undoStack.length > MAX_HISTORY) {
+        undoStack.shift();
+      }
+      redoStack.length = 0;
+      updateUndoRedoUI();
+    } catch(err) {
+      console.warn('pushUndoState error', err);
+    }
+  }
+  window.pushUndoState = pushUndoState;
+
+  function applyHistorySnapshot(snapshot) {
+    if (!snapshot) return;
+    isApplyingHistory = true;
+
+    try {
+      let cleanHTML = snapshot.worldHTML
+        .replace(/\s*data-events-bound="[^"]*"/g, '')
+        .replace(/\bselected\b/g, '')
+        .replace(/\bcard-selected\b/g, '')
+        .replace(/\bprezi-selected-img\b/g, '')
+        .replace(/\bcurrent-active\b/g, '');
+
+      world.innerHTML = cleanHTML;
+
+      if (snapshot.cardsLayout) {
+        try {
+          localStorage.setItem('prezi_cards_layout_v2', snapshot.cardsLayout);
+        } catch(e) {}
+      }
+
+      world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
+      world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
+      ensureOverviewFrameBox();
+      setupCardInteractions();
+      upgradeAllImagesToInteractive();
+
+      // Re-enable ContentEditable for all text elements
+      const editableSelectors = [
+        '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
+        '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
+        '.cycle-box p', '.cycle-box h5', '.cycle-box', '.cy-badge', '.lenin-quote-strip p', '.spiral-quote',
+        '.img-caption-tag', '.card-micro-quote', '.card-step-badge', '.card-header-badge', '.axis-svg-label',
+        '.principles-dual-list strong', '.cmp-box strong', '.s-cap strong',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'p'
+      ];
+      document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
+        if (!el.closest('.prezi-topbar') && !el.closest('.prezi-sidebar') && !el.closest('.prezi-bottom-bar') && !el.closest('.card-action-bar')) {
+          el.setAttribute('contenteditable', 'true');
+          el.setAttribute('spellcheck', 'false');
+        }
+      });
+
+      syncStopsFromDOM();
+      saveEditsToStorage();
+      updateUndoRedoUI();
+      if (typeof snapshot.stopIndex === 'number' && snapshot.stopIndex !== currentStopIndex) {
+        goToStop(snapshot.stopIndex, true);
+      }
+    } catch(err) {
+      console.warn('applyHistorySnapshot error', err);
+    } finally {
+      isApplyingHistory = false;
+    }
+  }
+
+  function undo() {
+    if (undoStack.length === 0) {
+      showToast('Không còn thao tác nào để hoàn tác (Undo)!');
+      return;
+    }
+    const currentSnapshot = {
+      worldHTML: world.innerHTML,
+      cardsLayout: localStorage.getItem('prezi_cards_layout_v2') || null,
+      stopIndex: currentStopIndex,
+      timestamp: Date.now()
+    };
+    redoStack.push(currentSnapshot);
+    if (redoStack.length > MAX_HISTORY) redoStack.shift();
+
+    const prevSnapshot = undoStack.pop();
+    applyHistorySnapshot(prevSnapshot);
+    showToast('↩ Đã hoàn tác thao tác vừa rồi (Ctrl+Z)');
+  }
+  window.undo = undo;
+
+  function redo() {
+    if (redoStack.length === 0) {
+      showToast('Không còn thao tác nào để làm lại (Redo)!');
+      return;
+    }
+    const currentSnapshot = {
+      worldHTML: world.innerHTML,
+      cardsLayout: localStorage.getItem('prezi_cards_layout_v2') || null,
+      stopIndex: currentStopIndex,
+      timestamp: Date.now()
+    };
+    undoStack.push(currentSnapshot);
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+
+    const nextSnapshot = redoStack.pop();
+    applyHistorySnapshot(nextSnapshot);
+    showToast('↪ Đã làm lại thao tác (Ctrl+Y)');
+  }
+  window.redo = redo;
+
+  function updateUndoRedoUI() {
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+    if (btnUndo) {
+      btnUndo.style.opacity = undoStack.length > 0 ? '1' : '0.4';
+      btnUndo.style.cursor = undoStack.length > 0 ? 'pointer' : 'default';
+    }
+    if (btnRedo) {
+      btnRedo.style.opacity = redoStack.length > 0 ? '1' : '0.4';
+      btnRedo.style.cursor = redoStack.length > 0 ? 'pointer' : 'default';
+    }
+  }
+
+  function copySelectedCanvasElement() {
+    const selectedEl = document.querySelector('.prezi-textbox.selected, .user-image-wrapper.selected, .canvas-card.card-selected, .canvas-item.card-selected, .canvas-slide-frame.selected');
+    if (!selectedEl || selectedEl.id === 'overview-frame-box') return false;
+
+    if (selectedEl.classList.contains('prezi-textbox')) {
+      const content = selectedEl.querySelector('.textbox-content');
+      copiedCanvasData = {
+        type: 'textbox',
+        html: selectedEl.outerHTML,
+        text: content ? content.innerText : '',
+        width: selectedEl.offsetWidth,
+        height: selectedEl.offsetHeight
+      };
+      if (navigator.clipboard && copiedCanvasData.text) {
+        navigator.clipboard.writeText(copiedCanvasData.text).catch(() => {});
+      }
+    } else if (selectedEl.classList.contains('user-image-wrapper')) {
+      const img = selectedEl.querySelector('img');
+      copiedCanvasData = {
+        type: 'image',
+        html: selectedEl.outerHTML,
+        src: img ? img.src : '',
+        width: selectedEl.offsetWidth,
+        height: selectedEl.offsetHeight
+      };
+    } else if (selectedEl.classList.contains('canvas-card') || selectedEl.classList.contains('canvas-item')) {
+      copiedCanvasData = {
+        type: 'card',
+        html: selectedEl.outerHTML,
+        width: selectedEl.offsetWidth,
+        height: selectedEl.offsetHeight
+      };
+    } else if (selectedEl.classList.contains('canvas-slide-frame')) {
+      copiedCanvasData = {
+        type: 'frame',
+        html: selectedEl.outerHTML,
+        width: selectedEl.offsetWidth,
+        height: selectedEl.offsetHeight
+      };
+    }
+
+    showToast('📋 Đã sao chép (Ctrl+C). Bấm Ctrl+V để dán!');
+    return true;
+  }
+
+  function pasteCopiedCanvasElement() {
+    if (!copiedCanvasData) return false;
+    pushUndoState();
+
+    const temp = document.createElement('div');
+    temp.innerHTML = copiedCanvasData.html.trim();
+    const clone = temp.firstElementChild;
+    if (!clone) return false;
+
+    const newId = `${copiedCanvasData.type}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    clone.id = newId;
+
+    const curLeft = parseFloat(clone.style.left) || 200;
+    const curTop = parseFloat(clone.style.top) || 200;
+    clone.style.left = `${Math.round(curLeft + 30)}px`;
+    clone.style.top = `${Math.round(curTop + 30)}px`;
+
+    document.querySelectorAll('.selected, .card-selected, .prezi-selected-img').forEach(el => el.classList.remove('selected', 'card-selected', 'prezi-selected-img'));
+
+    const activeFrame = document.querySelector('.canvas-slide-frame.selected') || 
+                        (currentStopIndex > 0 && STOPS[currentStopIndex]?.targetId ? document.getElementById(STOPS[currentStopIndex].targetId) : null);
+
+    if (activeFrame && activeFrame.id !== 'overview-frame-box' && copiedCanvasData.type !== 'frame') {
+      activeFrame.appendChild(clone);
+    } else {
+      world.appendChild(clone);
+    }
+
+    if (copiedCanvasData.type === 'textbox') {
+      clone.classList.add('selected');
+      setupTextBox(clone);
+      const content = clone.querySelector('.textbox-content');
+      if (content) {
+        selectedTextEl = content;
+        positionTextToolbar(content);
+      }
+    } else if (copiedCanvasData.type === 'image') {
+      clone.classList.add('selected');
+      const img = clone.querySelector('img');
+      const resizeHandle = clone.querySelector('.img-resize-handle');
+      const btnDel = clone.querySelector('.btn-del-img');
+      clone.dataset.eventsBound = 'true';
+      attachImageWrapperEvents(clone, img, resizeHandle, btnDel);
+      if (img) {
+        selectedImgEl = img;
+      }
+      positionImageToolbar(clone);
+    } else if (copiedCanvasData.type === 'frame') {
+      clone.classList.add('selected');
+      setupSlideFrameInteractions(clone);
+      syncStopsFromDOM();
+    } else {
+      clone.classList.add('card-selected');
+      setupCardInteractions();
+    }
+
+    saveEditsToStorage();
+    showToast('📋 Đã dán mục mới (Ctrl+V)!');
+    return true;
+  }
+
+  function duplicateSelectedElement() {
+    if (copySelectedCanvasElement()) {
+      pasteCopiedCanvasElement();
+    }
+  }
+
+  function nudgeSelectedElement(key, step = 2) {
+    const selectedEl = document.querySelector('.prezi-textbox.selected, .user-image-wrapper.selected, .canvas-card.card-selected, .canvas-slide-frame.selected');
+    if (!selectedEl || selectedEl.id === 'overview-frame-box') return false;
+
+    pushUndoState();
+    let left = parseFloat(selectedEl.style.left) || selectedEl.offsetLeft || 0;
+    let top = parseFloat(selectedEl.style.top) || selectedEl.offsetTop || 0;
+
+    if (key === 'ArrowUp') top -= step;
+    else if (key === 'ArrowDown') top += step;
+    else if (key === 'ArrowLeft') left -= step;
+    else if (key === 'ArrowRight') left += step;
+
+    selectedEl.style.left = `${Math.round(left)}px`;
+    selectedEl.style.top = `${Math.round(top)}px`;
+
+    if (selectedEl.classList.contains('prezi-textbox')) {
+      const content = selectedEl.querySelector('.textbox-content');
+      if (content) positionTextToolbar(content);
+    } else if (selectedEl.classList.contains('user-image-wrapper')) {
+      positionImageToolbar(selectedEl);
+    }
+
+    saveEditsToStorage();
+    return true;
   }
 
   // ==========================================================================
@@ -2706,11 +3047,52 @@ function initPreziApp() {
       });
     }
 
+    const btnImgFit = document.getElementById('btn-img-fit-frame');
+    if (btnImgFit) {
+      btnImgFit.addEventListener('click', () => {
+        if (!selectedImgEl) return;
+        const wrapper = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl.parentElement;
+        if (!wrapper) return;
+
+        pushUndoState();
+
+        // Determine target frame: current parent frame, or overview frame, or active slide frame
+        let targetFrame = wrapper.closest('.canvas-slide-frame');
+        if (!targetFrame) {
+          if (currentStopIndex === 0) {
+            targetFrame = document.getElementById('overview-frame-box');
+          } else if (STOPS[currentStopIndex]?.targetId) {
+            targetFrame = document.getElementById(STOPS[currentStopIndex].targetId);
+          }
+        }
+        if (!targetFrame) {
+          targetFrame = document.getElementById('overview-frame-box');
+        }
+
+        if (targetFrame) {
+          if (wrapper.parentElement !== targetFrame) {
+            targetFrame.appendChild(wrapper);
+          }
+          wrapper.style.position = 'absolute';
+          wrapper.style.left = '0px';
+          wrapper.style.top = '0px';
+          wrapper.style.width = '100%';
+          wrapper.style.height = '100%';
+          wrapper.style.transform = '';
+          sendElementToBack(wrapper);
+          positionImageToolbar(wrapper);
+          saveEditsToStorage();
+          showToast('⛶ Đã tự động khớp hình ảnh vừa khít toàn bộ khung!');
+        }
+      });
+    }
+
     const btnImgLayerBack = document.getElementById('btn-img-layer-back');
     if (btnImgLayerBack) {
       btnImgLayerBack.addEventListener('click', () => {
         const target = selectedImgEl ? (selectedImgEl.closest('.user-image-wrapper') || selectedImgEl) : document.querySelector('.user-image-wrapper.selected');
         if (target && typeof sendElementToBack === 'function') {
+          pushUndoState();
           sendElementToBack(target);
         }
       });
@@ -2719,6 +3101,7 @@ function initPreziApp() {
     const btnImgDel = document.getElementById('btn-img-delete');
     if (btnImgDel) btnImgDel.addEventListener('click', () => {
       if (selectedImgEl) {
+        pushUndoState();
         const wrapper = selectedImgEl.closest('.user-image-wrapper') || selectedImgEl.parentElement;
         if (wrapper && wrapper.classList.contains('user-image-wrapper')) {
           wrapper.remove();
@@ -2730,6 +3113,23 @@ function initPreziApp() {
         showToast('Đã xóa hình ảnh.');
       }
     });
+
+    const btnUndo = document.getElementById('btn-undo');
+    if (btnUndo) {
+      btnUndo.addEventListener('click', (e) => {
+        e.preventDefault();
+        undo();
+      });
+    }
+
+    const btnRedo = document.getElementById('btn-redo');
+    if (btnRedo) {
+      btnRedo.addEventListener('click', (e) => {
+        e.preventDefault();
+        redo();
+      });
+    }
+    updateUndoRedoUI();
 
     // 2. Add New Text box button
     const btnAddText = document.getElementById('btn-tool-text');
@@ -3044,6 +3444,7 @@ function initPreziApp() {
         const parentBox = activeEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
         if (parentBox && (isAllSelected || isPlaceholder || parentBox.classList.contains('selected') || parentBox.classList.contains('card-selected'))) {
           e.preventDefault();
+          pushUndoState();
           parentBox.remove();
           if (textToolbar) textToolbar.classList.remove('show');
           selectedTextEl = null;
@@ -3062,6 +3463,7 @@ function initPreziApp() {
 
       if (allSelectedItems.length > 0) {
         e.preventDefault();
+        pushUndoState();
         const count = allSelectedItems.length;
         allSelectedItems.forEach(item => item.remove());
         if (textToolbar) textToolbar.classList.remove('show');
@@ -3078,6 +3480,7 @@ function initPreziApp() {
       // 3. If a text block element is selected:
       if (selectedTextEl && document.contains(selectedTextEl)) {
         e.preventDefault();
+        pushUndoState();
         const parentBox = selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
         if (parentBox) {
           parentBox.remove();
@@ -3100,6 +3503,7 @@ function initPreziApp() {
           const targetFrame = document.getElementById(stop.targetId);
           if (targetFrame && targetFrame.id !== 'overview-frame-box') {
             e.preventDefault();
+            pushUndoState();
             deleteCard(targetFrame, true);
             return;
           }
@@ -3143,9 +3547,29 @@ function initPreziApp() {
   }
   window.positionImageToolbar = positionImageToolbar;
 
-  // Attach full suite of interactive controls (Select, Resize, Drag, Delete, Double-click)
+  // Attach full suite of interactive controls (Select, Resize, Drag, Delete, Double-click, Snap, Aspect-Ratio Lock)
   function attachImageWrapperEvents(wrapper, img, resizeHandle, btnDel) {
     if (!wrapper || !img) return;
+
+    // 0. Ensure image fills wrapper and has natural aspect ratio sync
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.display = 'block';
+
+    const syncAspectRatio = () => {
+      if (img.naturalWidth && img.naturalHeight) {
+        const aspect = img.naturalWidth / img.naturalHeight;
+        if (!wrapper.style.height || wrapper.style.height === 'auto') {
+          const w = wrapper.offsetWidth || 280;
+          wrapper.style.height = `${Math.round(w / aspect)}px`;
+        }
+      }
+    };
+    if (img.complete) {
+      syncAspectRatio();
+    } else {
+      img.addEventListener('load', syncAspectRatio, { once: true });
+    }
 
     // 1. Select & Open Floating Toolbar
     wrapper.addEventListener('click', (e) => {
@@ -3170,6 +3594,7 @@ function initPreziApp() {
     if (btnDel) {
       btnDel.addEventListener('click', (e) => {
         e.stopPropagation();
+        pushUndoState();
         wrapper.remove();
         selectedImgEl = null;
         const imgToolbar = document.getElementById('image-floating-toolbar');
@@ -3179,7 +3604,7 @@ function initPreziApp() {
       });
     }
 
-    // 4. Drag & Reposition
+    // 4. Drag & Reposition with Magnetic Snapping
     let isDraggingImg = false;
     let dragStartX = 0, dragStartY = 0;
     let imgInitTransX = 0, imgInitTransY = 0;
@@ -3191,14 +3616,16 @@ function initPreziApp() {
       if (document.body.classList.contains('in-present-mode')) return;
       e.stopPropagation();
 
+      pushUndoState();
+
       isDraggingImg = true;
       dragStartX = e.clientX;
       dragStartY = e.clientY;
 
       isPositionAbsolute = window.getComputedStyle(wrapper).position === 'absolute';
       if (isPositionAbsolute && !wrapper.style.transform) {
-        imgInitLeft = wrapper.offsetLeft;
-        imgInitTop = wrapper.offsetTop;
+        imgInitLeft = parseFloat(wrapper.style.left) || wrapper.offsetLeft;
+        imgInitTop = parseFloat(wrapper.style.top) || wrapper.offsetTop;
       } else {
         const curTrans = wrapper.style.transform || '';
         const match = curTrans.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
@@ -3208,7 +3635,7 @@ function initPreziApp() {
       wrapper.style.zIndex = '120';
     });
 
-    // 5. Corner Resize Handle (Co giãn ảnh tự do)
+    // 5. Corner Resize Handle (Tự động khóa tỷ lệ chuẩn 1:1 bao sát ảnh, tự động khớp khung Overview / Slide)
     let isResizingImg = false;
     let resizeStartX = 0, resizeStartY = 0;
     let initW = 0, initH = 0;
@@ -3218,6 +3645,9 @@ function initPreziApp() {
         if (document.body.classList.contains('in-present-mode')) return;
         e.stopPropagation();
         e.preventDefault();
+
+        pushUndoState();
+
         isResizingImg = true;
         resizeStartX = e.clientX;
         resizeStartY = e.clientY;
@@ -3233,8 +3663,51 @@ function initPreziApp() {
         const dx = (e.clientX - dragStartX) / scale;
         const dy = (e.clientY - dragStartY) / scale;
         if (isPositionAbsolute && !wrapper.style.transform) {
-          wrapper.style.left = `${imgInitLeft + dx}px`;
-          wrapper.style.top = `${imgInitTop + dy}px`;
+          let targetX = imgInitLeft + dx;
+          let targetY = imgInitTop + dy;
+
+          // Magnetic snapping: Check parent frame or overview frame
+          const parentFrame = wrapper.closest('.canvas-slide-frame') || (wrapper.parentElement && wrapper.parentElement.id === 'overview-frame-box' ? wrapper.parentElement : null);
+          const snapThreshold = 18;
+
+          if (parentFrame) {
+            const fW = parentFrame.offsetWidth || 960;
+            const fH = parentFrame.offsetHeight || 540;
+            const wW = wrapper.offsetWidth;
+            const wH = wrapper.offsetHeight;
+
+            // X-axis snapping: Left (0), Right (fW - wW), Center ((fW - wW) / 2)
+            if (Math.abs(targetX) < snapThreshold) targetX = 0;
+            else if (Math.abs(targetX + wW - fW) < snapThreshold) targetX = fW - wW;
+            else if (Math.abs(targetX + wW / 2 - fW / 2) < snapThreshold) targetX = Math.round((fW - wW) / 2);
+
+            // Y-axis snapping: Top (0), Bottom (fH - wH), Center ((fH - wH) / 2)
+            if (Math.abs(targetY) < snapThreshold) targetY = 0;
+            else if (Math.abs(targetY + wH - fH) < snapThreshold) targetY = fH - wH;
+            else if (Math.abs(targetY + wH / 2 - fH / 2) < snapThreshold) targetY = Math.round((fH - wH) / 2);
+          } else {
+            // Dragging on canvas: check snapping to Overview frame
+            const ovFrame = document.getElementById('overview-frame-box');
+            if (ovFrame) {
+              const ovLeft = parseFloat(ovFrame.style.left) || 1000;
+              const ovTop = parseFloat(ovFrame.style.top) || 1000;
+              const ovW = ovFrame.offsetWidth || 960;
+              const ovH = ovFrame.offsetHeight || 540;
+              const wW = wrapper.offsetWidth;
+              const wH = wrapper.offsetHeight;
+
+              if (Math.abs(targetX - ovLeft) < snapThreshold) targetX = ovLeft;
+              else if (Math.abs(targetX + wW - (ovLeft + ovW)) < snapThreshold) targetX = ovLeft + ovW - wW;
+              else if (Math.abs(targetX + wW / 2 - (ovLeft + ovW / 2)) < snapThreshold) targetX = Math.round(ovLeft + (ovW - wW) / 2);
+
+              if (Math.abs(targetY - ovTop) < snapThreshold) targetY = ovTop;
+              else if (Math.abs(targetY + wH - (ovTop + ovH)) < snapThreshold) targetY = ovTop + ovH - wH;
+              else if (Math.abs(targetY + wH / 2 - (ovTop + ovH / 2)) < snapThreshold) targetY = Math.round(ovTop + (ovH - wH) / 2);
+            }
+          }
+
+          wrapper.style.left = `${Math.round(targetX)}px`;
+          wrapper.style.top = `${Math.round(targetY)}px`;
         } else {
           wrapper.style.transform = `translate(${imgInitTransX + dx}px, ${imgInitTransY + dy}px)`;
         }
@@ -3244,8 +3717,30 @@ function initPreziApp() {
       } else if (isResizingImg) {
         const dx = (e.clientX - resizeStartX) / scale;
         const dy = (e.clientY - resizeStartY) / scale;
-        wrapper.style.width = `${Math.max(initW + dx, 50)}px`;
-        wrapper.style.height = `${Math.max(initH + dy, 40)}px`;
+
+        // Strictly lock aspect ratio to image proportions so bounding box wraps tightly with no gap!
+        const aspect = (img.naturalWidth && img.naturalHeight) ? (img.naturalWidth / img.naturalHeight) : ((initW / initH) || 1.4);
+        
+        let newW = Math.max(initW + dx, 50);
+        let newH = Math.round(newW / aspect);
+
+        // Magnetic snap resize to parent frame (Overview frame / Slide frame)
+        const parentFrame = wrapper.closest('.canvas-slide-frame') || (wrapper.parentElement && wrapper.parentElement.id === 'overview-frame-box' ? wrapper.parentElement : null);
+        if (parentFrame) {
+          const fW = parentFrame.offsetWidth || 960;
+          const fH = parentFrame.offsetHeight || 540;
+          if (Math.abs(newW - fW) < 22) {
+            newW = fW;
+            newH = Math.round(newW / aspect);
+          }
+          if (Math.abs(newH - fH) < 22) {
+            newH = fH;
+            newW = Math.round(newH * aspect);
+          }
+        }
+
+        wrapper.style.width = `${newW}px`;
+        wrapper.style.height = `${newH}px`;
         if (wrapper.classList.contains('selected')) {
           positionImageToolbar(wrapper);
         }
@@ -3423,6 +3918,8 @@ function initPreziApp() {
 
   // Place and attach draggable listeners to an image
   async function placeImageOnCanvas(srcDataUrl) {
+    pushUndoState();
+
     // Safety check: ensure image is compressed if it's a large data URL
     if (typeof srcDataUrl === 'string' && srcDataUrl.startsWith('data:image/') && srcDataUrl.length > 250000) {
       srcDataUrl = await compressImageFileOrUrl(srcDataUrl);
@@ -3435,12 +3932,16 @@ function initPreziApp() {
     const wrapper = document.createElement('div');
     wrapper.className = 'user-image-wrapper';
 
-    // Calculate initial dimensions preserving aspect ratio if possible
+    // Calculate initial dimensions preserving aspect ratio strictly
     let imgW = 380;
     let imgH = 260;
     try {
       const tempImg = new Image();
       tempImg.src = srcDataUrl;
+      await new Promise(r => {
+        if (tempImg.complete) r();
+        else { tempImg.onload = r; tempImg.onerror = r; }
+      });
       if (tempImg.naturalWidth && tempImg.naturalHeight) {
         const aspect = tempImg.naturalWidth / tempImg.naturalHeight;
         if (aspect >= 1) {
