@@ -1361,6 +1361,56 @@ function initPreziApp() {
     let isDragging = false;
     let sX = 0, sY = 0;
     let iW = 0, iH = 0, iLeft = 0, iTop = 0;
+    let childSnapshot = [];
+
+    // Helper to collect all text and media elements belonging to or inside this frame
+    function snapshotFrameContents() {
+      const list = [];
+      // 1. Direct DOM children
+      frame.querySelectorAll('.prezi-textbox, .user-image-wrapper, .canvas-card').forEach(el => {
+        list.push({
+          el,
+          isDirectChild: true,
+          origLeft: parseFloat(el.style.left) || el.offsetLeft || 0,
+          origTop: parseFloat(el.style.top) || el.offsetTop || 0,
+          origW: el.offsetWidth,
+          origH: el.offsetHeight,
+          textNodes: Array.from(el.querySelectorAll('h1, h2, h3, h4, h5, p, span, div, .textbox-content')).map(tn => ({
+            node: tn,
+            origFs: parseFloat(window.getComputedStyle(tn).fontSize) || 24
+          }))
+        });
+      });
+
+      // 2. Elements in world that overlap this frame
+      world.querySelectorAll('.prezi-textbox, .user-image-wrapper, .canvas-card').forEach(el => {
+        if (el.closest('.canvas-slide-frame') === frame) return; // already collected
+        if (el === frame || el.id === 'overview-frame-box') return;
+
+        const elL = parseFloat(el.style.left) || el.offsetLeft || 0;
+        const elT = parseFloat(el.style.top) || el.offsetTop || 0;
+        const elW = el.offsetWidth || 100;
+        const elH = el.offsetHeight || 50;
+
+        const cx = elL + elW / 2;
+        const cy = elT + elH / 2;
+        if (cx >= iLeft - 40 && cx <= iLeft + iW + 40 && cy >= iTop - 40 && cy <= iTop + iH + 40) {
+          list.push({
+            el,
+            isDirectChild: false,
+            origLeft: elL,
+            origTop: elT,
+            origW: elW,
+            origH: elH,
+            textNodes: Array.from(el.querySelectorAll('h1, h2, h3, h4, h5, p, span, div, .textbox-content')).map(tn => ({
+              node: tn,
+              origFs: parseFloat(window.getComputedStyle(tn).fontSize) || 24
+            }))
+          });
+        }
+      });
+      return list;
+    }
 
     frame.querySelectorAll('.frame-handle').forEach(h => {
       h.addEventListener('mousedown', (e) => {
@@ -1379,6 +1429,9 @@ function initPreziApp() {
         iH = frame.offsetHeight;
         iLeft = frame.offsetLeft;
         iTop = frame.offsetTop;
+
+        pushUndoState();
+        childSnapshot = snapshotFrameContents();
       });
     });
 
@@ -1387,9 +1440,11 @@ function initPreziApp() {
       
       document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
       frame.classList.add('selected');
+      if (typeof syncPropertyPanel === 'function') {
+        syncPropertyPanel(frame);
+      }
 
       if (frame.classList.contains('is-locked') || frame.getAttribute('data-locked') === 'true') {
-        // Locked: select frame but do not drag
         e.stopPropagation();
         return;
       }
@@ -1397,8 +1452,11 @@ function initPreziApp() {
       isDragging = true;
       sX = e.clientX;
       sY = e.clientY;
+      iW = frame.offsetWidth;
+      iH = frame.offsetHeight;
       iLeft = frame.offsetLeft;
       iTop = frame.offsetTop;
+      childSnapshot = snapshotFrameContents();
       e.stopPropagation();
     });
 
@@ -1414,19 +1472,19 @@ function initPreziApp() {
         let newW = iW, newH = iH, newLeft = iLeft, newTop = iTop;
 
         if (resizeType === 'br') {
-          newW = Math.max(40, iW + dx);
-          newH = Math.max(22, iH + dy);
+          newW = Math.max(80, iW + dx);
+          newH = Math.max(45, iH + dy);
         } else if (resizeType === 'bl') {
-          newW = Math.max(40, iW - dx);
-          newH = Math.max(22, iH + dy);
+          newW = Math.max(80, iW - dx);
+          newH = Math.max(45, iH + dy);
           newLeft = iLeft + (iW - newW);
         } else if (resizeType === 'tr') {
-          newW = Math.max(40, iW + dx);
-          newH = Math.max(22, iH - dy);
+          newW = Math.max(80, iW + dx);
+          newH = Math.max(45, iH - dy);
           newTop = iTop + (iH - newH);
         } else if (resizeType === 'tl') {
-          newW = Math.max(40, iW - dx);
-          newH = Math.max(22, iH - dy);
+          newW = Math.max(80, iW - dx);
+          newH = Math.max(45, iH - dy);
           newLeft = iLeft + (iW - newW);
           newTop = iTop + (iH - newH);
         }
@@ -1435,6 +1493,47 @@ function initPreziApp() {
         frame.style.height = `${Math.round(newH)}px`;
         frame.style.left = `${Math.round(newLeft)}px`;
         frame.style.top = `${Math.round(newTop)}px`;
+
+        // Proportionally scale and reposition all text, images, and content inside the frame
+        if (iW > 0 && iH > 0 && childSnapshot.length > 0) {
+          const ratioW = newW / iW;
+          const ratioH = newH / iH;
+          const fontRatio = (ratioW + ratioH) / 2;
+
+          childSnapshot.forEach(item => {
+            const { el, isDirectChild, origLeft, origTop, origW, origH, textNodes } = item;
+
+            if (isDirectChild) {
+              el.style.left = `${Math.round(origLeft * ratioW)}px`;
+              el.style.top = `${Math.round(origTop * ratioH)}px`;
+              el.style.width = `${Math.round(origW * ratioW)}px`;
+              if (el.classList.contains('user-image-wrapper')) {
+                el.style.height = `${Math.round(origH * ratioH)}px`;
+              }
+            } else {
+              const relOffsetX = (origLeft - iLeft) * ratioW;
+              const relOffsetY = (origTop - iTop) * ratioH;
+              el.style.left = `${Math.round(newLeft + relOffsetX)}px`;
+              el.style.top = `${Math.round(newTop + relOffsetY)}px`;
+              el.style.width = `${Math.round(origW * ratioW)}px`;
+              if (el.classList.contains('user-image-wrapper')) {
+                el.style.height = `${Math.round(origH * ratioH)}px`;
+              }
+            }
+
+            // Scale all text nodes inside proportionally (down to 3px if needed!)
+            textNodes.forEach(({ node, origFs }) => {
+              const scaledFs = Math.max(3, Math.min(160, Math.round(origFs * fontRatio)));
+              node.style.fontSize = `${scaledFs}px`;
+            });
+            const textContent = el.querySelector('.textbox-content');
+            if (textContent && textNodes.length === 0) {
+              const rootFs = parseFloat(window.getComputedStyle(textContent).fontSize) || 24;
+              const scaledFs = Math.max(3, Math.min(160, Math.round(rootFs * fontRatio)));
+              textContent.style.fontSize = `${scaledFs}px`;
+            }
+          });
+        }
       } else if (isDragging) {
         if (frame.classList.contains('is-locked') || frame.getAttribute('data-locked') === 'true') {
           isDragging = false;
@@ -1444,6 +1543,16 @@ function initPreziApp() {
         const dy = (e.clientY - sY) / scale;
         frame.style.left = `${Math.round(iLeft + dx)}px`;
         frame.style.top = `${Math.round(iTop + dy)}px`;
+
+        // Move all associated elements in world along with the frame
+        if (childSnapshot.length > 0) {
+          childSnapshot.forEach(item => {
+            if (!item.isDirectChild) {
+              item.el.style.left = `${Math.round(item.origLeft + dx)}px`;
+              item.el.style.top = `${Math.round(item.origTop + dy)}px`;
+            }
+          });
+        }
       }
     });
 
@@ -1451,6 +1560,7 @@ function initPreziApp() {
       if (isResizing || isDragging) {
         isResizing = false;
         isDragging = false;
+        childSnapshot = [];
         saveEditsToStorage();
       }
     });
@@ -4302,15 +4412,20 @@ function initPreziApp() {
           if (children.length > 0) {
             children.forEach(ch => {
               const curChild = parseInt(window.getComputedStyle(ch).fontSize) || 16;
-              if (curChild > 10) ch.style.fontSize = `${curChild - 2}px`;
+              if (curChild > 4) ch.style.fontSize = `${curChild - 2}px`;
             });
           }
         }
         const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 26;
-        if (cur > 10) {
-          selectedTextEl.style.fontSize = `${cur - 2}px`;
+        if (cur > 4) {
+          const nextFs = cur - 2;
+          selectedTextEl.style.fontSize = `${nextFs}px`;
           const sizeLabel = document.getElementById('fl-font-size');
-          if (sizeLabel) sizeLabel.textContent = `${cur - 2}`;
+          if (sizeLabel) sizeLabel.textContent = `${nextFs}`;
+          const propFs = document.getElementById('prop-fontsize-val');
+          if (propFs) propFs.textContent = `${nextFs}px`;
+          const propSlider = document.getElementById('prop-fontsize-slider');
+          if (propSlider) propSlider.value = nextFs;
           saveEditsToStorage();
         }
       }

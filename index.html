@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=20260924_v57">
+  <link rel="stylesheet" href="style.css?v=20260924_v58">
 </head>
 <body class="prezi-app">
 
@@ -193,12 +193,13 @@
                   <label class="panel-label">Cỡ chữ (Font Size):</label>
                   <span class="panel-val-badge" id="prop-fontsize-val">24px</span>
                 </div>
-                <input type="range" id="prop-fontsize-slider" min="10" max="64" step="1" value="24" class="panel-slider">
+                <input type="range" id="prop-fontsize-slider" min="4" max="64" step="1" value="24" class="panel-slider">
                 <div class="prop-presets-row">
+                  <button type="button" class="prop-pill" data-set-fsize="6">6px</button>
+                  <button type="button" class="prop-pill" data-set-fsize="10">10px</button>
                   <button type="button" class="prop-pill" data-set-fsize="14">14px</button>
                   <button type="button" class="prop-pill" data-set-fsize="18">18px</button>
-                  <button type="button" class="prop-pill" data-set-fsize="22">22px</button>
-                  <button type="button" class="prop-pill" data-set-fsize="28">28px</button>
+                  <button type="button" class="prop-pill" data-set-fsize="24">24px</button>
                 </div>
                 <button type="button" class="panel-action-btn primary" id="btn-prop-autofit-frame" style="margin-top: 8px; width: 100%;">
                   ⚡ Thu nhỏ chữ vừa vặn khung (Auto-Fit)
@@ -519,6 +520,6 @@
 
   </div>
 
-  <script src="script.js?v=20260924_v57"></script>
+  <script src="script.js?v=20260924_v58"></script>
 </body>
 </html>
