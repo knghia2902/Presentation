@@ -2120,17 +2120,34 @@ body:not(.in-present-mode) .prezi-textbox:hover:not(.selected) {
   -webkit-user-select: text !important;
 }
 
-/* 4 Corner handles chuẩn Prezi (Hình 1) */
+/* 6 Corner & Side handles chuẩn Prezi / PowerPoint cho Textbox */
 .prezi-textbox .box-handle {
   display: none !important;
   position: absolute;
-  width: 7px;
-  height: 7px;
+  width: 10px;
+  height: 10px;
   background: #ffffff;
   border: 1.5px solid #2563eb;
-  z-index: 10;
-  pointer-events: none;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+  pointer-events: auto !important;
   box-sizing: border-box;
+  transition: transform 0.1s ease, background-color 0.1s ease;
+}
+
+.prezi-textbox .box-handle::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+}
+
+.prezi-textbox .box-handle:hover {
+  background: #2563eb !important;
+  transform: scale(1.2);
 }
 
 .prezi-textbox.selected .box-handle {
@@ -2141,10 +2158,12 @@ body:not(.in-present-mode) .prezi-textbox:hover:not(.selected) {
   display: none !important;
 }
 
-.prezi-textbox .box-handle.tl { top: -4px; left: -4px; }
-.prezi-textbox .box-handle.tr { top: -4px; right: -4px; }
-.prezi-textbox .box-handle.bl { bottom: -4px; left: -4px; }
-.prezi-textbox .box-handle.br { bottom: -4px; right: -4px; }
+.prezi-textbox .box-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
+.prezi-textbox .box-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
+.prezi-textbox .box-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.prezi-textbox .box-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.prezi-textbox .box-handle.ml { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.prezi-textbox .box-handle.mr { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
 
 body.in-present-mode .prezi-textbox {
   border: none !important;

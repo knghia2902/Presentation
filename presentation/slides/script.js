@@ -2645,23 +2645,112 @@ function initPreziApp() {
   function setupTextBox(textBox) {
     if (!textBox) return;
 
+    // Ensure all 6 handles exist: tl, tr, bl, br, ml, mr
+    ['tl', 'tr', 'bl', 'br', 'ml', 'mr'].forEach(pos => {
+      let h = textBox.querySelector(`.box-handle.${pos}`);
+      if (!h) {
+        h = document.createElement('div');
+        h.className = `box-handle ${pos}`;
+        textBox.appendChild(h);
+      }
+    });
+
     let isDragging = false;
     let startX = 0;
     let startY = 0;
     let origLeft = 0;
     let origTop = 0;
 
+    // --- HANDLE RESIZING LOGIC (Thu nhỏ / nới rộng khung chữ) ---
+    textBox.querySelectorAll('.box-handle').forEach(handle => {
+      if (handle.dataset.handleBound) return;
+      handle.dataset.handleBound = 'true';
+
+      handle.addEventListener('mousedown', (e) => {
+        if (textBox.classList.contains('is-locked') || textBox.getAttribute('data-locked') === 'true') {
+          showToast('🔒 Hộp chữ đang bị khóa. Bấm Ctrl+L hoặc 🔓 Mở khóa để thay đổi kích thước!');
+          return;
+        }
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Select this textbox
+        document.querySelectorAll('.prezi-textbox.selected').forEach(el => {
+          if (el !== textBox) el.classList.remove('selected');
+        });
+        textBox.classList.add('selected');
+        const content = textBox.querySelector('.textbox-content');
+        selectedTextEl = content;
+        if (typeof positionTextToolbar === 'function' && content) {
+          positionTextToolbar(content);
+        }
+
+        pushUndoState();
+
+        const handleType = ['tl', 'tr', 'bl', 'br', 'ml', 'mr'].find(c => handle.classList.contains(c)) || 'mr';
+        const sX = e.clientX;
+        const sY = e.clientY;
+        const origW = textBox.offsetWidth;
+        const origH = textBox.offsetHeight;
+        const origL = parseFloat(textBox.style.left) || textBox.offsetLeft || 0;
+        const origT = parseFloat(textBox.style.top) || textBox.offsetTop || 0;
+
+        const onResizeMouseMove = (ev) => {
+          const scale = currentCamera.scale || 1;
+          const dx = (ev.clientX - sX) / scale;
+          const dy = (ev.clientY - sY) / scale;
+
+          let newW = origW;
+          let newL = origL;
+          let newT = origT;
+
+          // Horizontal resize
+          if (handleType === 'mr' || handleType === 'br' || handleType === 'tr') {
+            newW = Math.max(100, origW + dx);
+          } else if (handleType === 'ml' || handleType === 'bl' || handleType === 'tl') {
+            newW = Math.max(100, origW - dx);
+            newL = origL + (origW - newW);
+          }
+
+          // Vertical position shift for top handles
+          if (handleType === 'tl' || handleType === 'tr') {
+            newT = origT + dy;
+            textBox.style.top = `${Math.round(newT)}px`;
+          }
+
+          textBox.style.width = `${Math.round(newW)}px`;
+          textBox.style.left = `${Math.round(newL)}px`;
+
+          if (typeof positionTextToolbar === 'function' && content) {
+            positionTextToolbar(content);
+          }
+        };
+
+        const onResizeMouseUp = () => {
+          window.removeEventListener('mousemove', onResizeMouseMove);
+          window.removeEventListener('mouseup', onResizeMouseUp);
+          saveEditsToStorage();
+        };
+
+        window.addEventListener('mousemove', onResizeMouseMove);
+        window.addEventListener('mouseup', onResizeMouseUp);
+      });
+    });
+
     textBox.addEventListener('mousedown', (e) => {
-      const isInsideContent = e.target.classList.contains('textbox-content') || e.target.isContentEditable || e.target.closest('.textbox-content');
+      // 1. If user clicked on a resize handle, DO NOT start moving the box:
+      if (e.target.closest('.box-handle')) return;
+
+      const isInsideContent = e.target.classList.contains('textbox-content') || e.target.isContentEditable || e.target.closest('.textbox-content') || e.target.closest('[contenteditable="true"]');
 
       document.querySelectorAll('.prezi-textbox.selected').forEach(el => {
         if (el !== textBox) el.classList.remove('selected');
       });
       textBox.classList.add('selected');
       const content = textBox.querySelector('.textbox-content');
-      selectedTextEl = content;
-      if (typeof positionTextToolbar === 'function' && content) {
-        positionTextToolbar(content);
+      selectedTextEl = e.target.closest('[contenteditable="true"]') || content;
+      if (typeof positionTextToolbar === 'function' && selectedTextEl) {
+        positionTextToolbar(selectedTextEl);
       }
 
       // If user clicked inside the text content to edit or highlight text:
@@ -2718,27 +2807,27 @@ function initPreziApp() {
           if (el !== textBox) el.classList.remove('selected');
         });
         textBox.classList.add('selected');
-        selectedTextEl = content;
+        selectedTextEl = e.target.closest('[contenteditable="true"]') || content;
         if (typeof positionTextToolbar === 'function') {
-          positionTextToolbar(content);
+          positionTextToolbar(selectedTextEl);
         }
       });
 
-      content.addEventListener('focus', () => {
+      content.addEventListener('focus', (e) => {
         document.querySelectorAll('.prezi-textbox.selected').forEach(el => {
           if (el !== textBox) el.classList.remove('selected');
         });
         textBox.classList.add('selected');
-        selectedTextEl = content;
+        selectedTextEl = e.target.closest('[contenteditable="true"]') || content;
         if (typeof positionTextToolbar === 'function') {
-          positionTextToolbar(content);
+          positionTextToolbar(selectedTextEl);
         }
       });
 
       content.addEventListener('input', () => {
         saveEditsToStorage();
         if (typeof positionTextToolbar === 'function') {
-          positionTextToolbar(content);
+          positionTextToolbar(selectedTextEl || content);
         }
       });
 
@@ -3018,6 +3107,15 @@ function initPreziApp() {
     const btnFontInc = document.getElementById('btn-font-inc');
     if (btnFontInc) btnFontInc.addEventListener('click', () => {
       if (selectedTextEl) {
+        if (selectedTextEl.classList.contains('textbox-content')) {
+          const children = selectedTextEl.querySelectorAll('h1, h2, h3, h4, h5, p, span, div');
+          if (children.length > 0) {
+            children.forEach(ch => {
+              const curChild = parseInt(window.getComputedStyle(ch).fontSize) || 16;
+              ch.style.fontSize = `${curChild + 2}px`;
+            });
+          }
+        }
         const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 26;
         selectedTextEl.style.fontSize = `${cur + 2}px`;
         const sizeLabel = document.getElementById('fl-font-size');
@@ -3029,6 +3127,15 @@ function initPreziApp() {
     const btnFontDec = document.getElementById('btn-font-dec');
     if (btnFontDec) btnFontDec.addEventListener('click', () => {
       if (selectedTextEl) {
+        if (selectedTextEl.classList.contains('textbox-content')) {
+          const children = selectedTextEl.querySelectorAll('h1, h2, h3, h4, h5, p, span, div');
+          if (children.length > 0) {
+            children.forEach(ch => {
+              const curChild = parseInt(window.getComputedStyle(ch).fontSize) || 16;
+              if (curChild > 10) ch.style.fontSize = `${curChild - 2}px`;
+            });
+          }
+        }
         const cur = parseInt(window.getComputedStyle(selectedTextEl).fontSize) || 26;
         if (cur > 10) {
           selectedTextEl.style.fontSize = `${cur - 2}px`;
@@ -3585,28 +3692,16 @@ function initPreziApp() {
 
       const activeEl = document.activeElement;
 
-      // 1. If actively typing text characters inside contenteditable:
-      if (activeEl && (activeEl.isContentEditable || activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA')) {
-        if (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') return;
-
-        // Check if all text is selected or text is placeholder / empty:
-        const sel = window.getSelection();
-        const fullText = (activeEl.textContent || '').trim();
-        const isAllSelected = sel && sel.toString().length > 0 && sel.toString().trim() === fullText;
-        const isPlaceholder = fullText === 'Click to edit text' || fullText === 'Nhập văn bản mới...' || fullText === 'Nhập nội dung mới tại đây...' || fullText === '';
-        
-        const parentBox = activeEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
-        if (parentBox && (isAllSelected || isPlaceholder || parentBox.classList.contains('selected') || parentBox.classList.contains('card-selected'))) {
-          e.preventDefault();
-          pushUndoState();
-          parentBox.remove();
-          if (textToolbar) textToolbar.classList.remove('show');
-          selectedTextEl = null;
-          syncStopsFromDOM();
-          saveEditsToStorage();
-          showToast('Đã xóa hộp văn bản.');
-          return;
-        }
+      // 1. If actively typing text characters inside contenteditable, input, or textarea:
+      if (activeEl && (
+        activeEl.isContentEditable || 
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.closest('[contenteditable="true"]') ||
+        activeEl.closest('.textbox-content')
+      )) {
+        // While user is typing/editing text inside contenteditable:
+        // NEVER delete the parent container box! Let native browser editing delete characters/words.
         return;
       }
 
@@ -3641,8 +3736,8 @@ function initPreziApp() {
         }
       }
 
-      // 3. If a text block element is selected:
-      if (selectedTextEl && document.contains(selectedTextEl)) {
+      // 3. If an individual editable text item was explicitly targeted (has .prezi-selected-el):
+      if (selectedTextEl && document.contains(selectedTextEl) && selectedTextEl.classList.contains('prezi-selected-el')) {
         const parentBox = selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
         if (parentBox && (parentBox.classList.contains('is-locked') || parentBox.getAttribute('data-locked') === 'true')) {
           e.preventDefault();
@@ -3651,7 +3746,7 @@ function initPreziApp() {
         }
         e.preventDefault();
         pushUndoState();
-        if (parentBox) {
+        if (parentBox && (parentBox.classList.contains('selected') || parentBox.classList.contains('card-selected'))) {
           parentBox.remove();
         } else {
           selectedTextEl.remove();
@@ -3664,13 +3759,12 @@ function initPreziApp() {
         return;
       }
 
-      // 4. CRITICAL: If user clicked a frame in the left sidebar OR is currently viewing a slide frame (Frame 1, Frame 2, ...):
-      // Pressing Delete or Backspace deletes that frame immediately!
+      // 4. If a slide frame is explicitly selected:
       if (currentStopIndex > 0 && currentStopIndex < STOPS.length) {
         const stop = STOPS[currentStopIndex];
         if (stop && stop.targetId) {
           const targetFrame = document.getElementById(stop.targetId);
-          if (targetFrame && targetFrame.id !== 'overview-frame-box') {
+          if (targetFrame && targetFrame.classList.contains('selected') && targetFrame.id !== 'overview-frame-box') {
             if (targetFrame.classList.contains('is-locked') || targetFrame.getAttribute('data-locked') === 'true') {
               e.preventDefault();
               showToast('🔒 Khung slide đang bị khóa. Bấm Ctrl+L để mở khóa trước khi xóa!');
