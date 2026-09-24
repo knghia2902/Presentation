@@ -494,7 +494,10 @@ function initPreziApp() {
       e.preventDefault();
 
       activeResizeCard = handle.closest('.canvas-card, .canvas-item');
-      if (!activeResizeCard) return;
+      if (!activeResizeCard || activeResizeCard.classList.contains('is-locked') || activeResizeCard.getAttribute('data-locked') === 'true') {
+        activeResizeCard = null;
+        return;
+      }
 
       resizeHandleType = handle.dataset.handle;
       rStartX = e.clientX;
@@ -526,6 +529,11 @@ function initPreziApp() {
         if (c !== card) c.classList.remove('card-selected');
       });
       card.classList.add('card-selected');
+
+      if (card.classList.contains('is-locked') || card.getAttribute('data-locked') === 'true') {
+        // Locked: select card but do not drag
+        return;
+      }
 
       activeDragCard = card;
       dStartX = e.clientX;
@@ -830,6 +838,7 @@ function initPreziApp() {
 
     frame.querySelectorAll('.frame-handle').forEach(h => {
       h.addEventListener('mousedown', (e) => {
+        if (frame.classList.contains('is-locked') || frame.getAttribute('data-locked') === 'true') return;
         e.stopPropagation();
         e.preventDefault();
         isResizing = true;
@@ -852,6 +861,11 @@ function initPreziApp() {
       
       document.querySelectorAll('.canvas-slide-frame.selected, .canvas-empty-frame-box.selected, .canvas-card.card-selected, .prezi-textbox.selected, .user-image-wrapper.selected').forEach(el => el.classList.remove('selected', 'card-selected'));
       frame.classList.add('selected');
+
+      if (frame.classList.contains('is-locked') || frame.getAttribute('data-locked') === 'true') {
+        // Locked: select frame but do not drag
+        return;
+      }
       
       isDragging = true;
       sX = e.clientX;
@@ -1451,6 +1465,19 @@ function initPreziApp() {
               <span>Đưa xuống dưới cùng (Send to Back)</span>
             </span>
           </div>
+          <div class="ctx-divider"></div>
+          <div class="ctx-item" data-action="toggle-lock">
+            <span class="ctx-left">
+              ${(targetElement.classList.contains('is-locked') || targetElement.getAttribute('data-locked') === 'true') ? `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                <span>Mở khóa vị trí (Unlock)</span>
+              ` : `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Khóa vị trí không cho di chuyển (Lock)</span>
+              `}
+            </span>
+            <span class="ctx-shortcut">Ctrl+L</span>
+          </div>
           ${frameReorderOptions}
           <div class="ctx-divider"></div>
           <div class="ctx-item" data-action="zoom-to">
@@ -1645,6 +1672,11 @@ function initPreziApp() {
             if (active) {
               pushUndoState();
               sendElementToBack(active);
+            }
+          } else if (action === 'toggle-lock') {
+            const active = target || document.querySelector('.prezi-textbox.selected, .canvas-slide-frame.selected, .canvas-card.card-selected, .user-image-wrapper.selected') || (selectedImgEl ? selectedImgEl.closest('.user-image-wrapper') : null);
+            if (active && typeof toggleElementLock === 'function') {
+              toggleElementLock(active);
             }
           } else if (action === 'move-last-slide') {
             const frame = (target && target.classList.contains('canvas-slide-frame')) ? target : document.querySelector('.canvas-slide-frame.selected');
@@ -1917,7 +1949,21 @@ function initPreziApp() {
         return;
       }
 
-      // 5. Select All (Ctrl+A)
+      // 5. Lock / Unlock Shortcut (Ctrl+L)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        const selected = document.querySelector('.prezi-textbox.selected, .user-image-wrapper.selected, .canvas-card.card-selected, .canvas-slide-frame.selected') ||
+                         (selectedImgEl ? selectedImgEl.closest('.user-image-wrapper') : null) ||
+                         (selectedTextEl ? selectedTextEl.closest('.prezi-textbox') : null);
+        if (selected && typeof toggleElementLock === 'function') {
+          toggleElementLock(selected);
+        } else {
+          showToast('Hãy chọn một thành phần để Khóa / Mở khóa vị trí (Ctrl+L)');
+        }
+        return;
+      }
+
+      // 6. Select All (Ctrl+A)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
         if (isEditingText) return;
         e.preventDefault();
@@ -2164,7 +2210,7 @@ function initPreziApp() {
     const btnShortcuts = document.getElementById('btn-aux-shortcuts');
     const btnHelp = document.getElementById('btn-aux-help');
     const showHelpModal = () => {
-      alert("Phím tắt bài thuyết trình Prezi:\n\n• Ctrl + Z: Hoàn tác (Undo)\n• Ctrl + Y / Ctrl + Shift + Z: Làm lại (Redo)\n• Ctrl + C: Sao chép phần tử\n• Ctrl + V: Dán phần tử\n• Ctrl + D: Nhân bản nhanh\n• Phím mũi tên (↑ ↓ ← →): Vi chỉnh vị trí 2px (giữ Shift: 10px)\n• Delete / Backspace: Xóa phần tử đang chọn\n• Ctrl + A: Chọn tất cả các thẻ trên bản vẽ\n• Mũi tên Phải (→) / Spacebar: Sang trạm tiếp theo\n• Mũi tên Trái (←): Về trạm trước\n• Phím H / Escape: Toàn cảnh (Overview)\n• Cuộn chuột: Phóng to / Thu nhỏ mượt mà theo vị trí con trỏ\n• Giữ chuột trái & kéo: Di chuyển bản vẽ không gian");
+      alert("Phím tắt bài thuyết trình Prezi:\n\n• Ctrl + Z: Hoàn tác (Undo)\n• Ctrl + Y / Ctrl + Shift + Z: Làm lại (Redo)\n• Ctrl + C: Sao chép phần tử\n• Ctrl + V: Dán phần tử\n• Ctrl + D: Nhân bản nhanh\n• Ctrl + L: Khóa / Mở khóa vị trí phần tử\n• Phím mũi tên (↑ ↓ ← →): Vi chỉnh vị trí 2px (giữ Shift: 10px)\n• Delete / Backspace: Xóa phần tử đang chọn\n• Ctrl + A: Chọn tất cả các thẻ trên bản vẽ\n• Mũi tên Phải (→) / Spacebar: Sang trạm tiếp theo\n• Mũi tên Trái (←): Về trạm trước\n• Phím H / Escape: Toàn cảnh (Overview)\n• Cuộn chuột: Phóng to / Thu nhỏ mượt mà theo vị trí con trỏ\n• Giữ chuột trái & kéo: Di chuyển bản vẽ không gian");
     };
     if (btnShortcuts) btnShortcuts.addEventListener('click', showHelpModal);
     if (btnHelp) btnHelp.addEventListener('click', showHelpModal);
@@ -2289,6 +2335,7 @@ function initPreziApp() {
       ensureOverviewFrameBox();
       setupCardInteractions();
       upgradeAllImagesToInteractive();
+      restoreLockBadges();
 
       // Re-enable ContentEditable for all text elements
       const editableSelectors = [
@@ -2488,6 +2535,11 @@ function initPreziApp() {
     const selectedEl = document.querySelector('.prezi-textbox.selected, .user-image-wrapper.selected, .canvas-card.card-selected, .canvas-slide-frame.selected');
     if (!selectedEl || selectedEl.id === 'overview-frame-box') return false;
 
+    if (selectedEl.classList.contains('is-locked') || selectedEl.getAttribute('data-locked') === 'true') {
+      showToast('🔒 Phần tử đang bị khóa vị trí. Bấm Ctrl+L hoặc nút 🔓 Mở khóa để di chuyển!');
+      return false;
+    }
+
     pushUndoState();
     let left = parseFloat(selectedEl.style.left) || selectedEl.offsetLeft || 0;
     let top = parseFloat(selectedEl.style.top) || selectedEl.offsetTop || 0;
@@ -2509,6 +2561,81 @@ function initPreziApp() {
 
     saveEditsToStorage();
     return true;
+  }
+
+  // ==========================================================================
+  // ELEMENT LOCKING ENGINE (Khóa thành phần không cho di chuyển / kéo giãn)
+  // ==========================================================================
+  function toggleElementLock(element) {
+    if (!element || element.id === 'overview-frame-box') return;
+    pushUndoState();
+
+    const isLocked = element.classList.contains('is-locked') || element.getAttribute('data-locked') === 'true';
+    if (isLocked) {
+      element.classList.remove('is-locked');
+      element.removeAttribute('data-locked');
+      const badge = element.querySelector('.element-lock-badge');
+      if (badge) badge.remove();
+      updateLockToolbarButtons(element);
+      saveEditsToStorage();
+      showToast('🔓 Đã mở khóa thành phần (cho phép di chuyển & kéo giãn)!');
+    } else {
+      element.classList.add('is-locked');
+      element.setAttribute('data-locked', 'true');
+      let badge = element.querySelector('.element-lock-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'element-lock-badge';
+        badge.innerHTML = '🔒';
+        badge.title = 'Thành phần đã bị khóa vị trí. Bấm để mở khóa!';
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleElementLock(element);
+        });
+        element.appendChild(badge);
+      }
+      updateLockToolbarButtons(element);
+      saveEditsToStorage();
+      showToast('🔒 Đã khóa vị trí thành phần (không thể di chuyển hay kéo giãn)!');
+    }
+  }
+  window.toggleElementLock = toggleElementLock;
+
+  function updateLockToolbarButtons(element) {
+    if (!element) return;
+    const isLocked = element.classList.contains('is-locked') || element.getAttribute('data-locked') === 'true';
+    const btnTextLock = document.getElementById('btn-text-lock');
+    const btnImgLock = document.getElementById('btn-img-lock');
+
+    if (btnTextLock) {
+      btnTextLock.innerHTML = isLocked ? '🔓 Mở khóa' : '🔒 Khóa';
+      btnTextLock.classList.toggle('active', !!isLocked);
+      btnTextLock.title = isLocked ? 'Mở khóa vị trí để di chuyển (Ctrl+L)' : 'Khóa vị trí không cho di chuyển (Ctrl+L)';
+    }
+    if (btnImgLock) {
+      btnImgLock.innerHTML = isLocked ? '🔓 Mở khóa' : '🔒 Khóa';
+      btnImgLock.classList.toggle('active', !!isLocked);
+      btnImgLock.title = isLocked ? 'Mở khóa vị trí để di chuyển (Ctrl+L)' : 'Khóa vị trí không cho di chuyển (Ctrl+L)';
+    }
+  }
+
+  function restoreLockBadges() {
+    world.querySelectorAll('.is-locked, [data-locked="true"]').forEach(el => {
+      el.classList.add('is-locked');
+      el.setAttribute('data-locked', 'true');
+      let badge = el.querySelector('.element-lock-badge');
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'element-lock-badge';
+        badge.innerHTML = '🔒';
+        badge.title = 'Thành phần đã bị khóa vị trí. Bấm để mở khóa!';
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleElementLock(el);
+        });
+        el.appendChild(badge);
+      }
+    });
   }
 
   // ==========================================================================
@@ -2546,6 +2673,11 @@ function initPreziApp() {
       }
 
       // User clicked border/handle or pressed Alt to move the textbox
+      if (textBox.classList.contains('is-locked') || textBox.getAttribute('data-locked') === 'true') {
+        // Textbox is locked: cannot be moved
+        return;
+      }
+
       isDragging = true;
       startX = e.clientX;
       startY = e.clientY;
@@ -2773,6 +2905,9 @@ function initPreziApp() {
       textToolbar.style.top = `${topPos}px`;
       textToolbar.style.left = `${leftPos}px`;
       textToolbar.classList.add('show');
+      if (typeof updateLockToolbarButtons === 'function') {
+        updateLockToolbarButtons(targetEl ? (targetEl.closest('.prezi-textbox') || targetEl) : null);
+      }
     }
     window.positionTextToolbar = positionTextToolbar;
 
@@ -2796,6 +2931,9 @@ function initPreziApp() {
       imgToolbar.style.top = `${Math.round(topPos)}px`;
       imgToolbar.style.left = `${Math.round(leftPos)}px`;
       imgToolbar.classList.add('show');
+      if (typeof updateLockToolbarButtons === 'function') {
+        updateLockToolbarButtons(targetEl ? (targetEl.closest('.user-image-wrapper') || targetEl) : null);
+      }
     }
     window.positionImageToolbar = positionImageToolbar;
 
@@ -3000,6 +3138,14 @@ function initPreziApp() {
       });
     }
 
+    const btnTextLock = document.getElementById('btn-text-lock');
+    if (btnTextLock) {
+      btnTextLock.addEventListener('click', () => {
+        const target = selectedTextEl ? (selectedTextEl.closest('.prezi-textbox') || selectedTextEl) : document.querySelector('.prezi-textbox.selected');
+        if (target) toggleElementLock(target);
+      });
+    }
+
     // Floating Image Toolbar Actions (Hình 1: Replace, Edit, Crop, Delete, Layer Ordering)
     const replaceInput = document.getElementById('replace-file-input');
     if (replaceInput) {
@@ -3095,6 +3241,14 @@ function initPreziApp() {
           pushUndoState();
           sendElementToBack(target);
         }
+      });
+    }
+
+    const btnImgLock = document.getElementById('btn-img-lock');
+    if (btnImgLock) {
+      btnImgLock.addEventListener('click', () => {
+        const target = selectedImgEl ? (selectedImgEl.closest('.user-image-wrapper') || selectedImgEl) : document.querySelector('.user-image-wrapper.selected');
+        if (target) toggleElementLock(target);
       });
     }
 
@@ -3462,26 +3616,41 @@ function initPreziApp() {
       )).filter(el => el.id !== 'overview-frame-box');
 
       if (allSelectedItems.length > 0) {
-        e.preventDefault();
-        pushUndoState();
-        const count = allSelectedItems.length;
-        allSelectedItems.forEach(item => item.remove());
-        if (textToolbar) textToolbar.classList.remove('show');
-        if (imgToolbar) imgToolbar.classList.remove('show');
-        selectedTextEl = null;
-        selectedImgEl = null;
-        syncStopsFromDOM();
-        saveEditsToStorage();
-        showToast(count === 1 ? 'Đã xóa mục đang chọn.' : `Đã xóa ${count} mục đã chọn.`);
-        goToStop(Math.min(currentStopIndex, Math.max(0, STOPS.length - 1)));
-        return;
+        const lockedItems = allSelectedItems.filter(el => el.classList.contains('is-locked') || el.getAttribute('data-locked') === 'true');
+        if (lockedItems.length === allSelectedItems.length) {
+          e.preventDefault();
+          showToast('🔒 Phần tử đang bị khóa. Bấm Ctrl+L hoặc nút 🔓 Mở khóa trước khi xóa!');
+          return;
+        }
+
+        const itemsToDelete = allSelectedItems.filter(el => !el.classList.contains('is-locked') && el.getAttribute('data-locked') !== 'true');
+        if (itemsToDelete.length > 0) {
+          e.preventDefault();
+          pushUndoState();
+          const count = itemsToDelete.length;
+          itemsToDelete.forEach(item => item.remove());
+          if (textToolbar) textToolbar.classList.remove('show');
+          if (imgToolbar) imgToolbar.classList.remove('show');
+          selectedTextEl = null;
+          selectedImgEl = null;
+          syncStopsFromDOM();
+          saveEditsToStorage();
+          showToast(count === 1 ? 'Đã xóa mục đang chọn.' : `Đã xóa ${count} mục đã chọn.`);
+          goToStop(Math.min(currentStopIndex, Math.max(0, STOPS.length - 1)));
+          return;
+        }
       }
 
       // 3. If a text block element is selected:
       if (selectedTextEl && document.contains(selectedTextEl)) {
+        const parentBox = selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
+        if (parentBox && (parentBox.classList.contains('is-locked') || parentBox.getAttribute('data-locked') === 'true')) {
+          e.preventDefault();
+          showToast('🔒 Hộp chữ đang bị khóa. Bấm Ctrl+L hoặc 🔓 Mở khóa trước khi xóa!');
+          return;
+        }
         e.preventDefault();
         pushUndoState();
-        const parentBox = selectedTextEl.closest('.prezi-textbox, .custom-added-text-box, .custom-added-card, .canvas-card');
         if (parentBox) {
           parentBox.remove();
         } else {
@@ -3502,6 +3671,11 @@ function initPreziApp() {
         if (stop && stop.targetId) {
           const targetFrame = document.getElementById(stop.targetId);
           if (targetFrame && targetFrame.id !== 'overview-frame-box') {
+            if (targetFrame.classList.contains('is-locked') || targetFrame.getAttribute('data-locked') === 'true') {
+              e.preventDefault();
+              showToast('🔒 Khung slide đang bị khóa. Bấm Ctrl+L để mở khóa trước khi xóa!');
+              return;
+            }
             e.preventDefault();
             pushUndoState();
             deleteCard(targetFrame, true);
@@ -3544,6 +3718,9 @@ function initPreziApp() {
     imgToolbar.style.top = `${Math.round(topPos)}px`;
     imgToolbar.style.left = `${Math.round(leftPos)}px`;
     imgToolbar.classList.add('show');
+    if (typeof updateLockToolbarButtons === 'function') {
+      updateLockToolbarButtons(targetEl ? (targetEl.closest('.user-image-wrapper') || targetEl) : null);
+    }
   }
   window.positionImageToolbar = positionImageToolbar;
 
@@ -3616,6 +3793,11 @@ function initPreziApp() {
       if (document.body.classList.contains('in-present-mode')) return;
       e.stopPropagation();
 
+      if (wrapper.classList.contains('is-locked') || wrapper.getAttribute('data-locked') === 'true') {
+        // Locked: select image so toolbar opens, but do not drag
+        return;
+      }
+
       pushUndoState();
 
       isDraggingImg = true;
@@ -3643,6 +3825,7 @@ function initPreziApp() {
     if (resizeHandle) {
       resizeHandle.addEventListener('mousedown', (e) => {
         if (document.body.classList.contains('in-present-mode')) return;
+        if (wrapper.classList.contains('is-locked') || wrapper.getAttribute('data-locked') === 'true') return;
         e.stopPropagation();
         e.preventDefault();
 
@@ -4202,6 +4385,7 @@ function initPreziApp() {
 
       // Re-bind and upgrade all images to fully interactive
       upgradeAllImagesToInteractive();
+      restoreLockBadges();
     }
 
     // Always dynamically sync STOPS and frame box from what is actually in the DOM!
@@ -4247,6 +4431,7 @@ function initPreziApp() {
   world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
   world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
   upgradeAllImagesToInteractive();
+  restoreLockBadges();
   syncStopsFromDOM();
   setupCardInteractions();
   setupPanning();
