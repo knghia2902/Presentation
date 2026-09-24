@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400;1,600&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=20260924_v58">
+  <link rel="stylesheet" href="style.css?v=20260924_v59">
 </head>
 <body class="prezi-app">
 
@@ -77,6 +77,10 @@
       <div class="user-avatar-badge" title="Tài khoản cá nhân">
         <span class="user-avatar-text">NB</span>
       </div>
+      <button class="btn-topbar-backup" id="btn-topbar-backup" title="Sao lưu file & Quản lý Template mẫu">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        <span>Lưu & Mẫu</span>
+      </button>
       <div class="split-btn-group">
         <button class="btn-present-split" id="btn-present-mode">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -157,6 +161,10 @@
           <button class="right-tab-btn" data-tab="tab-background" title="Hình nền & Màu sắc">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
             <span>Nền</span>
+          </button>
+          <button class="right-tab-btn" data-tab="tab-backup" title="Sao lưu file & Quản lý Template mẫu">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+            <span>Sao lưu</span>
           </button>
         </div>
         <button class="btn-panel-close" id="btn-close-bg-panel" title="Đóng bảng">✕</button>
@@ -381,6 +389,54 @@
             </div>
           </div>
         </div>
+
+        <!-- Tab 4: Backup & Template Management -->
+        <div class="right-tab-content" id="tab-backup">
+          <div class="panel-section">
+            <div class="panel-section-title">Sao Lưu &amp; Khôi Phục Template</div>
+            <div class="panel-help-text" style="line-height: 1.45; color: #475569; font-size: 11.5px; margin-bottom: 12px;">
+              Xuất tải file <code>.json</code> về máy để lưu trữ vĩnh viễn, hoặc lưu thành Bản mẫu (Template) để khôi phục bất kỳ lúc nào nếu lỡ tay xóa.
+            </div>
+
+            <!-- Export to disk -->
+            <div class="panel-field">
+              <button type="button" class="panel-action-btn primary" id="btn-export-backup" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; padding: 9px 12px;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Tải file Sao lưu (.json) về máy</span>
+              </button>
+            </div>
+
+            <!-- Import from disk -->
+            <div class="panel-field">
+              <button type="button" class="panel-action-btn secondary" id="btn-trigger-import-backup" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; padding: 9px 12px;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Nạp lại từ file Backup (.json)</span>
+              </button>
+              <input type="file" id="input-import-backup" accept=".json" style="display: none;">
+            </div>
+
+            <div style="height: 1px; background: #e2e8f0; margin: 12px 0;"></div>
+
+            <div class="panel-section-title">Bản Mẫu (Template Mẫu Sẵn)</div>
+            
+            <div class="panel-field">
+              <button type="button" class="panel-action-btn" id="btn-save-as-template" style="width: 100%; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; padding: 9px 12px;">
+                <span>⭐ Lưu bài hiện tại làm Template Mẫu</span>
+              </button>
+              <div class="panel-help-text" style="font-size: 11px; margin-top: 4px; color: #64748b;">
+                Lưu vào bộ nhớ trình duyệt để có thể khôi phục tức thì bất kỳ lúc nào.
+              </div>
+            </div>
+
+            <div class="panel-field">
+              <button type="button" class="panel-action-btn" id="btn-restore-template" style="width: 100%; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; padding: 9px 12px;">
+                <span>↺ Khôi phục từ Template Mẫu</span>
+              </button>
+            </div>
+            
+            <div id="backup-status-msg" style="display: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin-top: 8px;"></div>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -520,6 +576,6 @@
 
   </div>
 
-  <script src="script.js?v=20260924_v58"></script>
+  <script src="script.js?v=20260924_v59"></script>
 </body>
 </html>

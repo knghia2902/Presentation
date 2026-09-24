@@ -2900,6 +2900,185 @@ function initPreziApp() {
 
     // 3. Properties Panel Controls (Tab 1)
     setupPropertyPanelEvents();
+
+    // 4. Backup & Template Management (Tab 4)
+    const btnTopbarBackup = document.getElementById('btn-topbar-backup');
+    if (btnTopbarBackup) {
+      btnTopbarBackup.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isBackupOpen = rightSidebar && !rightSidebar.classList.contains('collapsed') &&
+          document.querySelector('#right-panel-tab-bar .right-tab-btn.active')?.getAttribute('data-tab') === 'tab-backup';
+        if (isBackupOpen) {
+          rightSidebar.classList.add('collapsed');
+          setTimeout(() => goToStop(currentStopIndex, true), 200);
+        } else {
+          switchRightTab('tab-backup');
+        }
+      });
+    }
+
+    const btnExportBackup = document.getElementById('btn-export-backup');
+    const btnTriggerImport = document.getElementById('btn-trigger-import-backup');
+    const inputImport = document.getElementById('input-import-backup');
+    const btnSaveTemplate = document.getElementById('btn-save-as-template');
+    const btnRestoreTemplate = document.getElementById('btn-restore-template');
+    const backupStatusMsg = document.getElementById('backup-status-msg');
+
+    function showBackupStatus(msg, type) {
+      if (!backupStatusMsg) return;
+      backupStatusMsg.style.display = 'block';
+      backupStatusMsg.textContent = msg;
+      backupStatusMsg.style.background = type === 'success' ? '#f0fdf4' : '#fef2f2';
+      backupStatusMsg.style.color = type === 'success' ? '#166534' : '#991b1b';
+      backupStatusMsg.style.border = `1px solid ${type === 'success' ? '#86efac' : '#fecaca'}`;
+      clearTimeout(backupStatusMsg._timer);
+      backupStatusMsg._timer = setTimeout(() => {
+        backupStatusMsg.style.display = 'none';
+      }, 5000);
+    }
+
+    if (btnExportBackup) {
+      btnExportBackup.addEventListener('click', () => {
+        try {
+          const sanitized = world.innerHTML
+            .replace(/\s*data-events-bound="[^"]*"/g, '')
+            .replace(/\bselected\b/g, '')
+            .replace(/\bcard-selected\b/g, '')
+            .replace(/\bcurrent-active\b/g, '')
+            .replace(/<div class="canvas-watermark"[\s\S]*?<\/div>/gi, '')
+            .replace(/<div class="card-action-bar"[\s\S]*?<\/div>/gi, '');
+
+          let layout = null;
+          try {
+            layout = JSON.parse(localStorage.getItem('prezi_cards_layout_v2') || 'null');
+          } catch (e) {}
+
+          const backupData = {
+            app: 'Nhom8PreziPresentation',
+            version: '1.0',
+            exportedAt: new Date().toISOString(),
+            content: sanitized,
+            cardsLayout: layout,
+            cameraConfig: typeof CAMERA_CONFIG !== 'undefined' ? CAMERA_CONFIG : null
+          };
+
+          const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const d = new Date();
+          const pad = n => String(n).padStart(2, '0');
+          const dateStr = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+          a.href = url;
+          a.download = `presentation-nhom8-${dateStr}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+
+          showBackupStatus('✅ Đã tải file sao lưu (.json) về máy thành công!', 'success');
+        } catch (err) {
+          showBackupStatus('❌ Lỗi xuất file: ' + err.message, 'error');
+        }
+      });
+    }
+
+    if (btnTriggerImport && inputImport) {
+      btnTriggerImport.addEventListener('click', () => {
+        inputImport.value = '';
+        inputImport.click();
+      });
+
+      inputImport.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const parsed = JSON.parse(ev.target.result);
+            let content = null;
+            let layout = null;
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.content) {
+                content = parsed.content;
+                layout = parsed.cardsLayout || null;
+              } else if (parsed.data && parsed.data.content) {
+                content = parsed.data.content;
+                layout = parsed.data.cardsLayout || null;
+              }
+            }
+
+            if (!content) {
+              alert('File sao lưu không đúng định dạng!');
+              return;
+            }
+
+            if (confirm('Khôi phục bài thuyết trình từ file này? Nội dung hiện tại trên canvas sẽ được cập nhật.')) {
+              applyLoadedPresentation(content, layout);
+              await saveEditsToStorage();
+              showBackupStatus('✅ Đã nạp thành công bài thuyết trình từ file!', 'success');
+            }
+          } catch (err) {
+            alert('Lỗi khi đọc file sao lưu: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
+
+    if (btnSaveTemplate) {
+      btnSaveTemplate.addEventListener('click', () => {
+        try {
+          const sanitized = world.innerHTML
+            .replace(/\s*data-events-bound="[^"]*"/g, '')
+            .replace(/\bselected\b/g, '')
+            .replace(/\bcard-selected\b/g, '')
+            .replace(/\bcurrent-active\b/g, '')
+            .replace(/<div class="canvas-watermark"[\s\S]*?<\/div>/gi, '')
+            .replace(/<div class="card-action-bar"[\s\S]*?<\/div>/gi, '');
+
+          let layout = null;
+          try {
+            layout = JSON.parse(localStorage.getItem('prezi_cards_layout_v2') || 'null');
+          } catch (e) {}
+
+          const templateData = {
+            savedAt: new Date().toISOString(),
+            content: sanitized,
+            cardsLayout: layout
+          };
+          localStorage.setItem('prezi_user_template_v1', JSON.stringify(templateData));
+          showBackupStatus('⭐ Đã lưu bài hiện tại làm Template Mẫu an toàn!', 'success');
+        } catch (err) {
+          showBackupStatus('❌ Lỗi khi lưu template: ' + err.message, 'error');
+        }
+      });
+    }
+
+    if (btnRestoreTemplate) {
+      btnRestoreTemplate.addEventListener('click', async () => {
+        try {
+          const raw = localStorage.getItem('prezi_user_template_v1');
+          if (!raw) {
+            alert('Chưa có Template Mẫu nào được lưu trước đó! Bạn hãy nhấn "Lưu bài hiện tại làm Template Mẫu" trước.');
+            return;
+          }
+          const data = JSON.parse(raw);
+          if (!data || !data.content) {
+            alert('Dữ liệu Template Mẫu không hợp lệ!');
+            return;
+          }
+
+          if (confirm('Khôi phục lại toàn bộ bài trình chiếu từ Template Mẫu đã lưu?')) {
+            applyLoadedPresentation(data.content, data.cardsLayout);
+            await saveEditsToStorage();
+            showBackupStatus('↺ Đã khôi phục thành công từ Template Mẫu!', 'success');
+          }
+        } catch (err) {
+          showBackupStatus('❌ Lỗi khi khôi phục template: ' + err.message, 'error');
+        }
+      });
+    }
   }
 
   // 7. Keyboard & Controls
@@ -5731,6 +5910,54 @@ function initPreziApp() {
     }, 500);
   }
 
+  function applyLoadedPresentation(savedContent, savedLayout) {
+    if (!savedContent) return;
+    savedContent = savedContent.replace(/<div class="canvas-watermark"[\s\S]*?<\/div>/gi, '');
+    savedContent = savedContent.replace(/<div class="card-action-bar"[\s\S]*?<\/div>/gi, '');
+    savedContent = savedContent.replace(/\s*data-events-bound="[^"]*"/g, '');
+    world.innerHTML = savedContent;
+    world.querySelectorAll('[data-events-bound]').forEach(el => delete el.dataset.eventsBound);
+    world.querySelectorAll('.card-action-bar').forEach(el => el.remove());
+    
+    world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
+    world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
+    ensureOverviewFrameBox();
+    separateOverlappingFrames();
+    world.querySelectorAll('.selected, .card-selected, .current-active').forEach(el => el.classList.remove('selected', 'card-selected', 'current-active'));
+    if (savedLayout) {
+      try {
+        localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));
+      } catch (e) {}
+    }
+    setupCardInteractions();
+    
+    // Re-enable ContentEditable for all text elements
+    const editableSelectors = [
+      '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
+      '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
+      '.cycle-box p', '.cycle-box h5', '.cycle-box', '.cy-badge', '.lenin-quote-strip p', '.spiral-quote',
+      '.img-caption-tag', '.card-micro-quote', '.card-step-badge', '.card-header-badge', '.axis-svg-label',
+      '.principles-dual-list strong', '.cmp-box strong', '.s-cap strong',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'p'
+    ];
+    document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
+      if (!el.closest('.prezi-topbar') && !el.closest('.prezi-sidebar') && !el.closest('.prezi-bottom-bar') && !el.closest('.card-action-bar')) {
+        el.setAttribute('contenteditable', 'true');
+        el.setAttribute('spellcheck', 'false');
+      }
+    });
+
+    // Re-bind and upgrade all images to fully interactive
+    upgradeAllImagesToInteractive();
+    restoreLockBadges();
+    if (typeof ensureAllCanvasElementsRotateHandles === 'function') {
+      ensureAllCanvasElementsRotateHandles();
+    }
+
+    ensureOverviewFrameBox();
+    syncStopsFromDOM();
+  }
+
   async function loadEditsFromStorage() {
     let d1Content = null;
     let d1Layout = null;
@@ -5812,47 +6039,7 @@ function initPreziApp() {
     }
 
     if (savedContent) {
-      savedContent = savedContent.replace(/<div class="canvas-watermark"[\s\S]*?<\/div>/gi, '');
-      savedContent = savedContent.replace(/<div class="card-action-bar"[\s\S]*?<\/div>/gi, '');
-      savedContent = savedContent.replace(/\s*data-events-bound="[^"]*"/g, '');
-      world.innerHTML = savedContent;
-      world.querySelectorAll('[data-events-bound]').forEach(el => delete el.dataset.eventsBound);
-      world.querySelectorAll('.card-action-bar').forEach(el => el.remove());
-      
-      world.querySelectorAll('.prezi-textbox').forEach(setupTextBox);
-      world.querySelectorAll('.canvas-slide-frame').forEach(setupSlideFrameInteractions);
-      ensureOverviewFrameBox();
-      separateOverlappingFrames();
-      world.querySelectorAll('.selected, .card-selected, .current-active').forEach(el => el.classList.remove('selected', 'card-selected', 'current-active'));
-      if (savedLayout) {
-        try {
-          localStorage.setItem('prezi_cards_layout_v2', JSON.stringify(savedLayout));
-        } catch (e) {}
-      }
-      setupCardInteractions();
-      
-      // Re-enable ContentEditable for all text elements
-      const editableSelectors = [
-        '.hero-title', '.hero-subtitle', '.card-title-prezi', '.card-title-large',
-        '.card-body-text', '.p-item', '.cmp-box', '.s-cap', '.m-card',
-        '.cycle-box p', '.cycle-box h5', '.cycle-box', '.cy-badge', '.lenin-quote-strip p', '.spiral-quote',
-        '.img-caption-tag', '.card-micro-quote', '.card-step-badge', '.card-header-badge', '.axis-svg-label',
-        '.principles-dual-list strong', '.cmp-box strong', '.s-cap strong',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'p'
-      ];
-      document.querySelectorAll(editableSelectors.join(',')).forEach(el => {
-        if (!el.closest('.prezi-topbar') && !el.closest('.prezi-sidebar') && !el.closest('.prezi-bottom-bar') && !el.closest('.card-action-bar')) {
-          el.setAttribute('contenteditable', 'true');
-          el.setAttribute('spellcheck', 'false');
-        }
-      });
-
-      // Re-bind and upgrade all images to fully interactive
-      upgradeAllImagesToInteractive();
-      restoreLockBadges();
-      if (typeof ensureAllCanvasElementsRotateHandles === 'function') {
-        ensureAllCanvasElementsRotateHandles();
-      }
+      applyLoadedPresentation(savedContent, savedLayout);
     }
 
     // Always dynamically sync STOPS and frame box from what is actually in the DOM!

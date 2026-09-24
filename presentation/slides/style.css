@@ -285,6 +285,27 @@ input, textarea {
   cursor: pointer;
 }
 
+.btn-topbar-backup {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-topbar-backup:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  color: #14532d;
+}
+
 .split-btn-group {
   display: flex;
   align-items: center;
@@ -910,9 +931,9 @@ body.in-present-mode .canvas-empty-frame-box .frame-handle {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 6px 4px;
-  font-size: 11.5px;
+  gap: 3px;
+  padding: 6px 2px;
+  font-size: 11px;
   font-weight: 600;
   color: #64748b;
   background: transparent;
@@ -2304,16 +2325,16 @@ body:not(.in-present-mode) .prezi-textbox:hover:not(.selected) {
   -webkit-user-select: text !important;
 }
 
-/* 6 Corner & Side handles chuẩn Prezi / PowerPoint cho Textbox */
+/* 4 Corner handles chuẩn Prezi / PowerPoint cho Textbox (Gọn gàng, không bị to choán chữ) */
 .prezi-textbox .box-handle {
   display: none !important;
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
   background: #ffffff;
   border: 1.5px solid #2563eb;
-  border-radius: 2px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 1.5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   z-index: 100;
   pointer-events: auto !important;
   box-sizing: border-box;
@@ -2323,10 +2344,10 @@ body:not(.in-present-mode) .prezi-textbox:hover:not(.selected) {
 .prezi-textbox .box-handle::before {
   content: '';
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
 }
 
 .prezi-textbox .box-handle:hover {
@@ -2342,12 +2363,15 @@ body:not(.in-present-mode) .prezi-textbox:hover:not(.selected) {
   display: none !important;
 }
 
-.prezi-textbox .box-handle.tl { top: -5px; left: -5px; cursor: nwse-resize; }
-.prezi-textbox .box-handle.tr { top: -5px; right: -5px; cursor: nesw-resize; }
-.prezi-textbox .box-handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; }
-.prezi-textbox .box-handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; }
-.prezi-textbox .box-handle.ml { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
-.prezi-textbox .box-handle.mr { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+.prezi-textbox .box-handle.tl { top: -4px; left: -4px; cursor: nwse-resize; }
+.prezi-textbox .box-handle.tr { top: -4px; right: -4px; cursor: nesw-resize; }
+.prezi-textbox .box-handle.bl { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.prezi-textbox .box-handle.br { bottom: -4px; right: -4px; cursor: nwse-resize; }
+/* Ẩn tay nắm cạnh giữa để tránh chồng chéo khi hộp chữ nhỏ */
+.prezi-textbox .box-handle.ml,
+.prezi-textbox .box-handle.mr {
+  display: none !important;
+}
 
 body.in-present-mode .prezi-textbox {
   border: none !important;
@@ -2788,37 +2812,55 @@ img {
   transform-origin: center center;
 }
 
-/* Corner Rotate Handle (Biểu tượng xoay tròn trực tiếp ở góc đối tượng) */
+/* Rotate Handle: Sleek top-centered stem (like Google Slides / Canva / Figma), never blocking text or content */
 .element-rotate-handle {
   display: none !important;
   position: absolute;
-  top: -12px;
-  right: -12px;
-  width: 24px;
-  height: 24px;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #ffffff;
   border: 1.5px solid #2563eb;
   color: #2563eb;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
   cursor: grab;
   z-index: 120;
   user-select: none;
   -webkit-user-select: none;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s, background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+
+/* Connecting stem line down to the element */
+.element-rotate-handle::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 8px;
+  background: #2563eb;
+}
+
+.element-rotate-handle svg {
+  width: 10px;
+  height: 10px;
 }
 
 .element-rotate-handle:hover {
   background: #2563eb;
   color: #ffffff;
-  transform: scale(1.18);
+  transform: translateX(-50%) scale(1.15);
 }
 
 .element-rotate-handle:active {
   cursor: grabbing;
-  transform: scale(1.08);
+  transform: translateX(-50%) scale(1.05);
 }
 
 /* Show rotate handle on hover & when element is selected */
