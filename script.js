@@ -2826,7 +2826,7 @@ function initPreziApp() {
     const btnResetCam = document.getElementById('btn-reset-camera-effect');
 
     const CAM_STYLE_DESCS = {
-      'direct': 'Prezi Smooth: camera tự pan và zoom thẳng tới frame đích bằng một chuyển động duy nhất.'
+      'direct': 'Prezi Smooth: camera pan thẳng tới frame đích và zoom ra nhẹ ở giữa nếu khoảng cách xa.'
     };
     const helpCamStyle = document.getElementById('cfg-cam-help');
 
