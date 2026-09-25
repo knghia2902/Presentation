@@ -697,9 +697,41 @@ function initPreziApp() {
     finalCam.prevWorldCenterX = prevCam.worldCenterX;
     finalCam.prevWorldCenterY = prevCam.worldCenterY;
 
-    // Far targets get a small, bounded zoom-out envelope. This is still one
-    // continuous transition: the camera never follows an arc and never jumps
-    // to the overview. Nearby frames keep the ordinary direct glide.
+    // When moving from one frame to another, use the explicit Prezi-style
+    // route requested by the user: Frame -> Overview -> Frame. The Overview
+    // is a real camera waypoint, not a fake zoom envelope or curved path.
+    const previousStop = prevIndex >= 0 && prevIndex < STOPS.length ? STOPS[prevIndex] : null;
+    const isFrameToFrame = Boolean(
+      smooth && !sameFrame && previousStop &&
+      previousStop.targetId !== 'overview-frame-box' &&
+      stop.targetId !== 'overview-frame-box' &&
+      previousStop.type !== 'overview' &&
+      stop.type !== 'overview'
+    );
+
+    if (isFrameToFrame) {
+      const overviewBox = document.getElementById('overview-frame-box');
+      const overviewCam = overviewBox
+        ? getElementFocusTransform(overviewBox, 1.0)
+        : getOverviewTransform();
+      overviewCam.prevWorldCenterX = prevCam.worldCenterX;
+      overviewCam.prevWorldCenterY = prevCam.worldCenterY;
+
+      const destinationCam = {
+        ...finalCam,
+        prevWorldCenterX: overviewCam.worldCenterX,
+        prevWorldCenterY: overviewCam.worldCenterY
+      };
+      const overviewDuration = Math.max(0.5, totalDur * 0.8);
+      const destinationDuration = Math.max(0.65, totalDur);
+
+      smoothCameraFlight(overviewCam, overviewDuration, 'direct', () => {
+        smoothCameraFlight(destinationCam, destinationDuration, 'direct');
+      });
+    } else {
+      // Far targets that are reached directly (for example from Overview) get
+      // a small bounded zoom-out envelope. Frame-to-frame navigation above has
+      // already used the real Overview waypoint and must not add another one.
     const centerDistancePx = Math.hypot(
       (finalCam.worldCenterX - prevCam.worldCenterX) * Math.min(prevCam.scale, finalCam.scale),
       (finalCam.worldCenterY - prevCam.worldCenterY) * Math.min(prevCam.scale, finalCam.scale)
@@ -737,6 +769,7 @@ function initPreziApp() {
       applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
     } else {
       smoothCameraFlight(finalCam, cameraDuration, 'direct');
+    }
     }
 
     if (currentStopTitle && stop) {
