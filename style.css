@@ -1289,6 +1289,43 @@ body.in-present-mode .canvas-empty-frame-box .frame-handle {
   transition: transform 0.65s cubic-bezier(0.25, 1, 0.35, 1);
 }
 
+/* Smart alignment guides shown while moving/resizing frames and cards. */
+.smart-guides-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.08s ease;
+}
+
+.smart-guides-layer.is-visible {
+  opacity: 1;
+}
+
+.smart-guide-line {
+  position: absolute;
+  display: none;
+  background: #f0783c;
+  box-shadow: 0 0 0 0.5px rgba(240, 120, 60, 0.2), 0 0 7px rgba(240, 120, 60, 0.2);
+}
+
+.smart-guide-line.is-active {
+  display: block;
+}
+
+.smart-guide-vertical {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.smart-guide-horizontal {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
 /* ==========================================================================
    AUTHENTIC PREZI GRAPHIC ASSETS (Extracted from User Screenshot)
    ========================================================================== */
@@ -3079,5 +3116,4 @@ body.in-present-mode .prezi-right-sidebar {
   color: #2563eb;
   background: #eff6ff;
 }
-
 

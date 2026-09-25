@@ -795,8 +795,129 @@ function initPreziApp() {
     }
   }
 
+  // Smart guides / alignment snapping (Prezi-style editor assistance)
+  // Guides live inside the spatial world so they stay aligned while the canvas zooms and pans.
+  function ensureSmartGuidesLayer() {
+    let layer = document.getElementById('smart-guides-layer');
+    if (layer) return layer;
+
+    layer = document.createElement('div');
+    layer.id = 'smart-guides-layer';
+    layer.className = 'smart-guides-layer';
+    layer.setAttribute('aria-hidden', 'true');
+    layer.innerHTML = `
+      <span class="smart-guide-line smart-guide-vertical"></span>
+      <span class="smart-guide-line smart-guide-horizontal"></span>
+    `;
+    world.appendChild(layer);
+    return layer;
+  }
+
+  function clearSmartGuides() {
+    const layer = document.getElementById('smart-guides-layer');
+    if (!layer) return;
+    layer.classList.remove('is-visible');
+    layer.querySelectorAll('.smart-guide-line').forEach(line => {
+      line.style.left = '';
+      line.style.top = '';
+    });
+  }
+
+  function showSmartGuides(guides = {}) {
+    const layer = ensureSmartGuidesLayer();
+    const vertical = layer.querySelector('.smart-guide-vertical');
+    const horizontal = layer.querySelector('.smart-guide-horizontal');
+    const hasVertical = Number.isFinite(guides.x);
+    const hasHorizontal = Number.isFinite(guides.y);
+
+    layer.classList.toggle('is-visible', hasVertical || hasHorizontal);
+    vertical.classList.toggle('is-active', hasVertical);
+    horizontal.classList.toggle('is-active', hasHorizontal);
+    if (hasVertical) vertical.style.left = `${guides.x}px`;
+    if (hasHorizontal) horizontal.style.top = `${guides.y}px`;
+  }
+
+  function getElementWorldRect(element) {
+    if (!element || !world) return null;
+    const worldRect = world.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    const worldScale = world.offsetWidth > 0 ? worldRect.width / world.offsetWidth : (currentCamera.scale || 1);
+    if (!Number.isFinite(worldScale) || worldScale <= 0) return null;
+
+    return {
+      left: (elementRect.left - worldRect.left) / worldScale,
+      top: (elementRect.top - worldRect.top) / worldScale,
+      width: elementRect.width / worldScale,
+      height: elementRect.height / worldScale
+    };
+  }
+
+  function getSmartGuideTargets(activeElement) {
+    const selectors = '.canvas-slide-frame, .canvas-card, .canvas-item, .canvas-empty-frame-box';
+    return Array.from(world.querySelectorAll(selectors)).filter(element => {
+      if (element === activeElement || element.id === 'smart-guides-layer') return false;
+      if (element.id === 'overview-frame-box' && activeElement.id === 'overview-frame-box') return false;
+
+      // Content cards nested inside a slide frame are not independent alignment targets.
+      const parentFrame = element.closest('.canvas-slide-frame');
+      const parentCard = element.closest('.canvas-card, .canvas-item');
+      if (parentFrame && parentFrame !== element) return false;
+      if (parentCard && parentCard !== element) return false;
+      return true;
+    });
+  }
+
+  function getSmartGuideSnap(activeElement) {
+    const activeRect = getElementWorldRect(activeElement);
+    if (!activeRect) return { dx: 0, dy: 0, guides: {} };
+
+    const threshold = 8 / Math.max(0.25, currentCamera.scale || 1);
+    const activeX = [
+      { value: activeRect.left, edge: 'left' },
+      { value: activeRect.left + activeRect.width / 2, edge: 'center' },
+      { value: activeRect.left + activeRect.width, edge: 'right' }
+    ];
+    const activeY = [
+      { value: activeRect.top, edge: 'top' },
+      { value: activeRect.top + activeRect.height / 2, edge: 'center' },
+      { value: activeRect.top + activeRect.height, edge: 'bottom' }
+    ];
+    const best = { x: null, y: null };
+
+    getSmartGuideTargets(activeElement).forEach(target => {
+      const rect = getElementWorldRect(target);
+      if (!rect || rect.width < 1 || rect.height < 1) return;
+
+      const targetX = [rect.left, rect.left + rect.width / 2, rect.left + rect.width];
+      const targetY = [rect.top, rect.top + rect.height / 2, rect.top + rect.height];
+
+      activeX.forEach(source => targetX.forEach(value => {
+        const delta = value - source.value;
+        if (Math.abs(delta) <= threshold && (!best.x || Math.abs(delta) < Math.abs(best.x.delta))) {
+          best.x = { delta, value, edge: source.edge };
+        }
+      }));
+      activeY.forEach(source => targetY.forEach(value => {
+        const delta = value - source.value;
+        if (Math.abs(delta) <= threshold && (!best.y || Math.abs(delta) < Math.abs(best.y.delta))) {
+          best.y = { delta, value, edge: source.edge };
+        }
+      }));
+    });
+
+    return {
+      dx: best.x ? best.x.delta : 0,
+      dy: best.y ? best.y.delta : 0,
+      guides: {
+        x: best.x ? best.x.value : null,
+        y: best.y ? best.y.value : null
+      }
+    };
+  }
+
   function setupCardInteractions() {
     const cards = document.querySelectorAll('.canvas-card, .canvas-item');
+    ensureSmartGuidesLayer();
     
     // Inject 8 resize handles & floating action bar to every card
     cards.forEach(card => {
@@ -996,6 +1117,14 @@ function initPreziApp() {
         activeResizeCard.style.width = `${newW}px`;
         activeResizeCard.style.height = `${newH}px`;
         activeResizeCard.style.transform = `translate(${newTransX}px, ${newTransY}px)`;
+
+        const snap = getSmartGuideSnap(activeResizeCard);
+        if (snap.dx || snap.dy) {
+          newTransX += snap.dx;
+          newTransY += snap.dy;
+          activeResizeCard.style.transform = `translate(${newTransX}px, ${newTransY}px)`;
+        }
+        showSmartGuides(snap.guides);
       } else if (activeDragCard) {
         if (activeDragCard.classList.contains('is-locked') || activeDragCard.getAttribute('data-locked') === 'true') {
           activeDragCard = null;
@@ -1004,6 +1133,9 @@ function initPreziApp() {
         const dx = (e.clientX - dStartX) / scale;
         const dy = (e.clientY - dStartY) / scale;
         activeDragCard.style.transform = `translate(${dStartTransX + dx}px, ${dStartTransY + dy}px)`;
+        const snap = getSmartGuideSnap(activeDragCard);
+        activeDragCard.style.transform = `translate(${dStartTransX + dx + snap.dx}px, ${dStartTransY + dy + snap.dy}px)`;
+        showSmartGuides(snap.guides);
       }
     });
 
@@ -1011,6 +1143,7 @@ function initPreziApp() {
       if (activeResizeCard || activeDragCard) {
         activeResizeCard = null;
         activeDragCard = null;
+        clearSmartGuides();
         saveCardsLayout();
         showToast('Đã lưu vị trí & kích thước thẻ.');
       }
@@ -1537,6 +1670,15 @@ function initPreziApp() {
         frame.style.left = `${Math.round(newLeft)}px`;
         frame.style.top = `${Math.round(newTop)}px`;
 
+        const snap = getSmartGuideSnap(frame);
+        if (snap.dx || snap.dy) {
+          newLeft += snap.dx;
+          newTop += snap.dy;
+          frame.style.left = `${Math.round(newLeft)}px`;
+          frame.style.top = `${Math.round(newTop)}px`;
+        }
+        showSmartGuides(snap.guides);
+
         // Proportionally scale and reposition all text, images, and content inside the frame
         if (iW > 0 && iH > 0 && childSnapshot.length > 0) {
           const ratioW = newW / iW;
@@ -1587,12 +1729,19 @@ function initPreziApp() {
         frame.style.left = `${Math.round(iLeft + dx)}px`;
         frame.style.top = `${Math.round(iTop + dy)}px`;
 
+        const snap = getSmartGuideSnap(frame);
+        const finalDx = dx + snap.dx;
+        const finalDy = dy + snap.dy;
+        frame.style.left = `${Math.round(iLeft + finalDx)}px`;
+        frame.style.top = `${Math.round(iTop + finalDy)}px`;
+        showSmartGuides(snap.guides);
+
         // Move all associated elements in world along with the frame
         if (childSnapshot.length > 0) {
           childSnapshot.forEach(item => {
             if (!item.isDirectChild) {
-              item.el.style.left = `${Math.round(item.origLeft + dx)}px`;
-              item.el.style.top = `${Math.round(item.origTop + dy)}px`;
+              item.el.style.left = `${Math.round(item.origLeft + finalDx)}px`;
+              item.el.style.top = `${Math.round(item.origTop + finalDy)}px`;
             }
           });
         }
@@ -1604,6 +1753,7 @@ function initPreziApp() {
         isResizing = false;
         isDragging = false;
         childSnapshot = [];
+        clearSmartGuides();
         saveEditsToStorage();
       }
     });
