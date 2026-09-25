@@ -671,6 +671,7 @@ function initPreziApp() {
     if (!finalCam) return;
 
     const safe = getSafeWorkArea();
+    const isPresentMode = document.body.classList.contains('in-present-mode');
     const style = 'direct';
     const totalDur = CAMERA_CONFIG.duration || 0.7;
     const sameFrame = (prevIndex === index);
@@ -710,7 +711,7 @@ function initPreziApp() {
     // "overview" here: it is distance-aware context, never the Overview frame.
     const previousStop = prevIndex >= 0 && prevIndex < STOPS.length ? STOPS[prevIndex] : null;
     const isFrameToFrame = Boolean(
-      smooth && !sameFrame && previousStop &&
+      smooth && !isPresentMode && !sameFrame && previousStop &&
       previousStop.targetId !== 'overview-frame-box' &&
       stop.targetId !== 'overview-frame-box' &&
       previousStop.type !== 'overview' &&
@@ -797,8 +798,8 @@ function initPreziApp() {
       Math.max(0.001, Math.min(prevCam.scale, finalCam.scale));
       // The slide order can place a frame far from Overview. Reveal a little
       // context without routing through the Overview frame itself.
-      const isDistant = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
-      const isScaleJump = scaleRatio >= 1.35;
+      const isDistant = !isPresentMode && centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
+      const isScaleJump = !isPresentMode && scaleRatio >= 1.35;
       const isContextMove = isDistant || isScaleJump;
       if (isDistant || isScaleJump) {
         const baseScale = Math.min(prevCam.scale, finalCam.scale);
@@ -818,7 +819,7 @@ function initPreziApp() {
       }
 
       // Give the direct context reveal enough time to be perceived.
-      const cameraDuration = isContextMove ? Math.max(totalDur, 1.1) : totalDur;
+      const cameraDuration = !isPresentMode && isContextMove ? Math.max(totalDur, 1.1) : totalDur;
       if (style === 'instant' || !smooth || sameFrame) {
         applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
       } else {
