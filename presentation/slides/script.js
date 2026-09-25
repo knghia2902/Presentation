@@ -692,7 +692,10 @@ function initPreziApp() {
     );
     const scaleRatio = Math.max(prevCam.scale, finalCam.scale) /
       Math.max(0.001, Math.min(prevCam.scale, finalCam.scale));
-    const isDistant = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.72;
+    // The slide order can place two consecutive frames far apart even when
+    // both frames are similarly sized. Use a lower threshold so those moves
+    // still reveal a little canvas instead of looking like a flat sideways pan.
+    const isDistant = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
     const isScaleJump = scaleRatio >= 1.35;
     if (isDistant || isScaleJump) {
       const baseScale = Math.min(prevCam.scale, finalCam.scale);
@@ -708,7 +711,7 @@ function initPreziApp() {
       // full overview or a visible jump to the lower-left origin.
       finalCam.travelScale = Math.max(
         baseScale * 0.72,
-        Math.min(baseScale, corridorScale)
+        Math.min(baseScale * 0.88, corridorScale)
       );
     }
 
