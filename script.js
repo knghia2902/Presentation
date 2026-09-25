@@ -412,9 +412,23 @@ function initPreziApp() {
         ? 4 * rawT * rawT * rawT
         : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
 
-      const baseScale = startScale + (endScale - startScale) * p;
-      const contextDip = Math.max(0, minScale - travelScale) * Math.sin(Math.PI * p);
-      const curScale = Math.max(0.04, baseScale - contextDip);
+      let curScale;
+      if (travelScale < minScale - 0.001) {
+        // Prezi keeps the departing frame readable while the camera starts
+        // travelling, reveals context in the middle, then settles into the
+        // destination. This is one continuous envelope, not two animations.
+        const revealP = Math.max(0, Math.min(1, (p - 0.14) / 0.86));
+        const smoothStep = value => value * value * (3 - 2 * value);
+        if (revealP < 0.52) {
+          const localP = smoothStep(revealP / 0.52);
+          curScale = startScale + (travelScale - startScale) * localP;
+        } else {
+          const localP = smoothStep((revealP - 0.52) / 0.48);
+          curScale = travelScale + (endScale - travelScale) * localP;
+        }
+      } else {
+        curScale = startScale + (endScale - startScale) * p;
+      }
 
       // Keep the interpolated world center under the viewport center while
       // zooming. This prevents the transform origin from pulling the scene
