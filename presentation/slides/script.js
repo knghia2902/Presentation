@@ -697,6 +697,7 @@ function initPreziApp() {
     // still reveal a little canvas instead of looking like a flat sideways pan.
     const isDistant = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
     const isScaleJump = scaleRatio >= 1.35;
+    const isContextMove = isDistant || isScaleJump;
     if (isDistant || isScaleJump) {
       const baseScale = Math.min(prevCam.scale, finalCam.scale);
       const spanW = Math.abs(finalCam.worldCenterX - prevCam.worldCenterX) +
@@ -710,15 +711,18 @@ function initPreziApp() {
       // Bound the reveal so it feels like Prezi's brief context view, not a
       // full overview or a visible jump to the lower-left origin.
       finalCam.travelScale = Math.max(
-        baseScale * 0.72,
-        Math.min(baseScale * 0.88, corridorScale)
+        baseScale * 0.62,
+        Math.min(baseScale * 0.78, corridorScale)
       );
     }
 
+    // Give the context reveal enough time to be perceived. Nearby frames keep
+    // the shorter normal transition; only long spatial moves slow down.
+    const cameraDuration = isContextMove ? Math.max(totalDur, 1.1) : totalDur;
     if (style === 'instant' || !smooth || sameFrame) {
       applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
     } else {
-      smoothCameraFlight(finalCam, totalDur, 'direct');
+      smoothCameraFlight(finalCam, cameraDuration, 'direct');
     }
 
     if (currentStopTitle && stop) {
