@@ -697,9 +697,9 @@ function initPreziApp() {
     finalCam.prevWorldCenterX = prevCam.worldCenterX;
     finalCam.prevWorldCenterY = prevCam.worldCenterY;
 
-    // When moving from one frame to another, use the explicit Prezi-style
-    // route requested by the user: Frame -> Overview -> Frame. The Overview
-    // is a real camera waypoint, not a fake zoom envelope or curved path.
+    // When moving from one frame to another, use a temporary context waypoint
+    // at the midpoint between the two frames. This is the useful meaning of
+    // "overview" here: it is distance-aware context, never the Overview frame.
     const previousStop = prevIndex >= 0 && prevIndex < STOPS.length ? STOPS[prevIndex] : null;
     const isFrameToFrame = Boolean(
       smooth && !sameFrame && previousStop &&
@@ -710,66 +710,89 @@ function initPreziApp() {
     );
 
     if (isFrameToFrame) {
-      const overviewBox = document.getElementById('overview-frame-box');
-      const overviewCam = overviewBox
-        ? getElementFocusTransform(overviewBox, 1.0)
-        : getOverviewTransform();
-      overviewCam.prevWorldCenterX = prevCam.worldCenterX;
-      overviewCam.prevWorldCenterY = prevCam.worldCenterY;
+      const deltaX = finalCam.worldCenterX - prevCam.worldCenterX;
+      const deltaY = finalCam.worldCenterY - prevCam.worldCenterY;
+      const baseScale = Math.min(prevCam.scale, finalCam.scale);
+      const distanceWorld = Math.hypot(deltaX, deltaY);
+      const distancePx = distanceWorld * baseScale;
+      const distanceRatio = Math.min(1, distancePx / Math.max(safe.safeW, safe.safeH));
+
+      // Fit both frame areas into the temporary context view. Near frames
+      // only zoom out a little; distant frames reveal more canvas.
+      const spanW = Math.abs(deltaX) + (Math.max(0, prevCam.elW || 0) + Math.max(0, finalCam.elW || 0)) / 2;
+      const spanH = Math.abs(deltaY) + (Math.max(0, prevCam.elH || 0) + Math.max(0, finalCam.elH || 0)) / 2;
+      const fitScale = Math.min(
+        safe.safeW * 0.76 / Math.max(1, spanW),
+        safe.safeH * 0.76 / Math.max(1, spanH)
+      );
+      const distanceScale = baseScale * (0.92 - distanceRatio * 0.40);
+      const contextScale = Math.max(
+        baseScale * 0.38,
+        Math.min(baseScale * 0.92, distanceScale, fitScale)
+      );
+      const contextWorldCenterX = (prevCam.worldCenterX + finalCam.worldCenterX) / 2;
+      const contextWorldCenterY = (prevCam.worldCenterY + finalCam.worldCenterY) / 2;
+      const contextCam = {
+        x: safe.centerX - contextWorldCenterX * contextScale,
+        y: safe.centerY - contextWorldCenterY * contextScale,
+        scale: contextScale,
+        worldCenterX: contextWorldCenterX,
+        worldCenterY: contextWorldCenterY,
+        elW: spanW,
+        elH: spanH,
+        prevWorldCenterX: prevCam.worldCenterX,
+        prevWorldCenterY: prevCam.worldCenterY
+      };
 
       const destinationCam = {
         ...finalCam,
-        prevWorldCenterX: overviewCam.worldCenterX,
-        prevWorldCenterY: overviewCam.worldCenterY
+        prevWorldCenterX: contextWorldCenterX,
+        prevWorldCenterY: contextWorldCenterY
       };
-      const overviewDuration = Math.max(0.5, totalDur * 0.8);
-      const destinationDuration = Math.max(0.65, totalDur);
+      const contextDuration = Math.max(0.45, totalDur * (0.7 + distanceRatio * 0.4));
+      const destinationDuration = Math.max(0.55, totalDur * (0.85 + distanceRatio * 0.25));
 
-      smoothCameraFlight(overviewCam, overviewDuration, 'direct', () => {
+      smoothCameraFlight(contextCam, contextDuration, 'direct', () => {
         smoothCameraFlight(destinationCam, destinationDuration, 'direct');
       });
     } else {
-      // Far targets that are reached directly (for example from Overview) get
-      // a small bounded zoom-out envelope. Frame-to-frame navigation above has
-      // already used the real Overview waypoint and must not add another one.
-    const centerDistancePx = Math.hypot(
+      // Far targets reached directly from Overview get a small bounded
+      // zoom-out envelope. Frame-to-frame moves use the midpoint above.
+      const centerDistancePx = Math.hypot(
       (finalCam.worldCenterX - prevCam.worldCenterX) * Math.min(prevCam.scale, finalCam.scale),
       (finalCam.worldCenterY - prevCam.worldCenterY) * Math.min(prevCam.scale, finalCam.scale)
     );
-    const scaleRatio = Math.max(prevCam.scale, finalCam.scale) /
+      const scaleRatio = Math.max(prevCam.scale, finalCam.scale) /
       Math.max(0.001, Math.min(prevCam.scale, finalCam.scale));
-    // The slide order can place two consecutive frames far apart even when
-    // both frames are similarly sized. Use a lower threshold so those moves
-    // still reveal a little canvas instead of looking like a flat sideways pan.
-    const isDistant = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
-    const isScaleJump = scaleRatio >= 1.35;
-    const isContextMove = isDistant || isScaleJump;
-    if (isDistant || isScaleJump) {
-      const baseScale = Math.min(prevCam.scale, finalCam.scale);
-      const spanW = Math.abs(finalCam.worldCenterX - prevCam.worldCenterX) +
+      // The slide order can place a frame far from Overview. Reveal a little
+      // context without routing through the Overview frame itself.
+      const isDistant = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
+      const isScaleJump = scaleRatio >= 1.35;
+      const isContextMove = isDistant || isScaleJump;
+      if (isDistant || isScaleJump) {
+        const baseScale = Math.min(prevCam.scale, finalCam.scale);
+        const spanW = Math.abs(finalCam.worldCenterX - prevCam.worldCenterX) +
         (Math.max(0, prevCam.elW || 0) + Math.max(0, finalCam.elW || 0)) / 2;
-      const spanH = Math.abs(finalCam.worldCenterY - prevCam.worldCenterY) +
+        const spanH = Math.abs(finalCam.worldCenterY - prevCam.worldCenterY) +
         (Math.max(0, prevCam.elH || 0) + Math.max(0, finalCam.elH || 0)) / 2;
-      const corridorScale = Math.min(
+        const corridorScale = Math.min(
         safe.safeW * 0.82 / Math.max(1, spanW),
         safe.safeH * 0.82 / Math.max(1, spanH)
       );
-      // Bound the reveal so it feels like Prezi's brief context view, not a
-      // full overview or a visible jump to the lower-left origin.
-      finalCam.travelScale = Math.max(
+        // Bound the reveal so it stays local to the route.
+        finalCam.travelScale = Math.max(
         baseScale * 0.62,
         Math.min(baseScale * 0.78, corridorScale)
       );
-    }
+      }
 
-    // Give the context reveal enough time to be perceived. Nearby frames keep
-    // the shorter normal transition; only long spatial moves slow down.
-    const cameraDuration = isContextMove ? Math.max(totalDur, 1.1) : totalDur;
-    if (style === 'instant' || !smooth || sameFrame) {
-      applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
-    } else {
-      smoothCameraFlight(finalCam, cameraDuration, 'direct');
-    }
+      // Give the direct context reveal enough time to be perceived.
+      const cameraDuration = isContextMove ? Math.max(totalDur, 1.1) : totalDur;
+      if (style === 'instant' || !smooth || sameFrame) {
+        applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
+      } else {
+        smoothCameraFlight(finalCam, cameraDuration, 'direct');
+      }
     }
 
     if (currentStopTitle && stop) {
