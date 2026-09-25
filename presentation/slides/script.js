@@ -353,7 +353,7 @@ function initPreziApp() {
   CAMERA_CONFIG.easing = 'prezi';
 
   let _cameraRafId = null;
-  function smoothCameraFlight(targetCam, durationSec, style = 'direct', onComplete = null) {
+  function smoothCameraFlight(targetCam, durationSec, style = 'direct', onComplete = null, contextCam = null) {
     if (_cameraRafId) {
       cancelAnimationFrame(_cameraRafId);
       _cameraRafId = null;
@@ -413,7 +413,15 @@ function initPreziApp() {
         : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
 
       let curScale;
-      if (travelScale < minScale - 0.001) {
+      if (contextCam && Number.isFinite(contextCam.scale)) {
+        // One continuous timeline: the camera passes through the midpoint and
+        // its scale follows a smooth in/out envelope without restarting RAF.
+        const baseScale = startScale + (endScale - startScale) * p;
+        const baseMidScale = startScale + (endScale - startScale) * 0.5;
+        const contextDelta = baseMidScale - contextCam.scale;
+        const contextWeight = 4 * rawT * (1 - rawT);
+        curScale = baseScale - contextDelta * contextWeight;
+      } else if (travelScale < minScale - 0.001) {
         // Prezi keeps the departing frame readable while the camera starts
         // travelling, reveals context in the middle, then settles into the
         // destination. This is one continuous envelope, not two animations.
@@ -764,15 +772,20 @@ function initPreziApp() {
 
       const destinationCam = {
         ...finalCam,
-        prevWorldCenterX: contextWorldCenterX,
-        prevWorldCenterY: contextWorldCenterY
+        // Keep the world-center path straight from source to destination. The
+        // midpoint is represented by the scale envelope, not a second camera.
+        prevWorldCenterX: prevCam.worldCenterX,
+        prevWorldCenterY: prevCam.worldCenterY
       };
       const contextDuration = Math.max(0.35, totalDur * (0.55 + distanceRatio * 0.35));
       const destinationDuration = Math.max(0.45, totalDur * (0.7 + distanceRatio * 0.25));
-
-      smoothCameraFlight(contextCam, contextDuration, 'direct', () => {
-        smoothCameraFlight(destinationCam, destinationDuration, 'direct');
-      });
+      smoothCameraFlight(
+        destinationCam,
+        contextDuration + destinationDuration,
+        'direct',
+        null,
+        contextCam
+      );
     } else {
       // Far targets reached directly from Overview get a small bounded
       // zoom-out envelope. Frame-to-frame moves use the midpoint above.
