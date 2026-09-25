@@ -721,6 +721,19 @@ function initPreziApp() {
     // at the midpoint between the two frames. This is the useful meaning of
     // "overview" here: it is distance-aware context, never the Overview frame.
     const previousStop = prevIndex >= 0 && prevIndex < STOPS.length ? STOPS[prevIndex] : null;
+    const isOverviewSource = Boolean(
+      previousStop &&
+      (previousStop.type === 'overview' || previousStop.targetId === 'overview-frame-box')
+    );
+    if (isOverviewSource && !isOverviewTarget && smooth && !sameFrame) {
+      // Entering a frame from Overview is an in-move: never zoom out first.
+      const currentScale = Number.isFinite(currentCamera.scale) ? currentCamera.scale : finalCam.scale;
+      if (finalCam.scale < currentScale) {
+        finalCam.scale = currentScale;
+        finalCam.x = safe.centerX - finalCam.worldCenterX * finalCam.scale;
+        finalCam.y = safe.centerY - finalCam.worldCenterY * finalCam.scale;
+      }
+    }
     const isFrameToFrame = Boolean(
       smooth && !isPresentMode && !sameFrame && previousStop &&
       previousStop.targetId !== 'overview-frame-box' &&
@@ -809,8 +822,8 @@ function initPreziApp() {
       Math.max(0.001, Math.min(prevCam.scale, finalCam.scale));
       // The slide order can place a frame far from Overview. Reveal a little
       // context without routing through the Overview frame itself.
-      const isDistant = !isPresentMode && centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
-      const isScaleJump = !isPresentMode && scaleRatio >= 1.35;
+      const isDistant = !isPresentMode && !isOverviewSource && centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.45;
+      const isScaleJump = !isPresentMode && !isOverviewSource && scaleRatio >= 1.35;
       const isContextMove = isDistant || isScaleJump;
       if (isDistant || isScaleJump) {
         const baseScale = Math.min(prevCam.scale, finalCam.scale);
