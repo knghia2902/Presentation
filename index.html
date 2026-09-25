@@ -262,16 +262,9 @@
             <div class="panel-field">
               <label class="panel-label">Kiểu chuyển động:</label>
               <select id="cfg-cam-style" class="panel-select">
-                <option value="flythrough" selected>Zoom ngữ cảnh (Lùi nhẹ rồi vào frame)</option>
-                <option value="direct">Trực tiếp (Direct Smooth Glide) - Chuẩn Prezi</option>
-                <option value="overview-leap">Nhảy qua Toàn cảnh (Overview Leap)</option>
-                <option value="cinematic-pan">Trượt ngang Điện ảnh (Cinematic Pan)</option>
-                <option value="zoom-bounce">Phóng to Nảy nhẹ (Zoom Bounce / Pop)</option>
-                <option value="rotate-swoop">Xoay lượn 3D (3D Dynamic Tilt Swoop)</option>
-                <option value="fade-swoop">Mờ & Hiện rõ (Fade & Swoop)</option>
-                <option value="instant">Tức thì (Instant - Không hiệu ứng)</option>
+                <option value="direct" selected>Prezi Smooth (Pan + Zoom)</option>
               </select>
-              <div class="panel-help-text" id="cfg-cam-help">Zoom ngữ cảnh: chỉ lùi nhẹ khi frame ở xa hoặc chênh tỷ lệ, rồi đi thẳng vào frame tiếp theo.</div>
+              <div class="panel-help-text" id="cfg-cam-help">Một chuyển động duy nhất: camera tự pan và zoom thẳng tới frame đích, không vòng cung hay bounce.</div>
             </div>
 
             <div class="panel-field">
@@ -287,7 +280,7 @@
               </div>
             </div>
 
-            <div class="panel-field" id="cfg-cam-depth-group" style="display: none;">
+              <div class="panel-field" id="cfg-cam-depth-group" style="display: none;">
               <div class="panel-field-header">
                 <label class="panel-label">Độ lùi góc rộng (Fly-through):</label>
                 <span class="panel-val-badge" id="cfg-cam-depth-val">75%</span>
@@ -303,9 +296,6 @@
               <label class="panel-label">Đường cong mượt mà (Easing):</label>
               <select id="cfg-cam-easing" class="panel-select">
                 <option value="prezi" selected>Prezi Smooth (Cubic-bezier tự nhiên)</option>
-                <option value="ease-in-out">Mượt mà 2 đầu (Ease-in-out)</option>
-                <option value="ease-out">Dịu dần ở đích (Ease-out)</option>
-                <option value="linear">Tốc độ đều (Linear)</option>
               </select>
             </div>
 

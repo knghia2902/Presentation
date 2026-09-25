@@ -326,7 +326,7 @@ function initPreziApp() {
     });
   }
 
-  // 2. Camera Transform Engine — Native 2D Razor Sharp & Granular Customization
+  // 2. Camera Transform Engine — one consistent Prezi-style camera
   const EASING_MAP = {
     'prezi': 'cubic-bezier(0.25, 1, 0.35, 1)',
     'ease-in-out': 'cubic-bezier(0.42, 0, 0.58, 1)',
@@ -335,8 +335,8 @@ function initPreziApp() {
   };
 
   let CAMERA_CONFIG = {
-    style: 'direct', // 'direct', 'flythrough', 'instant'
-    duration: 0.65,
+    style: 'direct',
+    duration: 0.75,
     depth: 75,
     easing: 'prezi'
   };
@@ -347,6 +347,10 @@ function initPreziApp() {
       CAMERA_CONFIG = Object.assign(CAMERA_CONFIG, JSON.parse(savedCamCfg));
     }
   } catch (e) {}
+  // Keep old saved settings from bringing back the experimental multi-style
+  // transitions. Prezi uses one camera move: pan and zoom to the next frame.
+  CAMERA_CONFIG.style = 'direct';
+  CAMERA_CONFIG.easing = 'prezi';
 
   let _cameraRafId = null;
   function smoothCameraFlight(targetCam, durationSec, style = 'direct', onComplete = null) {
@@ -388,18 +392,10 @@ function initPreziApp() {
     const durMs = Math.max(160, Math.round((durationSec || 0.65) * 1000));
     const startTime = performance.now();
 
-    // For distant or strongly different frames, flythrough means a small
-    // context zoom: ease out, continue along the straight center line, then
-    // ease into the destination. It is deliberately not an arc or overview
-    // jump.
-    const minScale = Math.min(startScale, endScale);
-    const requestedContextScale = Number.isFinite(targetCam.contextScale)
-      ? targetCam.contextScale
-      : minScale * 0.78;
-    const contextScale = Math.max(0.04, Math.min(minScale * 0.82, requestedContextScale));
-
-    const tiltDir = (endX >= startX ? 1 : -1);
-    const maxTilt = (style === 'rotate-swoop' ? 3.0 : 0);
+    // One deterministic move for every frame: interpolate the world center
+    // and the zoom together. There is no arc, bounce, fade, or extra overview
+    // phase, so distant and nearby frames feel like the same Prezi motion.
+    world.style.opacity = '1';
 
     function frame(now) {
       const elapsed = now - startTime;
@@ -410,29 +406,7 @@ function initPreziApp() {
         ? 4 * rawT * rawT * rawT
         : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
 
-      // Scale along trajectory
-      let curScale;
-      if (style === 'flythrough') {
-        const split = 0.42;
-        if (p <= split) {
-          const localP = p / split;
-          const localEase = localP < 0.5
-            ? 4 * localP * localP * localP
-            : 1 - Math.pow(-2 * localP + 2, 3) / 2;
-          curScale = startScale + (contextScale - startScale) * localEase;
-        } else {
-          const localP = (p - split) / (1 - split);
-          const localEase = localP < 0.5
-            ? 4 * localP * localP * localP
-            : 1 - Math.pow(-2 * localP + 2, 3) / 2;
-          curScale = contextScale + (endScale - contextScale) * localEase;
-        }
-      } else if (style === 'zoom-bounce') {
-        const bounceOffset = 0.08 * Math.sin(p * Math.PI * 2) * (1 - p);
-        curScale = startScale + (endScale - startScale) * (p + bounceOffset);
-      } else {
-        curScale = startScale + (endScale - startScale) * p;
-      }
+      const curScale = startScale + (endScale - startScale) * p;
 
       // Keep the interpolated world center under the viewport center while
       // zooming. This prevents the transform origin from pulling the scene
@@ -442,24 +416,8 @@ function initPreziApp() {
       const curX = safe.centerX - curWorldX * curScale;
       const curY = safe.centerY - curWorldY * curScale;
 
-      // Dynamic tilt
-      let curTilt = 0;
-      if (maxTilt > 0) {
-        curTilt = (tiltDir * maxTilt) * Math.sin(p * Math.PI);
-      }
-
-      // Dynamic opacity
-      if (style === 'fade-swoop') {
-        const fadeDip = 0.3 * Math.sin(p * Math.PI);
-        world.style.opacity = String((1 - fadeDip).toFixed(3));
-      }
-
       // Render world transform
-      let tr = `translate(${curX.toFixed(1)}px, ${curY.toFixed(1)}px) scale(${curScale.toFixed(4)})`;
-      if (curTilt !== 0) {
-        tr += ` rotate(${curTilt.toFixed(2)}deg)`;
-      }
-      world.style.transform = tr;
+      world.style.transform = `translate(${curX.toFixed(1)}px, ${curY.toFixed(1)}px) scale(${curScale.toFixed(4)})`;
       currentCamera = { x: curX, y: curY, scale: curScale };
       zoomIndicator.textContent = `${Math.round(curScale * 100)}%`;
 
@@ -470,9 +428,7 @@ function initPreziApp() {
         const rx = Math.round(endX);
         const ry = Math.round(endY);
         world.style.transform = `translate(${rx}px, ${ry}px) scale(${endScale})`;
-        if (style === 'fade-swoop') {
-          world.style.opacity = '1';
-        }
+        world.style.opacity = '1';
         currentCamera = { x: rx, y: ry, scale: endScale };
         zoomIndicator.textContent = `${Math.round(endScale * 100)}%`;
         if (onComplete) onComplete();
@@ -650,7 +606,7 @@ function initPreziApp() {
   window.goToStop = goToStop;
   window.applyCamera = applyCamera;
 
-  // 3. Navigation controller — Multi-Style Prezi Camera Transition Engine
+  // 3. Navigation controller — one Prezi-style camera transition
   let _goToStopTimer = null;
   function goToStop(index, smooth = true) {
     if (index < 0 || index >= STOPS.length) return;
@@ -685,7 +641,7 @@ function initPreziApp() {
     if (!finalCam) return;
 
     const safe = getSafeWorkArea();
-    const style = CAMERA_CONFIG.style || 'flythrough';
+    const style = 'direct';
     const totalDur = CAMERA_CONFIG.duration || 0.7;
     const sameFrame = (prevIndex === index);
 
@@ -719,57 +675,10 @@ function initPreziApp() {
     finalCam.prevWorldCenterX = prevCam.worldCenterX;
     finalCam.prevWorldCenterY = prevCam.worldCenterY;
 
-    // Use the context zoom only when the next frame is genuinely far away or
-    // has a very different zoom level. Nearby frames keep the normal direct
-    // glide so the route does not feel like repeated zooming.
-    let flightStyle = style;
-    if (style === 'flythrough') {
-      const centerDistancePx = Math.hypot(
-        (finalCam.worldCenterX - prevCam.worldCenterX) * Math.min(prevCam.scale, finalCam.scale),
-        (finalCam.worldCenterY - prevCam.worldCenterY) * Math.min(prevCam.scale, finalCam.scale)
-      );
-      const scaleRatio = Math.max(prevCam.scale, finalCam.scale) /
-        Math.max(0.001, Math.min(prevCam.scale, finalCam.scale));
-      const isFar = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.72;
-      const isScaleJump = scaleRatio >= 1.35;
-
-      if (isFar || isScaleJump) {
-        const baseScale = Math.min(prevCam.scale, finalCam.scale);
-        const depth = Math.max(10, Math.min(90, Number(CAMERA_CONFIG.depth) || 75)) / 100;
-        const maxContextFactor = 0.48 + depth * 0.34;
-        const minContextFactor = Math.max(0.42, maxContextFactor - 0.18);
-        const spanW = Math.abs(finalCam.worldCenterX - prevCam.worldCenterX) +
-          (Math.max(0, prevCam.elW || 0) + Math.max(0, finalCam.elW || 0)) / 2;
-        const spanH = Math.abs(finalCam.worldCenterY - prevCam.worldCenterY) +
-          (Math.max(0, prevCam.elH || 0) + Math.max(0, finalCam.elH || 0)) / 2;
-        const fitScale = Math.min(
-          safe.safeW * 0.80 / Math.max(1, spanW),
-          safe.safeH * 0.80 / Math.max(1, spanH)
-        );
-        // Keep the context view close enough to feel like a brief reveal,
-        // never a jump to the full overview.
-        finalCam.contextScale = Math.max(
-          baseScale * minContextFactor,
-          Math.min(baseScale * maxContextFactor, fitScale)
-        );
-      } else {
-        flightStyle = 'direct';
-      }
-    }
-
     if (style === 'instant' || !smooth || sameFrame) {
       applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
-    } else if (style === 'overview-leap') {
-      const ovCam = getOverviewTransform();
-      ovCam.prevWorldCenterX = prevCam.worldCenterX;
-      ovCam.prevWorldCenterY = prevCam.worldCenterY;
-      smoothCameraFlight(ovCam, totalDur * 0.45, 'flythrough', () => {
-        finalCam.prevWorldCenterX = ovCam.worldCenterX;
-        finalCam.prevWorldCenterY = ovCam.worldCenterY;
-        smoothCameraFlight(finalCam, totalDur * 0.55, 'flythrough');
-      });
     } else {
-      smoothCameraFlight(finalCam, totalDur, flightStyle);
+      smoothCameraFlight(finalCam, totalDur, 'direct');
     }
 
     if (currentStopTitle && stop) {
@@ -2880,21 +2789,14 @@ function initPreziApp() {
     const btnResetCam = document.getElementById('btn-reset-camera-effect');
 
     const CAM_STYLE_DESCS = {
-      'flythrough': 'Zoom ngữ cảnh: chỉ lùi nhẹ khi frame ở xa hoặc chênh tỷ lệ, rồi đi thẳng vào frame tiếp theo.',
-      'direct': 'Trực tiếp (Direct Smooth Glide): Bay thẳng mượt mà, lướt ngang chuẩn xác không giật lùi, hình ảnh sắc nét ngay.',
-      'overview-leap': 'Nhảy qua Toàn cảnh (Overview Leap): Bay lùi ra bao quát toàn bộ bản đồ trước khi lướt sâu vào frame tiếp theo.',
-      'cinematic-pan': 'Trượt ngang Điện ảnh (Cinematic Pan): Camera lướt ngang đều đặn êm ái như thước phim điện ảnh.',
-      'zoom-bounce': 'Phóng to Nảy nhẹ (Zoom Bounce / Pop): Hiệu ứng đàn hồi nảy nhẹ hiện đại, tạo cảm giác sinh động bắt mắt.',
-      'rotate-swoop': 'Xoay lượn 3D (3D Dynamic Tilt Swoop): Nghiêng nhẹ góc lượn theo hướng bay tạo chiều sâu không gian 3 chiều.',
-      'fade-swoop': 'Mờ & Hiện rõ (Fade & Swoop): Mờ dịu khi rời frame cũ và bừng sáng rõ nét khi đến đích.',
-      'instant': 'Tức thì (Instant): Nhảy tức thì không có hoạt ảnh chuyển động.'
+      'direct': 'Prezi Smooth: camera tự pan và zoom thẳng tới frame đích bằng một chuyển động duy nhất.'
     };
     const helpCamStyle = document.getElementById('cfg-cam-help');
 
     function updateCamStyleUI() {
       const st = CAMERA_CONFIG.style;
       if (groupCamDepth) {
-        groupCamDepth.style.display = (st === 'flythrough' || st === 'overview-leap' || st === 'rotate-swoop') ? 'flex' : 'none';
+        groupCamDepth.style.display = 'none';
       }
       if (helpCamStyle && CAM_STYLE_DESCS[st]) {
         helpCamStyle.textContent = CAM_STYLE_DESCS[st];
@@ -2902,10 +2804,11 @@ function initPreziApp() {
     }
 
     if (selCamStyle) {
-      selCamStyle.value = CAMERA_CONFIG.style;
+      selCamStyle.value = 'direct';
       updateCamStyleUI();
       selCamStyle.addEventListener('change', () => {
-        CAMERA_CONFIG.style = selCamStyle.value;
+        CAMERA_CONFIG.style = 'direct';
+        selCamStyle.value = 'direct';
         updateCamStyleUI();
         try {
           localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
@@ -2956,11 +2859,11 @@ function initPreziApp() {
 
     if (btnResetCam) {
       btnResetCam.addEventListener('click', () => {
-        CAMERA_CONFIG.style = 'flythrough';
+        CAMERA_CONFIG.style = 'direct';
         CAMERA_CONFIG.duration = 0.75;
         CAMERA_CONFIG.depth = 75;
         CAMERA_CONFIG.easing = 'prezi';
-        if (selCamStyle) selCamStyle.value = 'flythrough';
+        if (selCamStyle) selCamStyle.value = 'direct';
         if (sliderCamDuration) sliderCamDuration.value = '0.75';
         if (badgeCamDuration) badgeCamDuration.textContent = '0.75s';
         if (sliderCamDepth) sliderCamDepth.value = '75';
@@ -2970,7 +2873,7 @@ function initPreziApp() {
         try {
           localStorage.setItem('prezi_camera_config', JSON.stringify(CAMERA_CONFIG));
         } catch (e) {}
-        showToast('Đã khôi phục hiệu ứng mặc định: Zoom ngữ cảnh (0.75s)');
+        showToast('Đã khôi phục hiệu ứng Prezi Smooth (0.75s)');
       });
     }
 
