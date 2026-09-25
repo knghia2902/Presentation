@@ -645,6 +645,7 @@ function initPreziApp() {
     const prevIndex = currentStopIndex;
     currentStopIndex = index;
     const stop = STOPS[index];
+    const sameFrame = (prevIndex === index);
 
     document.querySelectorAll('.canvas-card').forEach(c => c.classList.remove('current-active', 'card-selected'));
     document.querySelectorAll('.canvas-slide-frame').forEach(f => f.classList.remove('current-active', 'selected'));
@@ -685,7 +686,6 @@ function initPreziApp() {
     }
     const style = 'direct';
     const totalDur = CAMERA_CONFIG.duration || 0.7;
-    const sameFrame = (prevIndex === index);
 
     // Compute previous camera position with accurate world center
     let prevCam = null;
