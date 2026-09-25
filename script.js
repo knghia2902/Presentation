@@ -672,6 +672,17 @@ function initPreziApp() {
 
     const safe = getSafeWorkArea();
     const isPresentMode = document.body.classList.contains('in-present-mode');
+    const isOverviewTarget = stop.type === 'overview' || stop.targetId === 'overview-frame-box';
+    if (isOverviewTarget && smooth && !sameFrame) {
+      // Returning to Overview is an exit move: never zoom in while leaving a
+      // frame, even if the Overview box itself would normally fit larger.
+      const currentScale = Number.isFinite(currentCamera.scale) ? currentCamera.scale : finalCam.scale;
+      if (finalCam.scale > currentScale) {
+        finalCam.scale = currentScale;
+        finalCam.x = safe.centerX - finalCam.worldCenterX * finalCam.scale;
+        finalCam.y = safe.centerY - finalCam.worldCenterY * finalCam.scale;
+      }
+    }
     const style = 'direct';
     const totalDur = CAMERA_CONFIG.duration || 0.7;
     const sameFrame = (prevIndex === index);
