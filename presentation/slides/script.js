@@ -714,8 +714,15 @@ function initPreziApp() {
       const deltaY = finalCam.worldCenterY - prevCam.worldCenterY;
       const baseScale = Math.min(prevCam.scale, finalCam.scale);
       const distanceWorld = Math.hypot(deltaX, deltaY);
-      const distancePx = distanceWorld * baseScale;
-      const distanceRatio = Math.min(1, distancePx / Math.max(safe.safeW, safe.safeH));
+      const referenceFrameSize = Math.max(
+        1,
+        (Math.max(0, prevCam.elW || 0) + Math.max(0, finalCam.elW || 0) +
+          Math.max(0, prevCam.elH || 0) + Math.max(0, finalCam.elH || 0)) / 4
+      );
+      // Compare the gap with the actual frame size, not with the current
+      // screen zoom. This keeps nearby frames looking like a horizontal slide.
+      const normalizedGap = distanceWorld / referenceFrameSize;
+      const distanceRatio = Math.min(1, Math.max(0, (normalizedGap - 4) / 6));
 
       // Fit both frame areas into the temporary context view. Near frames
       // only zoom out a little; distant frames reveal more canvas.
@@ -725,10 +732,21 @@ function initPreziApp() {
         safe.safeW * 0.76 / Math.max(1, spanW),
         safe.safeH * 0.76 / Math.max(1, spanH)
       );
-      const distanceScale = baseScale * (0.92 - distanceRatio * 0.40);
+      // Near frames keep almost the same zoom at both ends. The tiny 1.5%
+      // dip is only a breathing motion; distant frames progressively reveal
+      // more context toward the midpoint.
+      const endpointScale = (prevCam.scale + finalCam.scale) / 2;
+      const gentleScale = endpointScale * (0.985 - distanceRatio * 0.06);
+      const fitContextScale = Math.max(
+        baseScale * 0.38,
+        Math.min(baseScale * 0.92, fitScale)
+      );
       const contextScale = Math.max(
         baseScale * 0.38,
-        Math.min(baseScale * 0.92, distanceScale, fitScale)
+        Math.min(
+          Math.max(prevCam.scale, finalCam.scale),
+          gentleScale + (fitContextScale - gentleScale) * distanceRatio
+        )
       );
       const contextWorldCenterX = (prevCam.worldCenterX + finalCam.worldCenterX) / 2;
       const contextWorldCenterY = (prevCam.worldCenterY + finalCam.worldCenterY) / 2;
@@ -749,8 +767,8 @@ function initPreziApp() {
         prevWorldCenterX: contextWorldCenterX,
         prevWorldCenterY: contextWorldCenterY
       };
-      const contextDuration = Math.max(0.45, totalDur * (0.7 + distanceRatio * 0.4));
-      const destinationDuration = Math.max(0.55, totalDur * (0.85 + distanceRatio * 0.25));
+      const contextDuration = Math.max(0.35, totalDur * (0.55 + distanceRatio * 0.35));
+      const destinationDuration = Math.max(0.45, totalDur * (0.7 + distanceRatio * 0.25));
 
       smoothCameraFlight(contextCam, contextDuration, 'direct', () => {
         smoothCameraFlight(destinationCam, destinationDuration, 'direct');
