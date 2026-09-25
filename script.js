@@ -392,10 +392,16 @@ function initPreziApp() {
     const durMs = Math.max(160, Math.round((durationSec || 0.65) * 1000));
     const startTime = performance.now();
 
-    // One deterministic move for every frame: interpolate the world center
-    // and the zoom together. There is no arc, bounce, fade, or extra overview
-    // phase, so distant and nearby frames feel like the same Prezi motion.
+    // One deterministic move for every frame: the world center travels on a
+    // straight line while the scale follows one smooth zoom envelope. For a
+    // distant target Prezi briefly reveals more context in the middle of the
+    // same move, then settles on the destination; it does not run a second
+    // animation or jump through an overview stop.
     world.style.opacity = '1';
+    const minScale = Math.min(startScale, endScale);
+    const travelScale = Number.isFinite(targetCam.travelScale)
+      ? Math.max(0.04, Math.min(minScale, targetCam.travelScale))
+      : minScale;
 
     function frame(now) {
       const elapsed = now - startTime;
@@ -406,7 +412,9 @@ function initPreziApp() {
         ? 4 * rawT * rawT * rawT
         : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
 
-      const curScale = startScale + (endScale - startScale) * p;
+      const baseScale = startScale + (endScale - startScale) * p;
+      const contextDip = Math.max(0, minScale - travelScale) * Math.sin(Math.PI * p);
+      const curScale = Math.max(0.04, baseScale - contextDip);
 
       // Keep the interpolated world center under the viewport center while
       // zooming. This prevents the transform origin from pulling the scene
@@ -674,6 +682,35 @@ function initPreziApp() {
 
     finalCam.prevWorldCenterX = prevCam.worldCenterX;
     finalCam.prevWorldCenterY = prevCam.worldCenterY;
+
+    // Far targets get a small, bounded zoom-out envelope. This is still one
+    // continuous transition: the camera never follows an arc and never jumps
+    // to the overview. Nearby frames keep the ordinary direct glide.
+    const centerDistancePx = Math.hypot(
+      (finalCam.worldCenterX - prevCam.worldCenterX) * Math.min(prevCam.scale, finalCam.scale),
+      (finalCam.worldCenterY - prevCam.worldCenterY) * Math.min(prevCam.scale, finalCam.scale)
+    );
+    const scaleRatio = Math.max(prevCam.scale, finalCam.scale) /
+      Math.max(0.001, Math.min(prevCam.scale, finalCam.scale));
+    const isDistant = centerDistancePx > Math.max(safe.safeW, safe.safeH) * 0.72;
+    const isScaleJump = scaleRatio >= 1.35;
+    if (isDistant || isScaleJump) {
+      const baseScale = Math.min(prevCam.scale, finalCam.scale);
+      const spanW = Math.abs(finalCam.worldCenterX - prevCam.worldCenterX) +
+        (Math.max(0, prevCam.elW || 0) + Math.max(0, finalCam.elW || 0)) / 2;
+      const spanH = Math.abs(finalCam.worldCenterY - prevCam.worldCenterY) +
+        (Math.max(0, prevCam.elH || 0) + Math.max(0, finalCam.elH || 0)) / 2;
+      const corridorScale = Math.min(
+        safe.safeW * 0.82 / Math.max(1, spanW),
+        safe.safeH * 0.82 / Math.max(1, spanH)
+      );
+      // Bound the reveal so it feels like Prezi's brief context view, not a
+      // full overview or a visible jump to the lower-left origin.
+      finalCam.travelScale = Math.max(
+        baseScale * 0.72,
+        Math.min(baseScale, corridorScale)
+      );
+    }
 
     if (style === 'instant' || !smooth || sameFrame) {
       applyCamera(finalCam.x, finalCam.y, finalCam.scale, false);
