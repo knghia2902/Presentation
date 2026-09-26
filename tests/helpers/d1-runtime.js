@@ -1,7 +1,5 @@
-import { applyD1Migrations, env } from 'cloudflare:test';
-import { readD1Migrations } from '@cloudflare/vitest-plugin';
-
-const DEFAULT_MIGRATIONS_PATH = 'migrations';
+import { applyD1Migrations } from 'cloudflare:test';
+import { env } from 'cloudflare:workers';
 
 /**
  * Apply the repository's versioned D1 migrations to the isolated test DB.
@@ -10,9 +8,11 @@ const DEFAULT_MIGRATIONS_PATH = 'migrations';
  */
 export async function applyTestMigrations(
   database = env.DB,
-  migrationsPath = DEFAULT_MIGRATIONS_PATH
+  migrations = env.TEST_MIGRATIONS
 ) {
-  const migrations = await readD1Migrations(migrationsPath);
+  if (!migrations) {
+    throw new Error('TEST_MIGRATIONS binding is required for D1 tests');
+  }
   await applyD1Migrations(database, migrations);
   return database;
 }
@@ -20,5 +20,3 @@ export async function applyTestMigrations(
 export function getTestDatabase() {
   return env.DB;
 }
-
-export { DEFAULT_MIGRATIONS_PATH };

@@ -1,0 +1,7 @@
+name = "presentation-vitest"
+main = "tests/fixtures/d1-worker.js"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "presentation-db"
+database_id = "97579f7a-6737-42e7-88a2-51d2e35e066e"
