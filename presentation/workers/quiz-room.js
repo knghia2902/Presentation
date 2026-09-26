@@ -8,6 +8,9 @@ export const RECONNECT_TTL_MS = 15 * 60 * 1000;
 export const REVEAL_MS = 2_500;
 export const MAX_MESSAGE_BYTES = 8 * 1024;
 export const MAX_PLAYERS = 100;
+export const ROOM_ALLOCATOR_ID = '__quiz_room_allocator__';
+
+const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const STORAGE_KEY = 'quiz-room-state-v1';
 const PHASES = new Set([
@@ -22,6 +25,12 @@ const OPTIONS = new Set(['A', 'B', 'C', 'D']);
 
 function currentTime() {
   return Date.now();
+}
+
+function createRoomCode() {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => ROOM_CODE_ALPHABET[value % ROOM_CODE_ALPHABET.length]).join('');
 }
 
 export function normalizeRoomCode(value) {
@@ -141,6 +150,9 @@ export class QuizRoom extends DurableObject {
 
     try {
       const url = new URL(request.url);
+      if (url.pathname.endsWith('/allocate')) {
+        return await this.allocateRoom(request);
+      }
       const roomCode = this.roomCodeFromRequest(url, request);
       if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
         return await this.upgradeWebSocket(request, roomCode);
@@ -211,6 +223,7 @@ export class QuizRoom extends DurableObject {
       'setAutoAdvance',
       'resume',
       'finish',
+      'finalize',
       'leave'
     ].includes(type)) {
       throw new RoomError('Loại lệnh không hợp lệ.', 400, 'invalid_message_type');
@@ -223,6 +236,8 @@ export class QuizRoom extends DurableObject {
       await this.authenticate(command);
       return { event: 'snapshot', snapshot: this.snapshot() };
     }
+
+    if (type === 'finalize') return await this.finalizeResult(command);
 
     const player = await this.authenticate(command);
     if (type === 'start') return await this.startQuiz(player);
@@ -284,6 +299,8 @@ export class QuizRoom extends DurableObject {
       players: [host],
       answers: {},
       persisted: false,
+      finalizedByPlayerId: null,
+      finalizedByCapabilityHash: null,
       rateWindows: {}
     };
     await this.save();
@@ -542,6 +559,8 @@ export class QuizRoom extends DurableObject {
     this.room.phase = 'finished';
     this.room.roomStatus = reason === 'expired' ? 'expired' : 'finished';
     this.room.finishedAt = currentTime();
+    this.room.finalizedByPlayerId = player.playerId;
+    this.room.finalizedByCapabilityHash = player.capabilityTokenHash;
     this.room.revealUntil = null;
     this.room.announcement = {
       kind: 'final_results',
@@ -554,6 +573,25 @@ export class QuizRoom extends DurableObject {
     await this.persistFinalResults();
     this.broadcast({ event: 'finished', snapshot: this.snapshot() });
     return { event: 'finished', snapshot: this.snapshot() };
+  }
+
+  async finalizeResult(command) {
+    const playerId = typeof command?.playerId === 'string' ? command.playerId : '';
+    const capabilityToken = typeof command?.capabilityToken === 'string' ? command.capabilityToken : '';
+    if (this.room?.phase === 'finished') {
+      const tokenHash = capabilityToken ? await hashCapability(capabilityToken) : '';
+      if (
+        playerId !== this.room.finalizedByPlayerId ||
+        tokenHash !== this.room.finalizedByCapabilityHash
+      ) {
+        throw new RoomError('Capability không hợp lệ.', 401, 'invalid_capability');
+      }
+      return { event: 'finished', idempotent: true, snapshot: this.snapshot() };
+    }
+    const player = await this.authenticate(command);
+    this.requireHost(player);
+    const result = await this.finishQuiz(player, 'api');
+    return { ...result, idempotent: false };
   }
 
   async leaveRoom(player) {
@@ -982,6 +1020,33 @@ export class QuizRoom extends DurableObject {
     if (this.room.phase === 'reveal' && this.room.autoAdvance && currentTime() >= this.room.revealUntil) {
       await this.advanceQuestion();
     }
+  }
+
+  async allocateRoom(request) {
+    if (request.method !== 'POST') {
+      return safeJson({ ok: false, error: 'Phương thức không được hỗ trợ.', code: 'method_not_allowed' }, 405);
+    }
+    if (!this.env.QUIZ_ROOM || typeof this.env.QUIZ_ROOM.idFromName !== 'function') {
+      return safeJson({ ok: false, error: 'Dịch vụ phòng chơi chưa được cấu hình.', code: 'missing_room_binding' }, 503);
+    }
+    const body = await this.readJson(request);
+    if (body?.type !== 'create') {
+      return safeJson({ ok: false, error: 'Thao tác phòng chơi không hợp lệ.', code: 'invalid_room_action' }, 400);
+    }
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const roomCode = createRoomCode();
+      const id = this.env.QUIZ_ROOM.idFromName(roomCode);
+      const stub = this.env.QUIZ_ROOM.get(id);
+      const target = new URL(request.url);
+      target.pathname = `/rooms/${roomCode}`;
+      const response = await stub.fetch(new Request(target, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: JSON.stringify({ type: 'create', nickname: body.nickname })
+      }));
+      if (response.status !== 409) return response;
+    }
+    return safeJson({ ok: false, error: 'Không thể tạo mã phòng lúc này.', code: 'room_allocation_failed' }, 503);
   }
 }
 
