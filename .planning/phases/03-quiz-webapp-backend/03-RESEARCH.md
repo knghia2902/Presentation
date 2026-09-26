@@ -466,32 +466,27 @@ The server should send a structured announcement event; the client selects fixed
 | A6 | The exact Wrangler `exports` configuration should be preferred for a new DO Worker. | State of the Art | Existing account/project conventions may require legacy `migrations`; verify during implementation. |
 | A7 | CSS/native audio controls are sufficient for the requested confetti, shake, music, SFX, and ducking. | Supporting stack | A browser test may reveal the need for a small audio helper, but avoid adding it before evidence. |
 
-## Open Questions
+## Resolved Research Questions
 
-1. **Does Phase 3 need a global leaderboard beyond the current room?**
-   - What we know: D-12 prioritizes the current room and permits a global top score. `[VERIFIED: local context — D-12]`
-   - What’s unclear: Whether the project wants cross-room persistence in v1 or only the current-room leaderboard.
-   - Recommendation: Implement current-room leaderboard as required; make global top-20 a separate D1 query only if BACK-02 is retained as a product-visible screen. `[ASSUMED]`
+1. **RESOLVED — Global leaderboard scope**
+   - Decision: The current-room leaderboard is the primary player-facing view. Keep a bounded global top-20 D1 query behind BACK-02 as an API capability permitted by D-12; no separate global leaderboard screen is added.
+   - Rationale: This satisfies the required top-20 API while preserving D-12's current-room priority and does not expand the locked product scope.
 
-2. **What exact answer-time tie-break policy should be accepted?**
-   - What we know: D-13 requires lower total response time to rank higher. `[VERIFIED: local context — D-13]`
-   - What’s unclear: Whether unanswered questions count as 30 seconds or are excluded.
-   - Recommendation: Use 30 seconds for unanswered questions and document it in tests so the ranking is deterministic; this is an agent-discretion recommendation. `[ASSUMED]`
+2. **RESOLVED — Tie-break for missed questions**
+   - Decision: An unanswered question contributes 30,000 ms to cumulative response time; accepted answers contribute server-measured response time, and lower totals rank higher before stable player sequence.
+   - Rationale: D-13 requires lower total response time, D-06 fixes a 30-second question window, and counting a missed window makes ranking deterministic without awarding score or replaying the answer under D-08/D-14.
 
-3. **Which Vietnamese Piper voice can legally be redistributed for this class presentation?**
-   - What we know: Official voice lists include `vi_VN` voices such as `25hours_single`, `vais1000`, and `vivos`, but the documentation says to review each model card because licenses vary. `[CITED: https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/VOICES.md]`
-   - What’s unclear: The exact model-card license and redistribution terms for the chosen voice asset.
-   - Recommendation: Keep fixed audio generation as a gated asset task; if the model card is not unambiguously compatible, ship no model and use browser `SpeechSynthesis` plus visible text. `[ASSUMED]`
+3. **RESOLVED — Vietnamese TTS license**
+   - Decision: Do not ship a Piper engine, voice model, weights, or runtime unless the blocking asset checkpoint verifies explicit redistribution rights. Ship only individually license-cleared fixed audio assets; use browser `SpeechSynthesis` with visible text fallback for dynamic names/top five per D-21.
+   - Rationale: Engine licensing does not prove model licensing. The plan therefore gates every shipped voice/music/SFX asset and preserves gameplay when browser speech is unavailable.
 
-4. **Which DO configuration style matches the target Cloudflare account?**
-   - What we know: Current docs prefer declarative `exports` for new classes, while legacy `migrations` remain supported and cannot be mixed with `exports`. `[CITED: https://developers.cloudflare.com/durable-objects/reference/durable-objects-migrations/]`
-   - What’s unclear: Whether Phase 4 deployment scripts or account state already standardize on legacy migrations.
-   - Recommendation: Use one style consistently and verify with `wrangler deploy --dry-run`/account setup before committing deployment files. `[ASSUMED]`
+4. **RESOLVED — Durable Object configuration style**
+   - Decision: Use declarative `exports` for the new SQLite-backed `QuizRoom` Worker, with `presentation/workers/api.js` as the Worker `main` entrypoint; do not mix a legacy `migrations` block into that config.
+   - Rationale: Current Cloudflare guidance prefers `exports` for new classes, and a single style avoids ambiguous class ownership. The deployment-contract test and Phase 4 dry run verify the boundary.
 
-5. **Does the static quiz need to expose explanations in the client?**
-   - What we know: QUIZ-07 requires an explanation after each question, and the requested answer key must not be trusted from the client. `[VERIFIED: local REQUIREMENTS.md and phase context]` `[ASSUMED]`
-   - What’s unclear: Whether explanations can be public before reveal.
-   - Recommendation: Keep options and explanation in public question data only if early inspection is acceptable; otherwise send explanation in the server’s reveal event and keep the answer key server-only. `[ASSUMED]`
+5. **RESOLVED — Explanation visibility**
+   - Decision: Keep the answer key and explanations out of the public question asset. Send the short explanation with the authoritative reveal payload after each question, where the client displays it per D-09 and QUIZ-07.
+   - Rationale: This preserves server authority while meeting the required post-question explanation and prevents early inspection from changing the quiz contract.
 
 ## Environment Availability
 
@@ -517,7 +512,7 @@ The server should send a structured announcement event; the client selects fixed
 | Property | Value |
 |----------|-------|
 | Framework | `vitest` `5.0.2` [SUS; human verify before install] + `@cloudflare/vitest-plugin` `1.2.7` [SUS; human verify before install] |
-| Config file | None — Wave 0 must add Workers Vitest configuration |
+| Config file | `vitest.config.js` plus `tests/helpers/d1-runtime.js`, created in 03-01 before schema and room tests |
 | Quick run command | `npx vitest run tests/scoring.test.js tests/quiz-room.test.js` |
 | Full suite command | `npx vitest run` |
 
@@ -525,19 +520,19 @@ Cloudflare recommends the Workers Vitest integration for Workers and Pages Funct
 
 ### Phase Requirements → Test Map
 
-| Req ID | Behavior | Test Type | Automated Command | File Exists? |
+| Req ID | Behavior | Test Type | Automated Command | Planned In |
 |--------|----------|-----------|-------------------|-------------|
-| QUIZ-01 | Load exactly 20 questions, each with A/B/C/D and valid answer metadata | unit | `npx vitest run tests/questions.test.js` | ❌ Wave 0 |
-| QUIZ-02 | Room starts a 30-second server deadline and clients render remaining time | unit/integration | `npx vitest run tests/quiz-room.test.js -t timer` | ❌ Wave 0 |
-| QUIZ-03 | Correct score decays from 1,000 to 0; late/incorrect/unanswered score zero | unit | `npx vitest run tests/scoring.test.js` | ❌ Wave 0 |
-| QUIZ-04 | Host/player state path reaches finished result and leaderboard | integration | `npx vitest run tests/quiz-room.test.js -t lifecycle` | ❌ Wave 0 |
-| QUIZ-05 | Correct/success and incorrect/failure event classes trigger effects | browser smoke/manual | `npx vitest run tests/client-events.test.js` plus manual mobile check | ❌ Wave 0 |
-| QUIZ-06 | Quiz controls remain usable at narrow phone viewport | browser/manual | `npx vitest run tests/client-contract.test.js` plus mobile browser UAT | ❌ Wave 0 |
-| QUIZ-07 | Reveal event includes correct option and explanation | integration | `npx vitest run tests/quiz-room.test.js -t reveal` | ❌ Wave 0 |
-| BACK-01 | HTTP score/result endpoint rejects invalid/forged payloads and persists valid result | integration | `npx vitest run tests/quiz-api.test.js` | ❌ Wave 0 |
-| BACK-02 | Leaderboard returns top 20 in score/time order | integration | `npx vitest run tests/quiz-api.test.js -t leaderboard` | ❌ Wave 0 |
-| BACK-03 | D1 migration creates quiz tables without changing `presentations` | integration | `npx vitest run tests/schema.test.js` | ❌ Wave 0 |
-| BACK-04 | Local session snapshot survives API failure, but answer is not queued/replayed | unit/integration | `npx vitest run tests/offline.test.js` | ❌ Wave 0 |
+| QUIZ-01 | Load exactly 20 questions, each with A/B/C/D and valid answer metadata | unit | `npx vitest run tests/questions.test.js` | 03-02 |
+| QUIZ-02 | Room starts a 30-second server deadline and clients render remaining time | unit/integration | `npx vitest run tests/quiz-room.test.js -t timer` | 03-03 |
+| QUIZ-03 | Correct score decays from 1,000 to 0; late/incorrect/unanswered score zero | unit | `npx vitest run tests/scoring.test.js` | 03-01 |
+| QUIZ-04 | Host/player state path reaches finished result and leaderboard | integration | `npx vitest run tests/quiz-room.test.js -t lifecycle` | 03-03 |
+| QUIZ-05 | Correct/success and incorrect/failure event classes trigger effects | browser smoke/manual | `npx vitest run tests/client-events.test.js` plus manual mobile check | 03-06, 03-07, 03-08 |
+| QUIZ-06 | Quiz controls remain usable at narrow phone viewport | browser/manual | `npx vitest run tests/client-contract.test.js` plus mobile browser UAT | 03-05 |
+| QUIZ-07 | Reveal event includes correct option and explanation | integration | `npx vitest run tests/quiz-room.test.js -t reveal` | 03-03 |
+| BACK-01 | HTTP score/result endpoint rejects invalid/forged payloads and persists valid result | integration | `npx vitest run tests/quiz-api.test.js` | 03-04 |
+| BACK-02 | Leaderboard returns top 20 in score/time order | integration | `npx vitest run tests/quiz-api.test.js -t leaderboard` | 03-04 |
+| BACK-03 | D1 migration creates quiz tables without changing `presentations` | integration | `npx vitest run tests/schema.test.js` | 03-02 |
+| BACK-04 | Local session snapshot survives API failure, but answer is not queued/replayed | unit/integration | `npx vitest run tests/offline.test.js` | 03-06 |
 
 ### Sampling Rate
 
@@ -545,16 +540,16 @@ Cloudflare recommends the Workers Vitest integration for Workers and Pages Funct
 - **Per wave merge:** `npx vitest run`
 - **Phase gate:** Full suite green plus manual two-device host/player reconnect and mobile-audio checks before `$gsd-verify-work`.
 
-### Wave 0 Gaps
+### Planned Harness and Coverage
 
-- [ ] `package.json` with scripts and SUS-gated dev dependencies.
-- [ ] `vitest.config.js` / Cloudflare plugin configuration.
-- [ ] `tests/scoring.test.js` — covers D-06 through D-08 and QUIZ-03.
-- [ ] `tests/quiz-room.test.js` — covers lifecycle, host controls, host pause, player disconnect, reconnect, and leaderboard.
-- [ ] `tests/quiz-api.test.js` — covers validation, room capability checks, D1 reads/writes, and rate-limit response handling.
-- [ ] `tests/questions.test.js` — covers the 20-question DOCX transcription and answer-key consistency.
-- [ ] `tests/offline.test.js` — covers no answer replay after disconnect.
-- [ ] Manual two-device or two-browser test script — WebSockets, host disconnect, resume token, timer pause, and current-room rankings.
+- [x] `package.json` with scripts and SUS-gated dev dependencies — planned in 03-01.
+- [x] `vitest.config.js` / Cloudflare plugin configuration — planned in 03-01.
+- [x] `tests/scoring.test.js` — covers D-06 through D-08 and QUIZ-03 — planned in 03-01.
+- [x] `tests/quiz-room.test.js` — covers lifecycle, host controls, host pause, player disconnect, reconnect, and leaderboard — planned in 03-03.
+- [x] `tests/quiz-api.test.js` — covers validation, room capability checks, D1 reads/writes, and rate-limit response handling — planned in 03-04.
+- [x] `tests/questions.test.js` — covers the 20-question DOCX transcription and answer-key consistency — planned in 03-02.
+- [x] `tests/offline.test.js` — covers no answer replay after disconnect — planned in 03-06.
+- [x] Manual two-device or two-browser test script — WebSockets, host disconnect, resume token, timer pause, and current-room rankings — mapped in 03-VALIDATION.md.
 
 ## Security Domain
 

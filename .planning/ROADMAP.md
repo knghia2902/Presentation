@@ -38,6 +38,17 @@
 - `presentation/quiz/questions.json` — 20 câu hỏi
 - `presentation/workers/api.js` — Cloudflare Worker
 - `presentation/workers/schema.sql` — D1 schema
+**Plans:** 9 plans
+Plans:
+- [ ] 03-01-PLAN.md — Test harness and deterministic scoring
+- [ ] 03-02-PLAN.md — Question bank and D1 schema contracts
+- [ ] 03-03-PLAN.md — Durable Object room lifecycle
+- [ ] 03-04-PLAN.md — Pages API and WebSocket proxies
+- [ ] 03-05-PLAN.md — Mobile host/player quiz UI
+- [ ] 03-06-PLAN.md — Offline/reconnect and event feedback
+- [ ] 03-07-PLAN.md — Licensed music, voice cues, and SFX assets
+- [ ] 03-08-PLAN.md — Web Audio and hybrid voice integration
+- [ ] 03-09-PLAN.md — Pages/Worker deployment contract
 **Status:** Not Started
 
 ---
