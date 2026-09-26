@@ -85,7 +85,7 @@ export async function onRequestGet(context) {
       throw new ApiError('Không thể tải bảng xếp hạng lúc này.', 503, 'leaderboard_unavailable');
     }
     const globalLeaderboard = Array.isArray(result?.results)
-      ? result.results.map(toLeaderboardRow)
+      ? result.results.slice(0, LEADERBOARD_LIMIT).map(toLeaderboardRow)
       : [];
     const currentRoomLeaderboard = Array.isArray(currentRoom?.leaderboard)
       ? currentRoom.leaderboard.map(toLeaderboardRow)
