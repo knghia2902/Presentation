@@ -110,7 +110,7 @@ The client renders the room state machine `lobby → question → reveal → fin
 | Player question | Question number/20, question, four full-width answer buttons, shared timer, answer status | Select exactly one answer | Default, pressed, submitted/locked, server result, timeout, reconnect |
 | Reveal | Correct answer, short explanation, player’s awarded score, fastest-correct announcement, current-room leaderboard, host next control | Host: `Câu tiếp theo`; player: wait | Correct, incorrect, unanswered, no correct respondent, auto-advance countdown |
 | Paused host | Current question/reveal remains visible but dimmed, clear pause banner, reconnect detail | No player action; host resumes | Host disconnected, reconnecting, resumed |
-| Final result | Final score/rank, current-room top 5/20, top-three emphasis, `Chơi lại`/new room path, global top-20 section when available | `Tạo phòng mới` or `Xem bảng chung` | Result loading, save success, save fallback, no global data |
+| Final result | Final score/rank, current-room top 5/20, top-three emphasis, new-room path, global top-20 section when available | `Tạo phòng mới` or `Xem bảng chung` | Result loading, save success, save fallback, no global data |
 | Offline/reconnect | Persistent compact status banner plus current screen | Automatic retry; optional `Thử lại` | Reconnecting, reconnected, failed after retry |
 
 Host and player must share the same question/reveal visual language. Host controls are added in a secondary rail/panel; they must not visually compete with the player’s question and timer.
@@ -190,6 +190,7 @@ All copy is concise, direct, and Vietnamese. Use concrete verbs and explain what
 |---------|------|
 | Entry heading | `Sẵn sàng thử sức?` |
 | Host CTA | `Tạo phòng` |
+| Final new-room CTA | `Tạo phòng mới` |
 | Player CTA | `Tham gia phòng` |
 | Join submit CTA | `Vào phòng` |
 | Host start CTA | `Bắt đầu ván chơi` |
@@ -211,6 +212,9 @@ All copy is concise, direct, and Vietnamese. Use concrete verbs and explain what
 | Player reconnecting | `Mất kết nối. Đang thử kết nối lại…` |
 | Player reconnect failed | `Chưa thể kết nối lại. Kiểm tra mạng rồi thử lại.` |
 | Invalid room error | `Không tìm thấy phòng. Kiểm tra lại mã phòng hoặc tạo phòng mới.` |
+| Create-room validation error | `Thông tin tạo phòng chưa hợp lệ. Kiểm tra tên phòng rồi thử lại.` Recovery action: `Sửa tên phòng` — focus the room-name field and preserve the entered value. |
+| Create-room/server error | `Không thể tạo phòng lúc này. Kiểm tra kết nối rồi thử lại.` Recovery action: `Thử lại` — retry the request without clearing the entered room information. |
+| Invalid nickname validation | `Biệt danh không hợp lệ. Vui lòng nhập lại biệt danh.` Recovery action: `Sửa biệt danh` — focus the nickname field and preserve the entered value. |
 | Nickname helper | `Không cần tài khoản. Nếu trùng tên, hệ thống sẽ thêm hậu tố tự động.` |
 | Duplicate nickname notice | `Tên đã được đổi thành {nickname} để phân biệt trong phòng.` |
 | Save fallback | `Kết quả phòng vẫn hiển thị, nhưng chưa lưu được vào bảng xếp hạng chung. Bạn có thể thử lại khi có mạng.` |
@@ -278,7 +282,10 @@ Audio controls:
 | Player reconnecting | Persistent top banner, dim only the stale connection status—not the question content until server says paused | `Mất kết nối. Đang thử kết nối lại…` |
 | Host disconnected | Full-width pause banner and frozen timer/question; players cannot answer while paused | `Phòng đang tạm dừng` / `Chủ phòng đã mất kết nối…` |
 | Player disconnected | Host sees offline badge beside that nickname; room continues | `Đang ngoại tuyến` |
-| Invalid room/nickname | Inline field error below the relevant input; do not clear valid fields | Problem-specific copy plus correction action |
+| Create-room validation | Inline error below the room-name field; preserve the entered value and focus the field when `Sửa tên phòng` is chosen | `Thông tin tạo phòng chưa hợp lệ. Kiểm tra tên phòng rồi thử lại.` / `Sửa tên phòng` |
+| Create-room/server error | Non-blocking error panel or alert; preserve all entered room information and keep the create form available | `Không thể tạo phòng lúc này. Kiểm tra kết nối rồi thử lại.` / `Thử lại` |
+| Invalid room | Inline field error below the room-code field; do not clear valid fields | `Không tìm thấy phòng. Kiểm tra lại mã phòng hoặc tạo phòng mới.` / `Sửa mã phòng` |
+| Invalid nickname | Inline field error below the nickname field; preserve the entered value and focus the field when `Sửa biệt danh` is chosen | `Biệt danh không hợp lệ. Vui lòng nhập lại biệt danh.` / `Sửa biệt danh` |
 | WebSocket fatal error | Error panel with retry and return-to-entry actions; preserve nickname/room code | `Chưa thể kết nối lại. Kiểm tra mạng rồi thử lại.` |
 | Score save failure | Final result remains usable; non-blocking save banner | `Kết quả phòng vẫn hiển thị, nhưng chưa lưu được…` |
 | Missing/invalid question data | Host sees a clear setup error; never render a blank answer set | `Không thể tải bộ câu hỏi. Vui lòng thử lại.` |
@@ -295,13 +302,15 @@ Only the host can perform actions that terminate shared progress.
 
 There is no UI to delete or edit a submitted answer, score, or leaderboard result. Answer submission is intentionally irreversible for the current question.
 
-## Registry Safety
+## Registry/Safety
 
-| Registry | Blocks Used | Safety Gate |
-|----------|-------------|-------------|
-| none | none | not applicable; project is plain HTML/CSS/JS and shadcn was explicitly declined/not applicable |
+| Registry / implementation source | Blocks or packages used | Safety Gate |
+|-------------------------------|------------------------|-------------|
+| Third-party registries | None | No third-party registry is used; vetting is not applicable. |
+| Third-party blocks | None | No third-party block is used; vetting is not applicable. |
+| Project implementation | Manual HTML/CSS/JS only | Uses existing inline SVGs and native browser APIs; no registry-provided component, icon, or runtime package is added. |
 
-No third-party registry, block, component package, icon package, or runtime dependency is part of this UI contract. Existing inline SVGs and native browser APIs are the implementation baseline.
+No third-party registry or block is used. This phase is manual HTML/CSS/JS only; existing inline SVGs and native browser APIs are the implementation baseline.
 
 ## Implementation notes for realtime fidelity
 
