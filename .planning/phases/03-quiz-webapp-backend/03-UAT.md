@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-26T22:22:00+07:00
+updated: 2026-09-26T22:25:00+07:00
 ---
 
 ## Current Test
 
-number: 10
-name: Retest bộ đáp án sau khi sửa
+number: 5
+name: Chấm điểm, hết giờ và giải thích
 expected: |
-  Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và xác nhận màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D, không còn 8 ô trùng.
+  Sau khi trả lời hoặc hết giờ, kết quả đúng/sai, điểm và phần giải thích hiển thị; câu không chọn trước khi hết giờ không được tính điểm.
 awaiting: user response
 
 ## Tests
@@ -30,9 +30,8 @@ result: pass
 
 ### 4. Bắt đầu câu hỏi và chọn đáp án
 expected: Chủ phòng bắt đầu; người chơi thấy câu hỏi, 4 đáp án và timer. Chọn một đáp án thì nút bị khóa và trạng thái đã ghi nhận xuất hiện.
-result: issue
-reported: "Hiện 8 câu"
-severity: major
+result: pass
+note: "Ban đầu hiển thị 8 ô; đã sửa và retest thành công ở Test 10."
 
 ### 5. Chấm điểm, hết giờ và giải thích
 expected: Sau khi trả lời hoặc hết giờ, kết quả đúng/sai, điểm và phần giải thích hiển thị; câu không chọn trước khi hết giờ không được tính điểm.
@@ -57,16 +56,16 @@ result: pending
 ## Summary
 
 total: 10
-passed: 3
-issues: 1
-pending: 6
+passed: 5
+issues: 0
+pending: 5
 skipped: 0
 blocked: 0
 
 ## Gaps
 
 - truth: "Màn hình câu hỏi chỉ hiển thị một bộ 4 đáp án A/B/C/D"
-  status: failed
+  status: resolved
   reason: "User reported: Hiện 8 câu"
   severity: major
   test: 4
@@ -83,4 +82,4 @@ blocked: 0
 
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
-result: pending
+result: pass
