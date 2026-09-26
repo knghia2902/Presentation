@@ -162,7 +162,11 @@ export class QuizRoom extends DurableObject {
         await this.expireIfNeeded();
         const capabilityToken = url.searchParams.get('capabilityToken');
         const playerId = url.searchParams.get('playerId');
-        await this.authenticate({ playerId, capabilityToken });
+        if (url.searchParams.get('finished') === '1') {
+          await this.authenticateFinished({ playerId, capabilityToken });
+        } else {
+          await this.authenticate({ playerId, capabilityToken });
+        }
         return safeJson({ ok: true, event: 'snapshot', snapshot: this.snapshot() });
       }
 
@@ -301,6 +305,7 @@ export class QuizRoom extends DurableObject {
       persisted: false,
       finalizedByPlayerId: null,
       finalizedByCapabilityHash: null,
+      finishedCapabilityHashes: [],
       rateWindows: {}
     };
     await this.save();
@@ -391,6 +396,20 @@ export class QuizRoom extends DurableObject {
       player.status === 'left'
     ) {
       throw new RoomError('Capability đã hết hạn hoặc bị thu hồi.', 401, 'invalid_capability');
+    }
+    return player;
+  }
+
+  async authenticateFinished(command) {
+    if (!this.room || this.room.phase !== 'finished') {
+      return this.authenticate(command);
+    }
+    const playerId = String(command?.playerId || '');
+    const token = typeof command?.capabilityToken === 'string' ? command.capabilityToken : '';
+    const player = this.room.players.find((candidate) => candidate.playerId === playerId);
+    const tokenHash = token ? await hashCapability(token) : '';
+    if (!player || !token || !(this.room.finishedCapabilityHashes || []).includes(tokenHash)) {
+      throw new RoomError('Capability không hợp lệ.', 401, 'invalid_capability');
     }
     return player;
   }
@@ -561,6 +580,7 @@ export class QuizRoom extends DurableObject {
     this.room.finishedAt = currentTime();
     this.room.finalizedByPlayerId = player.playerId;
     this.room.finalizedByCapabilityHash = player.capabilityTokenHash;
+    this.room.finishedCapabilityHashes = this.room.players.map(({ capabilityTokenHash }) => capabilityTokenHash);
     this.room.revealUntil = null;
     this.room.announcement = {
       kind: 'final_results',

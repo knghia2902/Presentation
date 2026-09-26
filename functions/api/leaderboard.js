@@ -24,7 +24,7 @@ function toLeaderboardRow(row, index) {
 }
 
 async function readCurrentRoom(request, env, roomCode, playerId, capabilityToken) {
-  const query = new URLSearchParams({ playerId, capabilityToken });
+  const query = new URLSearchParams({ playerId, capabilityToken, finished: '1' });
   let response;
   try {
     response = await getRoomStub(env, roomCode).fetch(
