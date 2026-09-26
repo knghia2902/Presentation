@@ -102,6 +102,7 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
     const incorrect = await callRoom(withCapability(duplicateName, 'answer', { option: 'B' }));
     expect(incorrect.status).toBe(200);
     expect(incorrect.body.result).toMatchObject({ accepted: true, score: 0, responseTimeMs: 2_000 });
+    expect(incorrect.body.result.correctOption).toBe('A');
 
     vi.setSystemTime(BASE_TIME + 5_000);
     const answer = await callRoom(withCapability(player, 'answer', { option: 'A', score: 1, receivedAt: 0 }));

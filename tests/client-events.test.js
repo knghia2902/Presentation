@@ -172,6 +172,20 @@ describe('authoritative client result events', () => {
     expect(root.answers.filter((node) => node.dataset.answer !== 'A').every((node) => !node.dataset.state)).toBe(true);
   });
 
+  it('colors the selected wrong option red and the server key green immediately', () => {
+    const { controller, root } = controllerWithHooks();
+    controller.state.snapshot = snapshot();
+    controller.state.selectedOption = 'B';
+    controller.applyMessage({
+      event: 'incorrect',
+      result: { accepted: true, score: 0, responseTimeMs: 100, correctOption: 'A' },
+      snapshot: snapshot({ answers: { 'player-1': { accepted: true } } })
+    });
+    expect(root.answers.find((node) => node.dataset.answer === 'B').dataset.state).toBe('incorrect');
+    expect(root.answers.find((node) => node.dataset.answer === 'A').dataset.state).toBe('correct');
+    expect(root.answers.filter((node) => ['C', 'D'].includes(node.dataset.answer)).every((node) => !node.dataset.state)).toBe(true);
+  });
+
   it('handles reveal and finished hooks while reduced motion keeps state text deterministic', () => {
     const { controller, root, effects, audio } = controllerWithHooks({ reducedMotion: true });
     controller.state.snapshot = snapshot();

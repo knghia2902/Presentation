@@ -13,8 +13,9 @@ During UAT test 5, an answer result made all four answer cards appear incorrect 
 - Added `state.selectedOption` and set it only in `submitAnswer()`.
 - Restrict pending/result styling to the button whose `data-answer` matches `selectedOption`.
 - Clear state from all other answer buttons.
+- Include `correctOption` only in the direct answer response to the player who answered; keep the room broadcast generic so other players cannot see the key early.
 
 ## Verification
 
 - Added a client regression test asserting only the submitted option receives `correct`.
-- `npm test`: 12 files, 57 tests passed.
+- `npm test`: 12 files, 58 tests passed.

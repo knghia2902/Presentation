@@ -364,6 +364,7 @@ export function createQuizController(options = {}) {
     answerSubmitted: false,
     answerPending: false,
     selectedOption: null,
+    revealedCorrectOption: null,
     lastQuestionId: null,
     warned: new Set(),
     lastResult: null,
@@ -589,7 +590,8 @@ export function createQuizController(options = {}) {
           button.dataset.state = state.lastAuthoritativeEvent === 'correct' || state.lastAuthoritativeEvent === 'incorrect'
             ? state.lastAuthoritativeEvent
             : 'selected';
-        } else delete button.dataset.state;
+        } else if (button.dataset.answer === state.revealedCorrectOption) button.dataset.state = 'correct';
+        else delete button.dataset.state;
       }
     });
     if (hostAnswers) hostAnswers.hidden = state.role !== 'host';
@@ -757,12 +759,14 @@ export function createQuizController(options = {}) {
     if (windowRef?.setTimeout) windowRef.setTimeout(() => target.classList.remove(effectName), EFFECT_DURATION_MS[effectName] || 500);
   }
 
-  function markAuthoritativeAnswer(eventName) {
+  function markAuthoritativeAnswer(eventName, correctOption = null) {
     state.answerPending = false;
     state.answerSubmitted = true;
+    if (ANSWERS.includes(correctOption)) state.revealedCorrectOption = correctOption;
     queryAll('[data-answer]').forEach((button) => {
       button.disabled = true;
       if (button.dataset.answer === state.selectedOption) button.dataset.state = eventName;
+      else if (button.dataset.answer === state.revealedCorrectOption) button.dataset.state = 'correct';
       else delete button.dataset.state;
     });
     setConnection(state.transport, eventName === 'correct' ? 'Đã ghi nhận câu trả lời đúng' : 'Đã ghi nhận câu trả lời');
@@ -775,7 +779,7 @@ export function createQuizController(options = {}) {
     if (['correct', 'incorrect'].includes(derivedEvent) && payload?.result?.accepted !== true) return;
     state.lastAuthoritativeEvent = derivedEvent;
     if (derivedEvent === 'correct' || derivedEvent === 'incorrect') {
-      markAuthoritativeAnswer(derivedEvent);
+      markAuthoritativeAnswer(derivedEvent, payload?.result?.correctOption);
       setResultState(derivedEvent === 'correct' ? 'success' : 'error');
       playCue(derivedEvent);
       triggerEffect(derivedEvent === 'correct' ? 'confetti' : 'shake', derivedEvent);
@@ -997,6 +1001,7 @@ export function createQuizController(options = {}) {
         state.answerSubmitted = Boolean(payload.snapshot.answers?.[state.session?.playerId]);
         state.answerPending = false;
         state.selectedOption = null;
+        state.revealedCorrectOption = null;
         state.lastAuthoritativeEvent = null;
         setResultState('idle');
         state.warned.clear();

@@ -491,7 +491,10 @@ export class QuizRoom extends DurableObject {
     await this.save();
     const event = result.score > 0 ? 'correct' : 'incorrect';
     this.broadcast({ event, snapshot: this.snapshot(), result: { ...result, accepted: true } });
-    return { event, result: { ...result, accepted: true }, snapshot: this.snapshot() };
+    // The direct command response may reveal the correct option to the player
+    // who just answered. The broadcast above intentionally remains generic so
+    // other players can continue answering without seeing the key early.
+    return { event, result: { ...result, accepted: true, correctOption: question.correctOption }, snapshot: this.snapshot() };
   }
 
   async hostNext(player) {

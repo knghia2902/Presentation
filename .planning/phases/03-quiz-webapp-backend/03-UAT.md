@@ -3,7 +3,7 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-26T22:36:00+07:00
+updated: 2026-09-26T22:40:00+07:00
 ---
 
 ## Current Test
@@ -91,11 +91,14 @@ blocked: 0
   artifacts:
     - path: "presentation/quiz/app.js"
       issue: "Không lưu đáp án được chọn riêng và áp trạng thái kết quả cho từng nút"
+    - path: "presentation/workers/quiz-room.js"
+      issue: "Phản hồi trực tiếp chưa gửi correctOption cho người vừa trả lời"
     - path: "tests/client-events.test.js"
       issue: "Thiếu regression test phân biệt nút đã chọn với nút còn lại"
   missing:
     - "Lưu selectedOption theo lượt trả lời"
     - "Chỉ tô trạng thái cho nút có data-answer trùng selectedOption"
+    - "Gửi đáp án đúng chỉ trong phản hồi riêng của người trả lời"
   debug_session: ".planning/debug/answer-result-highlighting.md"
 
 ### 10. Retest bộ đáp án sau khi sửa
