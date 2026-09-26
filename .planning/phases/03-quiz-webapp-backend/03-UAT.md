@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-26T22:40:00+07:00
+updated: 2026-09-26T22:45:00+07:00
 ---
 
 ## Current Test
 
-number: 11
-name: Retest trạng thái đúng/sai của đáp án
+number: 6
+name: Hiệu ứng và âm thanh
 expected: |
-  Trả lời một đáp án sai hoặc đúng; chỉ đáp án đã chọn sai hiển thị đỏ, đáp án đúng hiển thị xanh, các đáp án còn lại không bị tô sai trạng thái.
+  Sau thao tác bật âm thanh, nhạc/SFX hoặc voice hoạt động ở các mốc phù hợp; tắt âm thanh thì quiz vẫn chơi được và thông báo chữ vẫn hiển thị.
 awaiting: user response
 
 ## Tests
@@ -35,9 +35,8 @@ note: "Ban đầu hiển thị 8 ô; đã sửa và retest thành công ở Test
 
 ### 5. Chấm điểm, hết giờ và giải thích
 expected: Sau khi trả lời hoặc hết giờ, kết quả đúng/sai, điểm và phần giải thích hiển thị; câu không chọn trước khi hết giờ không được tính điểm.
-result: issue
-reported: "Sai hiển thị sai cả 4 câu, đúng xanh cả 4 câu"
-severity: major
+result: pass
+note: "Đã sửa để đáp án sai đỏ và đáp án đúng xanh ngay lập tức; retest thành công ở Test 11."
 
 ### 6. Hiệu ứng và âm thanh
 expected: Sau thao tác bật âm thanh, nhạc/SFX hoặc voice hoạt động ở các mốc phù hợp; tắt âm thanh thì quiz vẫn chơi được và thông báo chữ vẫn hiển thị.
@@ -58,9 +57,9 @@ result: pending
 ## Summary
 
 total: 11
-passed: 5
-issues: 1
-pending: 5
+passed: 7
+issues: 0
+pending: 4
 skipped: 0
 blocked: 0
 
@@ -83,7 +82,7 @@ blocked: 0
   debug_session: ".planning/debug/duplicate-answer-cards.md"
 
 - truth: "Sau khi chấm, chỉ đáp án đã chọn sai hiển thị đỏ và đáp án đúng hiển thị xanh"
-  status: failed
+  status: resolved
   reason: "User reported: Sai hiển thị sai cả 4 câu, đúng xanh cả 4 câu"
   severity: major
   test: 5
@@ -107,4 +106,4 @@ result: pass
 
 ### 11. Retest trạng thái đúng/sai của đáp án
 expected: Trả lời một đáp án; chỉ nút đã chọn nhận trạng thái đúng/sai, các nút còn lại không bị tô theo.
-result: pending
+result: pass
