@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: — Bài thuyết trình hoàn chỉnh + Mini Game
-current_plan: 3
+current_plan: 4
 status: In Progress
 stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-09-26T04:07:00.399Z"
+last_updated: "2026-09-26T04:23:56.875Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 12
-  completed_plans: 5
-  percent: 42
+  completed_plans: 6
+  percent: 25
 ---
 
 # STATE.md — Project Memory
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 ## Current State
 
 - **Active phase:** Phase 3 — Quiz Webapp + Backend
-- **Current Plan:** 3
+- **Current Plan:** 4
 - **Total Plans in Phase:** 9
 - **Status:** Ready to execute; 9 plans across 8 waves; checker passed with no blockers
 - **Blockers:** None
@@ -56,7 +56,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 ## Session
 
-**Last session:** 2026-09-26T04:07:00.285Z
+**Last session:** 2026-09-26T04:23:00.331Z
 **Stopped at:** Completed 03-02-PLAN.md
 **Resume file:** None
 
@@ -66,6 +66,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 |-------|------|----------|-------|
 | Phase 03 P01 | 10min | 3 tasks | 6 files |
 | Phase 03 P02 | 11min | 3 tasks | 10 files |
+| Phase 03 P03 | 14min | 3 tasks | 5 files |
 
 ## Decisions
 
@@ -74,3 +75,6 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 - [Phase 03]: Keep the public question asset limited to IDs, prompts, and A/B/C/D options; the Worker module owns correctOption and explanations. — Protects the answer key while preserving a stable client data contract.
 - [Phase 03]: Use a versioned migration as the canonical D1 schema and keep the existing presentations table intact; schema.sql is bootstrap compatibility only. — Keeps persistent storage reproducible without request-path DDL or presentation regressions.
 - [Phase 03]: Load D1 migrations in the Node-side Vitest configuration and pass them through TEST_MIGRATIONS to the Worker runtime. — Matches the approved Cloudflare D1 test recipe and avoids Worker-side Node module resolution.
+- [Phase 03]: Use a single SQLite-backed QuizRoom Durable Object per room — Keeps room state authoritative, hibernatable, and serialized while allowing the Worker facade to remain thin.
+- [Phase 03]: Use opaque hashed capability and reconnect tokens with bounded TTLs — Prevents bearer secrets from being persisted in plaintext and makes expiry/revocation enforceable for both host and player sessions.
+- [Phase 03]: Persist final results only when the room finishes — Avoids partial final-result records while retaining room, participant, and answer persistence for auditability.

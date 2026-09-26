@@ -23,9 +23,9 @@
 ### Quiz Webapp (QUIZ)
 
 - [x] **QUIZ-01**: 20 câu trắc nghiệm 4 đáp án (A/B/C/D) về nội dung quy luật
-- [ ] **QUIZ-02**: Timer đếm ngược 30 giây cho mỗi câu
+- [x] **QUIZ-02**: Timer đếm ngược 30 giây cho mỗi câu
 - [x] **QUIZ-03**: Tính điểm: +10đ mỗi câu đúng, bonus thời gian
-- [ ] **QUIZ-04**: Màn hình nhập tên → Quiz → Kết quả → Bảng xếp hạng
+- [x] **QUIZ-04**: Màn hình nhập tên → Quiz → Kết quả → Bảng xếp hạng
 - [ ] **QUIZ-05**: Hiệu ứng confetti khi đúng, shake khi sai
 - [ ] **QUIZ-06**: Responsive — chơi được trên điện thoại
 - [x] **QUIZ-07**: Giải thích đáp án sau mỗi câu
