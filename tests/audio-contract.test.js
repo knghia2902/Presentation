@@ -15,7 +15,7 @@ class AudioContextDouble {
 
 class AudioDouble {
   static instances = [];
-  constructor(src) { this.src = src; this.played = 0; this.paused = 0; AudioDouble.instances.push(this); }
+  constructor(src) { this.src = src; this.played = 0; this.paused = 0; this.currentTime = 0; AudioDouble.instances.push(this); }
   play() { this.played += 1; return Promise.resolve(); }
   pause() { this.paused += 1; }
 }
@@ -33,15 +33,16 @@ function harness() {
     cancel() { this.cancelled += 1; }
   };
   const audioContext = new AudioContextDouble();
+  const timers = [];
   const manager = createQuizAudioManager({
-    windowRef: {},
+    windowRef: { setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; } },
     audioContext,
     Audio: AudioDouble,
     speechSynthesis: speech,
     SpeechSynthesisUtterance: UtteranceDouble,
     enabled: true
   });
-  return { manager, audioContext, speech };
+  return { manager, audioContext, speech, timers };
 }
 
 describe('hybrid quiz audio contract', () => {
@@ -94,5 +95,18 @@ describe('hybrid quiz audio contract', () => {
     expect(audioContext.gains[3].gain.value).toBe(0);
     expect(manager.speak('Không được đọc')).toBe(false);
     expect(manager.playAsset('incorrect')).toBe(false);
+  });
+
+  it('cuts the timeout sting short so the end-of-question sound stays brief', () => {
+    AudioDouble.instances = [];
+    const { manager, timers } = harness();
+    manager.userGesture();
+    expect(manager.playAsset('timeout')).toBe(true);
+    const timeoutAudio = AudioDouble.instances.find((audio) => audio.src.includes('sfx-timeout'));
+    const timeoutTimer = timers.at(-1);
+    expect(timeoutTimer.delay).toBe(900);
+    timeoutTimer.callback();
+    expect(timeoutAudio.paused).toBe(1);
+    expect(timeoutAudio.currentTime).toBe(0);
   });
 });

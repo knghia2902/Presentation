@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-26T22:45:00+07:00
+updated: 2026-09-26T22:50:00+07:00
 ---
 
 ## Current Test
 
-number: 6
-name: Hiệu ứng và âm thanh
+number: 12
+name: Retest thời lượng âm thanh hết giờ
 expected: |
-  Sau thao tác bật âm thanh, nhạc/SFX hoặc voice hoạt động ở các mốc phù hợp; tắt âm thanh thì quiz vẫn chơi được và thông báo chữ vẫn hiển thị.
+  Khi hết giờ, âm cảnh báo chỉ phát ngắn dưới 1 giây, không kéo dài gây khó chịu; các âm thanh và thông báo chữ khác vẫn hoạt động bình thường.
 awaiting: user response
 
 ## Tests
@@ -40,7 +40,9 @@ note: "Đã sửa để đáp án sai đỏ và đáp án đúng xanh ngay lập
 
 ### 6. Hiệu ứng và âm thanh
 expected: Sau thao tác bật âm thanh, nhạc/SFX hoặc voice hoạt động ở các mốc phù hợp; tắt âm thanh thì quiz vẫn chơi được và thông báo chữ vẫn hiển thị.
-result: pending
+result: issue
+reported: "Âm gần hết giờ hơi khó chịu, dài quá"
+severity: minor
 
 ### 7. Mất kết nối và tiếp tục phiên
 expected: Khi tải lại hoặc mất kết nối tạm thời, giao diện báo đang kết nối lại; phiên không phát lại câu trả lời cũ và tiếp tục từ trạng thái authoritative hiện tại.
@@ -58,7 +60,7 @@ result: pending
 
 total: 11
 passed: 7
-issues: 0
+issues: 1
 pending: 4
 skipped: 0
 blocked: 0
@@ -100,6 +102,22 @@ blocked: 0
     - "Gửi đáp án đúng chỉ trong phản hồi riêng của người trả lời"
   debug_session: ".planning/debug/answer-result-highlighting.md"
 
+- truth: "Âm cảnh báo gần hết giờ ngắn và không gây khó chịu"
+  status: fixed_pending_retest
+  reason: "User reported: Âm gần hết giờ hơi khó chịu, dài quá"
+  severity: minor
+  test: 6
+  root_cause: "SFX hết giờ dài khoảng 3,6 giây và được phát nguyên đoạn ở thời điểm chuyển sang reveal."
+  artifacts:
+    - path: "presentation/quiz/app.js"
+      issue: "playAsset('timeout') chưa giới hạn thời lượng phát"
+    - path: "tests/audio-contract.test.js"
+      issue: "Thiếu kiểm tra thời lượng tối đa của SFX hết giờ"
+  missing:
+    - "Giới hạn SFX timeout dưới 1 giây"
+    - "Regression test xác nhận âm được dừng và tua về đầu"
+  debug_session: ".planning/debug/timeout-audio-duration.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -107,3 +125,7 @@ result: pass
 ### 11. Retest trạng thái đúng/sai của đáp án
 expected: Trả lời một đáp án; chỉ nút đã chọn nhận trạng thái đúng/sai, các nút còn lại không bị tô theo.
 result: pass
+
+### 12. Retest thời lượng âm thanh hết giờ
+expected: Khi hết giờ, âm cảnh báo chỉ phát ngắn dưới 1 giây, không kéo dài gây khó chịu; các âm thanh và thông báo chữ khác vẫn hoạt động bình thường.
+result: pending

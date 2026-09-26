@@ -30,6 +30,9 @@ export const QUIZ_AUDIO_ASSETS = Object.freeze({
 });
 
 const QUIZ_AUDIO_GAIN = Object.freeze({ music: 0.16, sfx: 0.45, voice: 0.8, master: 1, duckedMusic: 0.05 });
+// The timeout sting is intentionally brief so the last-second feedback does
+// not dominate the reveal or feel like a repeated alarm.
+export const QUIZ_AUDIO_MAX_DURATION_MS = Object.freeze({ timeout: 900 });
 
 function isVietnameseVoice(voice) {
   return /^vi(?:-|_)?vn$/i.test(String(voice?.lang || '').replace('_', '-'));
@@ -132,6 +135,13 @@ export function createQuizAudioManager(options = {}) {
     if (!asset) return false;
     const bus = ['correct', 'incorrect', 'timeout'].includes(name) ? 'sfxGain' : 'voiceGain';
     const audio = makeAudio(asset, bus);
+    const maxDuration = QUIZ_AUDIO_MAX_DURATION_MS[name];
+    if (audio && maxDuration && typeof windowRef.setTimeout === 'function') {
+      windowRef.setTimeout(() => {
+        try { audio.pause?.(); } catch { /* best-effort cleanup */ }
+        try { audio.currentTime = 0; } catch { /* read-only media doubles are fine */ }
+      }, maxDuration);
+    }
     return playElement(audio);
   }
 
