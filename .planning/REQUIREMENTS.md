@@ -35,7 +35,7 @@
 - [x] **BACK-01**: Cloudflare Worker API lưu điểm (POST /api/score)
 - [x] **BACK-02**: API bảng xếp hạng top 20 (GET /api/leaderboard)
 - [x] **BACK-03**: Cloudflare D1 database lưu scores
-- [ ] **BACK-04**: LocalStorage fallback khi offline
+- [x] **BACK-04**: LocalStorage fallback khi offline
 
 ### Phản biện (ARGS)
 
@@ -75,8 +75,8 @@
 |-------------|-------|--------|
 | SLIDE-01~06 | Phase 1 | Pending |
 | SCRP-01~03 | Phase 2 | Pending |
-| QUIZ-01~07 | Phase 3 | Pending |
-| BACK-01~04 | Phase 3 | Pending |
+| QUIZ-01~07 | Phase 3 | Complete |
+| BACK-01~04 | Phase 3 | Complete |
 | ARGS-01~03 | Phase 2 | Pending |
 | DPLY-01~03 | Phase 4 | Pending |
 

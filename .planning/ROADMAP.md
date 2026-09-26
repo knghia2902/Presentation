@@ -47,7 +47,7 @@
 - `presentation/workers/api.js` — Cloudflare Worker
 - `presentation/workers/schema.sql` — D1 schema
 
-**Plans:** 5/9 plans executed
+**Plans:** 9/9 plans executed
 Plans:
 **Wave 1**
 
@@ -71,18 +71,18 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 03-06-PLAN.md — Offline/reconnect and event feedback
-- [ ] 03-07-PLAN.md — Licensed music, voice cues, and SFX assets
+- [x] 03-06-PLAN.md — Offline/reconnect and event feedback
+- [x] 03-07-PLAN.md — Licensed music, voice cues, and SFX assets
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 03-08-PLAN.md — Web Audio and hybrid voice integration
+- [x] 03-08-PLAN.md — Web Audio and hybrid voice integration
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 03-09-PLAN.md — Pages/Worker deployment contract
+- [x] 03-09-PLAN.md — Pages/Worker deployment contract
 
-**Status:** Not Started
+**Status:** ✅ Complete (2026-09-26; deploy-ready, live publication reserved for Phase 4)
 
 ---
 
@@ -108,7 +108,7 @@ Plans:
 |-------|------|-------------|-------------|--------|
 | 1 | Web Slide (Prezi-style) | SLIDE-01~06 | None | ✅ Complete |
 | 2 | Nội dung nói + Phản biện | SCRP-01~03, ARGS-01~03 | Phase 1 | Not Started |
-| 3 | Quiz Webapp + Backend | 5/9 | In Progress|  |
+| 3 | Quiz Webapp + Backend | 9/9 | ✅ Complete | 2026-09-26 |
 | 4 | Deploy + Tích hợp | DPLY-01~03 | Phase 1, 3 | Not Started |
 
 **Parallel opportunities:** Phase 1 và Phase 3 có thể chạy song song (không phụ thuộc nhau).
