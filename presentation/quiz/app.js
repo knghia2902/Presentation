@@ -202,13 +202,16 @@ export function createQuizController(options = {}) {
     state.connection = status;
     const band = byRole('status-band');
     if (band) band.dataset.state = status;
-    text(byRole('connection-status'), copy || ({
+    const defaultCopy = state.lastAuthoritativeEvent === 'correct' && status === 'answer-recorded'
+      ? 'Đã ghi nhận câu trả lời đúng'
+      : ({
       connected: 'Đã kết nối',
       reconnecting: 'Mất kết nối. Đang thử kết nối lại…',
       offline: 'Mất kết nối. Bạn có thể thử lại hoặc về trang đầu.',
       paused: 'Phòng đang tạm dừng vì chủ phòng mất kết nối',
       'answer-recorded': 'Đã ghi nhận câu trả lời'
-    }[status] || 'Đang kết nối'));
+    }[status] || 'Đang kết nối');
+    text(byRole('connection-status'), copy || defaultCopy);
   }
 
   function setConnection(status, copy) {
@@ -332,7 +335,11 @@ export function createQuizController(options = {}) {
       button.disabled = !isPlayerQuestion || !canAnswer || state.answerSubmitted || state.answerPending;
       if (!state.answerSubmitted && !state.answerPending) delete button.dataset.state;
       if (state.answerPending) button.dataset.state = 'selected';
-      if (state.answerSubmitted && snapshot.answers?.[state.session?.playerId]?.accepted) button.dataset.state = 'selected';
+      if (state.answerSubmitted && snapshot.answers?.[state.session?.playerId]?.accepted) {
+        button.dataset.state = state.lastAuthoritativeEvent === 'correct' || state.lastAuthoritativeEvent === 'incorrect'
+          ? state.lastAuthoritativeEvent
+          : 'selected';
+      }
     });
     if (hostAnswers) hostAnswers.hidden = state.role !== 'host';
     const shortcut = byRole('shortcut-help');
@@ -351,7 +358,10 @@ export function createQuizController(options = {}) {
       timer.setAttribute('aria-label', paused ? 'Phòng đang tạm dừng' : `Còn ${seconds} giây`);
     }
     const progress = byRole('timer-progress');
-    if (progress) progress.style.transform = `scaleX(${Math.max(0, Math.min(1, seconds / 30))})`;
+    if (progress) {
+      if (!progress.style) progress.style = {};
+      progress.style.transform = `scaleX(${Math.max(0, Math.min(1, seconds / 30))})`;
+    }
     if (!paused && (seconds === 10 || seconds === 5) && !state.warned.has(seconds)) {
       state.warned.add(seconds);
       announce(`Còn ${seconds} giây`);
@@ -462,9 +472,8 @@ export function createQuizController(options = {}) {
   }
 
   function playCue(eventName) {
-    if (!state.audioEnabled || state.audioMuted) return;
     const hook = options.audioHook || options.onAudio;
-    if (typeof hook === 'function') hook(eventName, state.snapshot);
+    if (typeof hook === 'function') hook(eventName, state.snapshot, { enabled: state.audioEnabled });
   }
 
   function setResultState(resultState) {
