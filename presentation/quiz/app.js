@@ -574,6 +574,7 @@ export function createQuizController(options = {}) {
     }
     ANSWERS.forEach((letter) => text(query(`[data-answer-text="${letter}"]`), question.options[letter]));
     const isPlayerQuestion = state.role === 'player' && snapshot.phase === 'question';
+    const playerAnswers = byRole('player-answers');
     const canAnswer = Boolean(commandTransport) || state.transport === 'connected';
     queryAll('[data-answer]').forEach((button) => {
       button.hidden = !isPlayerQuestion;
@@ -587,6 +588,7 @@ export function createQuizController(options = {}) {
       }
     });
     if (hostAnswers) hostAnswers.hidden = state.role !== 'host';
+    if (playerAnswers) playerAnswers.hidden = !isPlayerQuestion;
     const shortcut = byRole('shortcut-help');
     if (shortcut) shortcut.hidden = !isPlayerQuestion;
     text(byRole('answer-count'), state.role === 'host' ? `${Object.values(snapshot.answers || {}).filter(Boolean).length} đã trả lời` : '');

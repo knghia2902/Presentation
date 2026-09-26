@@ -124,6 +124,7 @@ h2 { margin-bottom: 16px; font-size: 24px; }
 .timer[data-state="critical"] + .timer-track span, .timer[data-state="expired"] + .timer-track span { background: var(--danger); }
 .question-panel h2 { min-height: 86px; margin-bottom: 24px; }
 .answer-grid { display: grid; gap: 8px; }
+.answer-grid[hidden] { display: none !important; }
 .answer-option { width: 100%; min-height: 64px; display: flex; align-items: center; gap: 16px; text-align: left; color: var(--text); border: 2px solid #475569; border-radius: 8px; background: var(--slate); padding: 8px 16px; transition: transform .18s ease, border-color .18s ease, background-color .18s ease; }
 .player-answer-grid .answer-option:hover { border-color: var(--focus); }
 .answer-option:disabled { opacity: 1; }
