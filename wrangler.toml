@@ -6,3 +6,8 @@ pages_build_output_dir = "."
 binding = "DB"
 database_name = "presentation-db"
 database_id = "97579f7a-6737-42e7-88a2-51d2e35e066e"
+
+[[durable_objects.bindings]]
+name = "QUIZ_ROOM"
+class_name = "QuizRoom"
+script_name = "quiz-room-worker"
