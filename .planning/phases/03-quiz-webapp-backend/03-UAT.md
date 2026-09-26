@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-26T22:55:00+07:00
+updated: 2026-09-26T23:05:00+07:00
 ---
 
 ## Current Test
 
-number: 7
-name: Mất kết nối và tiếp tục phiên
+number: 13
+name: Retest banner tạm dừng
 expected: |
-  Khi tải lại hoặc mất kết nối tạm thời, giao diện báo đang kết nối lại; phiên không phát lại câu trả lời cũ và tiếp tục từ trạng thái authoritative hiện tại.
+  Khi phòng đang ở lobby hoặc câu hỏi bình thường, không hiện banner “Phòng đang tạm dừng”; banner chỉ hiện khi snapshot có phase paused_host_disconnect.
 awaiting: user response
 
 ## Tests
@@ -45,7 +45,9 @@ note: "Đã giới hạn SFX hết giờ còn 900 ms; retest thành công ở Te
 
 ### 7. Mất kết nối và tiếp tục phiên
 expected: Khi tải lại hoặc mất kết nối tạm thời, giao diện báo đang kết nối lại; phiên không phát lại câu trả lời cũ và tiếp tục từ trạng thái authoritative hiện tại.
-result: pending
+result: issue
+reported: "Lúc nào cũng hiện Phòng đang tạm dừng; Chủ phòng đã mất kết nối. Timer sẽ tiếp tục khi chủ phòng quay lại."
+severity: major
 
 ### 8. Kết thúc và bảng xếp hạng
 expected: Chủ phòng kết thúc; người chơi thấy kết quả cuối, top 5/bảng xếp hạng và trạng thái lưu kết quả. Có thể mở bảng xếp hạng chung nếu API hoạt động.
@@ -57,9 +59,9 @@ result: pending
 
 ## Summary
 
-total: 12
+total: 13
 passed: 9
-issues: 0
+issues: 1
 pending: 3
 skipped: 0
 blocked: 0
@@ -117,6 +119,21 @@ blocked: 0
     - "Regression test xác nhận âm được dừng và tua về đầu"
   debug_session: ".planning/debug/timeout-audio-duration.md"
 
+- truth: "Banner tạm dừng chỉ hiện khi chủ phòng thực sự mất kết nối"
+  status: fixed_pending_retest
+  reason: "User reported: Lúc nào cũng hiện Phòng đang tạm dừng"
+  severity: major
+  test: 7
+  root_cause: "CSS đặt display:grid cho pause-banner và paused-panel nhưng không có rule ưu tiên ẩn phần tử mang thuộc tính hidden, nên cả hai panel vẫn hiển thị ở phase question/lobby."
+  artifacts:
+    - path: "presentation/quiz/style.css"
+      issue: "Thiếu rule [hidden] cho hai panel tạm dừng"
+    - path: "presentation/quiz/app.js"
+      issue: "Logic hidden đúng nhưng bị CSS ghi đè khi render"
+  missing:
+    - "Bắt buộc display:none cho pause-banner[hidden] và paused-panel[hidden]"
+  debug_session: ".planning/debug/pause-banner-always-visible.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -128,3 +145,7 @@ result: pass
 ### 12. Retest thời lượng âm thanh hết giờ
 expected: Khi hết giờ, âm cảnh báo chỉ phát ngắn dưới 1 giây, không kéo dài gây khó chịu; các âm thanh và thông báo chữ khác vẫn hoạt động bình thường.
 result: pass
+
+### 13. Retest banner tạm dừng
+expected: Khi phòng đang ở lobby hoặc câu hỏi bình thường, không hiện banner “Phòng đang tạm dừng”; banner chỉ hiện khi snapshot có phase paused_host_disconnect.
+result: pending

@@ -55,6 +55,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .status-band[data-state="reconnecting"] .status-dot { background: var(--gold); }
 .status-band[data-state="offline"] .status-dot { background: var(--danger); }
 .pause-banner, .paused-panel { display: grid; gap: 4px; padding: 16px; margin: 8px auto 0; width: 100%; max-width: 1120px; color: var(--text); border: 2px solid var(--gold); border-radius: var(--radius); background: #2a2412; }
+.pause-banner[hidden], .paused-panel[hidden] { display: none !important; }
 .pause-banner span, .paused-panel span { color: var(--gold-soft); }
 .page-main { flex: 1; display: flex; flex-direction: column; padding-block: 32px; }
 .screen { width: 100%; animation: screen-in .24s ease-out; }
