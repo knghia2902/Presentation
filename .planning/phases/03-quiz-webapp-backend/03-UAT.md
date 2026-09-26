@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-26T22:50:00+07:00
+updated: 2026-09-26T22:55:00+07:00
 ---
 
 ## Current Test
 
-number: 12
-name: Retest thời lượng âm thanh hết giờ
+number: 7
+name: Mất kết nối và tiếp tục phiên
 expected: |
-  Khi hết giờ, âm cảnh báo chỉ phát ngắn dưới 1 giây, không kéo dài gây khó chịu; các âm thanh và thông báo chữ khác vẫn hoạt động bình thường.
+  Khi tải lại hoặc mất kết nối tạm thời, giao diện báo đang kết nối lại; phiên không phát lại câu trả lời cũ và tiếp tục từ trạng thái authoritative hiện tại.
 awaiting: user response
 
 ## Tests
@@ -40,9 +40,8 @@ note: "Đã sửa để đáp án sai đỏ và đáp án đúng xanh ngay lập
 
 ### 6. Hiệu ứng và âm thanh
 expected: Sau thao tác bật âm thanh, nhạc/SFX hoặc voice hoạt động ở các mốc phù hợp; tắt âm thanh thì quiz vẫn chơi được và thông báo chữ vẫn hiển thị.
-result: issue
-reported: "Âm gần hết giờ hơi khó chịu, dài quá"
-severity: minor
+result: pass
+note: "Đã giới hạn SFX hết giờ còn 900 ms; retest thành công ở Test 12."
 
 ### 7. Mất kết nối và tiếp tục phiên
 expected: Khi tải lại hoặc mất kết nối tạm thời, giao diện báo đang kết nối lại; phiên không phát lại câu trả lời cũ và tiếp tục từ trạng thái authoritative hiện tại.
@@ -58,10 +57,10 @@ result: pending
 
 ## Summary
 
-total: 11
-passed: 7
-issues: 1
-pending: 4
+total: 12
+passed: 9
+issues: 0
+pending: 3
 skipped: 0
 blocked: 0
 
@@ -103,7 +102,7 @@ blocked: 0
   debug_session: ".planning/debug/answer-result-highlighting.md"
 
 - truth: "Âm cảnh báo gần hết giờ ngắn và không gây khó chịu"
-  status: fixed_pending_retest
+  status: resolved
   reason: "User reported: Âm gần hết giờ hơi khó chịu, dài quá"
   severity: minor
   test: 6
@@ -128,4 +127,4 @@ result: pass
 
 ### 12. Retest thời lượng âm thanh hết giờ
 expected: Khi hết giờ, âm cảnh báo chỉ phát ngắn dưới 1 giây, không kéo dài gây khó chịu; các âm thanh và thông báo chữ khác vẫn hoạt động bình thường.
-result: pending
+result: pass
