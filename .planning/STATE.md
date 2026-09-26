@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: — Bài thuyết trình hoàn chỉnh + Mini Game
-current_plan: 2
+current_plan: 3
 status: In Progress
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-09-26T03:53:54.293Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-09-26T04:07:00.399Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 12
-  completed_plans: 4
-  percent: 33
+  completed_plans: 5
+  percent: 42
 ---
 
 # STATE.md — Project Memory
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 ## Current State
 
 - **Active phase:** Phase 3 — Quiz Webapp + Backend
-- **Current Plan:** 2
+- **Current Plan:** 3
 - **Total Plans in Phase:** 9
 - **Status:** Ready to execute; 9 plans across 8 waves; checker passed with no blockers
 - **Blockers:** None
-- **Next action:** Execute Phase 3 Plan 02 after the Plan 01 harness and scoring seam
+- **Next action:** Execute Phase 3 Plan 03 after the question bank and D1 schema contracts
 
 ## History
 
@@ -56,8 +56,8 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 ## Session
 
-**Last session:** 2026-09-26T03:53:54.284Z
-**Stopped at:** Completed 03-01-PLAN.md
+**Last session:** 2026-09-26T04:07:00.285Z
+**Stopped at:** Completed 03-02-PLAN.md
 **Resume file:** None
 
 ## Performance Metrics
@@ -65,8 +65,12 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
 | Phase 03 P01 | 10min | 3 tasks | 6 files |
+| Phase 03 P02 | 11min | 3 tasks | 10 files |
 
 ## Decisions
 
 - [Phase 03]: Use the user-approved compatible Vitest 4.1.11 and Cloudflare Vitest plugin 1.2.7 pair after Vitest 5.0.2 failed peer resolution. — The approved plugin declares vitest ^4.1.0; npm rejected the originally audited Vitest 5.0.2 pair.
 - [Phase 03]: Keep scoring server-authoritative by reading only server receipt/deadline inputs and returning clamped response time with score. — This prevents client timing or score fields from affecting QUIZ-03 results and later leaderboard ties.
+- [Phase 03]: Keep the public question asset limited to IDs, prompts, and A/B/C/D options; the Worker module owns correctOption and explanations. — Protects the answer key while preserving a stable client data contract.
+- [Phase 03]: Use a versioned migration as the canonical D1 schema and keep the existing presentations table intact; schema.sql is bootstrap compatibility only. — Keeps persistent storage reproducible without request-path DDL or presentation regressions.
+- [Phase 03]: Load D1 migrations in the Node-side Vitest configuration and pass them through TEST_MIGRATIONS to the Worker runtime. — Matches the approved Cloudflare D1 test recipe and avoids Worker-side Node module resolution.

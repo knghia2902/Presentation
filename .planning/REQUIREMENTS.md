@@ -22,19 +22,19 @@
 
 ### Quiz Webapp (QUIZ)
 
-- [ ] **QUIZ-01**: 20 câu trắc nghiệm 4 đáp án (A/B/C/D) về nội dung quy luật
+- [x] **QUIZ-01**: 20 câu trắc nghiệm 4 đáp án (A/B/C/D) về nội dung quy luật
 - [ ] **QUIZ-02**: Timer đếm ngược 30 giây cho mỗi câu
 - [x] **QUIZ-03**: Tính điểm: +10đ mỗi câu đúng, bonus thời gian
 - [ ] **QUIZ-04**: Màn hình nhập tên → Quiz → Kết quả → Bảng xếp hạng
 - [ ] **QUIZ-05**: Hiệu ứng confetti khi đúng, shake khi sai
 - [ ] **QUIZ-06**: Responsive — chơi được trên điện thoại
-- [ ] **QUIZ-07**: Giải thích đáp án sau mỗi câu
+- [x] **QUIZ-07**: Giải thích đáp án sau mỗi câu
 
 ### Backend (BACK)
 
 - [ ] **BACK-01**: Cloudflare Worker API lưu điểm (POST /api/score)
 - [ ] **BACK-02**: API bảng xếp hạng top 20 (GET /api/leaderboard)
-- [ ] **BACK-03**: Cloudflare D1 database lưu scores
+- [x] **BACK-03**: Cloudflare D1 database lưu scores
 - [ ] **BACK-04**: LocalStorage fallback khi offline
 
 ### Phản biện (ARGS)
