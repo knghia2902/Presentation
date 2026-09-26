@@ -713,6 +713,7 @@ export function createQuizController(options = {}) {
       state.awaitingResume = false;
       state.reconnectAttempt = 0;
       setConnection('connected', 'Đã khôi phục phiên');
+      if (!payload.snapshot) render();
     }
     if (payload.snapshot) {
       const previousPhase = state.snapshot?.phase;
@@ -735,8 +736,11 @@ export function createQuizController(options = {}) {
         state.answerPending = false;
         state.answerSubmitted = true;
       }
-      if (payload.event === 'correct' || payload.event === 'incorrect') state.lastResult = { event: payload.event, accepted: payload.result?.accepted === true };
-      applyAuthoritativeEffects(payload.event, payload, payload.snapshot);
+      const ownAnswerAccepted = Boolean(payload.snapshot.answers?.[state.session?.playerId]?.accepted);
+      if ((payload.event === 'correct' || payload.event === 'incorrect') && ownAnswerAccepted) {
+        state.lastResult = { event: payload.event, accepted: payload.result?.accepted === true };
+      }
+      applyAuthoritativeEffects(ownAnswerAccepted ? payload.event : (['correct', 'incorrect'].includes(payload.event) ? null : payload.event), payload, payload.snapshot);
       if (payload.event === 'finished' || payload.snapshot.phase === 'finished') {
         state.saveState = 'saving';
       }
@@ -871,7 +875,23 @@ export function createQuizController(options = {}) {
     } catch { setConnection('reconnecting'); render(); connectSocket(); }
   }
 
-  return { state, start, bind, render, applyMessage, sendCommand, submitAnswer, loadGlobalLeaderboard, persistFinalResult, copyRoomCode, project: () => projectSnapshot(state.snapshot, state.role, questionBank) };
+  return {
+    state,
+    start,
+    bind,
+    render,
+    applyMessage,
+    sendCommand,
+    submitAnswer,
+    loadGlobalLeaderboard,
+    persistFinalResult,
+    copyRoomCode,
+    persistSession,
+    clearPersistedSession,
+    scheduleReconnect,
+    connectSocket,
+    project: () => projectSnapshot(state.snapshot, state.role, questionBank)
+  };
 }
 
 if (typeof document !== 'undefined' && document.querySelector('[data-role="quiz-shell"]')) {
