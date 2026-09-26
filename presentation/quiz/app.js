@@ -363,6 +363,7 @@ export function createQuizController(options = {}) {
     saveState: 'idle',
     answerSubmitted: false,
     answerPending: false,
+    selectedOption: null,
     lastQuestionId: null,
     warned: new Set(),
     lastResult: null,
@@ -575,16 +576,20 @@ export function createQuizController(options = {}) {
     ANSWERS.forEach((letter) => text(query(`[data-answer-text="${letter}"]`), question.options[letter]));
     const isPlayerQuestion = state.role === 'player' && snapshot.phase === 'question';
     const playerAnswers = byRole('player-answers');
+    const selectedOption = state.selectedOption;
     const canAnswer = Boolean(commandTransport) || state.transport === 'connected';
     queryAll('[data-answer]').forEach((button) => {
       button.hidden = !isPlayerQuestion;
       button.disabled = !isPlayerQuestion || !canAnswer || state.answerSubmitted || state.answerPending;
       if (!state.answerSubmitted && !state.answerPending) delete button.dataset.state;
-      if (state.answerPending) button.dataset.state = 'selected';
+      if (state.answerPending && button.dataset.answer === selectedOption) button.dataset.state = 'selected';
+      else if (state.answerPending) delete button.dataset.state;
       if (state.answerSubmitted && snapshot.answers?.[state.session?.playerId]?.accepted) {
-        button.dataset.state = state.lastAuthoritativeEvent === 'correct' || state.lastAuthoritativeEvent === 'incorrect'
-          ? state.lastAuthoritativeEvent
-          : 'selected';
+        if (button.dataset.answer === selectedOption) {
+          button.dataset.state = state.lastAuthoritativeEvent === 'correct' || state.lastAuthoritativeEvent === 'incorrect'
+            ? state.lastAuthoritativeEvent
+            : 'selected';
+        } else delete button.dataset.state;
       }
     });
     if (hostAnswers) hostAnswers.hidden = state.role !== 'host';
@@ -757,7 +762,8 @@ export function createQuizController(options = {}) {
     state.answerSubmitted = true;
     queryAll('[data-answer]').forEach((button) => {
       button.disabled = true;
-      if (button.dataset.state === 'selected') button.dataset.state = eventName;
+      if (button.dataset.answer === state.selectedOption) button.dataset.state = eventName;
+      else delete button.dataset.state;
     });
     setConnection(state.transport, eventName === 'correct' ? 'Đã ghi nhận câu trả lời đúng' : 'Đã ghi nhận câu trả lời');
     announce(eventName === 'correct' ? 'Bạn trả lời đúng.' : 'Bạn đã trả lời. Đáp án chưa chính xác.');
@@ -814,6 +820,7 @@ export function createQuizController(options = {}) {
     if (state.role !== 'player' || state.snapshot?.phase !== 'question' || state.answerSubmitted || state.answerPending || !ANSWERS.includes(option) || (state.transport !== 'connected' && !commandTransport)) return false;
     audioManager.userGesture();
     state.answerPending = true;
+    state.selectedOption = option;
     queryAll('[data-answer]').forEach((button) => { button.disabled = true; });
     query(`[data-answer="${option}"]`)?.setAttribute('data-state', 'selected');
     try {
@@ -989,6 +996,7 @@ export function createQuizController(options = {}) {
         state.lastQuestionId = questionId;
         state.answerSubmitted = Boolean(payload.snapshot.answers?.[state.session?.playerId]);
         state.answerPending = false;
+        state.selectedOption = null;
         state.lastAuthoritativeEvent = null;
         setResultState('idle');
         state.warned.clear();

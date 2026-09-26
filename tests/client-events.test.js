@@ -111,6 +111,8 @@ function controllerWithHooks(options = {}) {
   controller.state.role = 'player';
   controller.state.transport = 'connected';
   controller.state.session = { playerId: 'player-1', roomCode: 'ABC123', role: 'player' };
+  controller.state.lastQuestionId = 'q01';
+  controller.state.selectedOption = 'A';
   return { controller, root, effects, audio };
 }
 
@@ -155,6 +157,19 @@ describe('authoritative client result events', () => {
     expect(timeout.root.roles.get('result-message').textContent).toContain('Hết giờ');
     expect(timeout.audio).toEqual(['timeout']);
     expect(timeout.root.roles.get('final-score').textContent).not.toContain('999999');
+  });
+
+  it('colors only the submitted option after an authoritative result', () => {
+    const { controller, root } = controllerWithHooks();
+    controller.state.snapshot = snapshot();
+    controller.state.selectedOption = 'A';
+    controller.applyMessage({
+      event: 'correct',
+      result: { accepted: true, score: 1000, responseTimeMs: 100 },
+      snapshot: snapshot({ answers: { 'player-1': { accepted: true } } })
+    });
+    expect(root.answers.find((node) => node.dataset.answer === 'A').dataset.state).toBe('correct');
+    expect(root.answers.filter((node) => node.dataset.answer !== 'A').every((node) => !node.dataset.state)).toBe(true);
   });
 
   it('handles reveal and finished hooks while reduced motion keeps state text deterministic', () => {

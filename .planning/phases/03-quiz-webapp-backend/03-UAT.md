@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-26T22:25:00+07:00
+updated: 2026-09-26T22:36:00+07:00
 ---
 
 ## Current Test
 
-number: 5
-name: Chấm điểm, hết giờ và giải thích
+number: 11
+name: Retest trạng thái đúng/sai của đáp án
 expected: |
-  Sau khi trả lời hoặc hết giờ, kết quả đúng/sai, điểm và phần giải thích hiển thị; câu không chọn trước khi hết giờ không được tính điểm.
+  Trả lời một đáp án sai hoặc đúng; chỉ đáp án đã chọn sai hiển thị đỏ, đáp án đúng hiển thị xanh, các đáp án còn lại không bị tô sai trạng thái.
 awaiting: user response
 
 ## Tests
@@ -35,7 +35,9 @@ note: "Ban đầu hiển thị 8 ô; đã sửa và retest thành công ở Test
 
 ### 5. Chấm điểm, hết giờ và giải thích
 expected: Sau khi trả lời hoặc hết giờ, kết quả đúng/sai, điểm và phần giải thích hiển thị; câu không chọn trước khi hết giờ không được tính điểm.
-result: pending
+result: issue
+reported: "Sai hiển thị sai cả 4 câu, đúng xanh cả 4 câu"
+severity: major
 
 ### 6. Hiệu ứng và âm thanh
 expected: Sau thao tác bật âm thanh, nhạc/SFX hoặc voice hoạt động ở các mốc phù hợp; tắt âm thanh thì quiz vẫn chơi được và thông báo chữ vẫn hiển thị.
@@ -55,9 +57,9 @@ result: pending
 
 ## Summary
 
-total: 10
+total: 11
 passed: 5
-issues: 0
+issues: 1
 pending: 5
 skipped: 0
 blocked: 0
@@ -80,6 +82,26 @@ blocked: 0
     - "Bảo vệ thuộc tính hidden bằng CSS"
   debug_session: ".planning/debug/duplicate-answer-cards.md"
 
+- truth: "Sau khi chấm, chỉ đáp án đã chọn sai hiển thị đỏ và đáp án đúng hiển thị xanh"
+  status: failed
+  reason: "User reported: Sai hiển thị sai cả 4 câu, đúng xanh cả 4 câu"
+  severity: major
+  test: 5
+  root_cause: "Tất cả nút được đánh dấu selected khi answerPending; markAuthoritativeAnswer() chuyển toàn bộ các nút selected sang correct/incorrect."
+  artifacts:
+    - path: "presentation/quiz/app.js"
+      issue: "Không lưu đáp án được chọn riêng và áp trạng thái kết quả cho từng nút"
+    - path: "tests/client-events.test.js"
+      issue: "Thiếu regression test phân biệt nút đã chọn với nút còn lại"
+  missing:
+    - "Lưu selectedOption theo lượt trả lời"
+    - "Chỉ tô trạng thái cho nút có data-answer trùng selectedOption"
+  debug_session: ".planning/debug/answer-result-highlighting.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
+
+### 11. Retest trạng thái đúng/sai của đáp án
+expected: Trả lời một đáp án; chỉ nút đã chọn nhận trạng thái đúng/sai, các nút còn lại không bị tô theo.
+result: pending
