@@ -18,6 +18,243 @@ const RECONNECT_INITIAL_DELAY_MS = 500;
 const RECONNECT_MAX_DELAY_MS = 10_000;
 const EFFECT_DURATION_MS = Object.freeze({ confetti: 700, shake: 400 });
 
+export const QUIZ_AUDIO_ASSETS = Object.freeze({
+  roomReady: '/presentation/quiz/audio/room-ready.mp3',
+  quizStart: '/presentation/quiz/audio/quiz-start.mp3',
+  timeUp: '/presentation/quiz/audio/time-up.mp3',
+  finalResults: '/presentation/quiz/audio/final-results.mp3',
+  backgroundMusic: '/presentation/quiz/audio/background-music.mp3',
+  correct: '/presentation/quiz/audio/sfx-correct.mp3',
+  incorrect: '/presentation/quiz/audio/sfx-incorrect.mp3',
+  timeout: '/presentation/quiz/audio/sfx-timeout.mp3'
+});
+
+const QUIZ_AUDIO_GAIN = Object.freeze({ music: 0.16, sfx: 0.45, voice: 0.8, master: 1, duckedMusic: 0.05 });
+
+function isVietnameseVoice(voice) {
+  return /^vi(?:-|_)?vn$/i.test(String(voice?.lang || '').replace('_', '-'));
+}
+
+export function topFiveAnnouncement(rows = []) {
+  const topFive = rows.filter((row) => row?.displayName).slice(0, 5);
+  if (!topFive.length) return 'Chưa có bảng xếp hạng chung cuộc.';
+  return `Top ${topFive.length} chung cuộc: ${topFive.map((row, index) => `${index + 1}, ${row.displayName}, ${Number(row.totalScore || 0).toLocaleString('vi-VN')} điểm`).join('; ')}.`;
+}
+
+/**
+ * Browser-only media manager. It deliberately degrades to visible text when a
+ * device blocks autoplay, has no Web Audio API, or has no Vietnamese voice.
+ */
+export function createQuizAudioManager(options = {}) {
+  const windowRef = options.windowRef || globalThis;
+  const AudioContextCtor = options.AudioContext || windowRef.AudioContext || windowRef.webkitAudioContext;
+  const AudioCtor = options.Audio || windowRef.Audio;
+  const speech = options.speechSynthesis || windowRef.speechSynthesis;
+  const UtteranceCtor = options.SpeechSynthesisUtterance || windowRef.SpeechSynthesisUtterance;
+  let context = options.audioContext || null;
+  let graph = null;
+  let music = null;
+  let enabled = options.enabled !== false;
+  let hasUserGesture = false;
+  let activeSpeech = null;
+  let pendingAssets = [];
+  let musicBaseGain = QUIZ_AUDIO_GAIN.music;
+  const handled = new Set();
+
+  function ensureGraph() {
+    if (graph) return graph;
+    if (!context && typeof AudioContextCtor === 'function') {
+      try { context = new AudioContextCtor(); } catch { return null; }
+    }
+    if (!context?.createGain || !context.destination) return null;
+    try {
+      const musicGain = context.createGain();
+      const sfxGain = context.createGain();
+      const voiceGain = context.createGain();
+      const masterGain = context.createGain();
+      musicGain.gain.value = musicBaseGain;
+      sfxGain.gain.value = QUIZ_AUDIO_GAIN.sfx;
+      voiceGain.gain.value = QUIZ_AUDIO_GAIN.voice;
+      masterGain.gain.value = enabled ? QUIZ_AUDIO_GAIN.master : 0;
+      musicGain.connect(masterGain);
+      sfxGain.connect(masterGain);
+      voiceGain.connect(masterGain);
+      masterGain.connect(context.destination);
+      graph = { musicGain, sfxGain, voiceGain, masterGain };
+      return graph;
+    } catch { return null; }
+  }
+
+  function connectMedia(audio, bus) {
+    const currentGraph = ensureGraph();
+    if (!currentGraph || !audio || !context?.createMediaElementSource) return null;
+    try {
+      const source = context.createMediaElementSource(audio);
+      source.connect(currentGraph[bus]);
+      return source;
+    } catch { return null; }
+  }
+
+  function makeAudio(asset, bus, loop = false) {
+    if (typeof AudioCtor !== 'function') return null;
+    try {
+      const audio = new AudioCtor(asset);
+      audio.preload = 'auto';
+      audio.loop = loop;
+      audio.src = asset;
+      connectMedia(audio, bus);
+      return audio;
+    } catch { return null; }
+  }
+
+  function playElement(audio) {
+    if (!audio?.play) return false;
+    try {
+      const result = audio.play();
+      result?.catch?.(() => {});
+      return true;
+    } catch { return false; }
+  }
+
+  function startMusic() {
+    if (!enabled || !hasUserGesture) return false;
+    if (!music) music = makeAudio(QUIZ_AUDIO_ASSETS.backgroundMusic, 'music', true);
+    if (!music) return false;
+    return playElement(music);
+  }
+
+  function playAsset(name) {
+    if (!enabled || !hasUserGesture) {
+      if (enabled && !pendingAssets.includes(name)) pendingAssets.push(name);
+      return false;
+    }
+    const asset = QUIZ_AUDIO_ASSETS[name];
+    if (!asset) return false;
+    const bus = ['correct', 'incorrect', 'timeout'].includes(name) ? 'sfxGain' : 'voiceGain';
+    const audio = makeAudio(asset, bus);
+    return playElement(audio);
+  }
+
+  function restoreMusic() {
+    if (graph?.musicGain?.gain) graph.musicGain.gain.value = musicBaseGain;
+  }
+
+  function duckMusic() {
+    if (graph?.musicGain?.gain) graph.musicGain.gain.value = QUIZ_AUDIO_GAIN.duckedMusic;
+  }
+
+  function cancelSpeech() {
+    if (!activeSpeech) return;
+    try { speech?.cancel?.(); } catch { /* unsupported speech engines may throw */ }
+    activeSpeech = null;
+    restoreMusic();
+  }
+
+  function speak(message) {
+    const textValue = String(message || '').trim();
+    if (!textValue || !enabled || !hasUserGesture || !speech || typeof UtteranceCtor !== 'function') return false;
+    const voices = typeof speech.getVoices === 'function' ? speech.getVoices() : [];
+    const voice = voices.find(isVietnameseVoice);
+    if (!voice) return false;
+    cancelSpeech();
+    let utterance;
+    try {
+      utterance = new UtteranceCtor(textValue);
+      utterance.lang = 'vi-VN';
+      utterance.voice = voice;
+      duckMusic();
+      const finish = () => {
+        if (activeSpeech === utterance) {
+          activeSpeech = null;
+          restoreMusic();
+        }
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      activeSpeech = utterance;
+      speech.speak(utterance);
+      return true;
+    } catch {
+      restoreMusic();
+      activeSpeech = null;
+      return false;
+    }
+  }
+
+  function enableAfterUserGesture() {
+    hasUserGesture = true;
+    try { context?.resume?.(); } catch { /* autoplay policy is non-fatal */ }
+    ensureGraph();
+    startMusic();
+    const queued = pendingAssets;
+    pendingAssets = [];
+    queued.forEach((name) => playAsset(name));
+    return true;
+  }
+
+  function setEnabled(nextEnabled) {
+    enabled = Boolean(nextEnabled);
+    const currentGraph = ensureGraph();
+    if (currentGraph?.masterGain?.gain) currentGraph.masterGain.gain.value = enabled ? QUIZ_AUDIO_GAIN.master : 0;
+    if (!enabled) {
+      try { music?.pause?.(); } catch { /* media cleanup is best effort */ }
+      cancelSpeech();
+      pendingAssets = [];
+    } else if (hasUserGesture) {
+      startMusic();
+    }
+    return enabled;
+  }
+
+  function eventKey(eventName, snapshot = {}) {
+    return `${eventName}:${snapshot.questionIndex ?? ''}:${snapshot.roomVersion ?? ''}`;
+  }
+
+  function handleEvent(eventName, snapshot = {}) {
+    const announcement = snapshot.announcement || {};
+    const questionKey = snapshot.question?.id || snapshot.questionIndex || 'room';
+    if ((eventName === 'snapshot' || eventName === 'lobby') && announcement.kind === 'room_ready') {
+      const key = `room-ready:${snapshot.roomCode || 'room'}`;
+      if (!handled.has(key)) { handled.add(key); playAsset('roomReady'); }
+    }
+    if ((eventName === 'question' || announcement.kind === 'quiz_started') && announcement.kind === 'quiz_started') {
+      const key = `quiz-start:${snapshot.roomCode || 'room'}`;
+      if (!handled.has(key)) { handled.add(key); playAsset('quizStart'); }
+    }
+    if (eventName === 'reveal' && !handled.has(`reveal:${questionKey}`)) {
+      handled.add(`reveal:${questionKey}`);
+      speak(announcement.text || (announcement.kind === 'no_correct_answer' ? 'Chưa có người trả lời đúng câu này.' : ''));
+    }
+    if (eventName === 'finished') {
+      const key = eventKey('finished', snapshot);
+      if (!handled.has(key)) {
+        handled.add(key);
+        playAsset('finalResults');
+        speak(topFiveAnnouncement(announcement.topFive || snapshot.finalResults || snapshot.leaderboard || []));
+      }
+    }
+  }
+
+  return {
+    get context() { return context; },
+    get graph() { return graph; },
+    get enabled() { return enabled; },
+    get userGestureEnabled() { return hasUserGesture; },
+    get music() { return music; },
+    get activeSpeech() { return activeSpeech; },
+    userGesture: enableAfterUserGesture,
+    setEnabled,
+    startMusic,
+    playAsset,
+    speak,
+    duckMusic,
+    restoreMusic,
+    cancelSpeech,
+    handleEvent,
+    pendingAssets: () => [...pendingAssets]
+  };
+}
+
 export function sessionMetadata(session, audioEnabled = false) {
   if (!session) return null;
   const metadata = {};
@@ -142,6 +379,14 @@ export function createQuizController(options = {}) {
     previousFocus: null
   };
   state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
+  const audioManager = options.audioManager || createQuizAudioManager({
+    windowRef,
+    enabled: state.audioEnabled,
+    AudioContext: options.AudioContext,
+    Audio: options.Audio,
+    speechSynthesis: options.speechSynthesis,
+    SpeechSynthesisUtterance: options.SpeechSynthesisUtterance
+  });
 
   const query = (selector) => root?.querySelector?.(selector) || null;
   const queryAll = (selector) => [...(root?.querySelectorAll?.(selector) || [])];
@@ -474,6 +719,8 @@ export function createQuizController(options = {}) {
   function playCue(eventName) {
     const hook = options.audioHook || options.onAudio;
     if (typeof hook === 'function') hook(eventName, state.snapshot, { enabled: state.audioEnabled });
+    if (!state.audioEnabled) return;
+    if (['correct', 'incorrect', 'timeout'].includes(eventName)) audioManager.playAsset(eventName);
   }
 
   function setResultState(resultState) {
@@ -563,6 +810,7 @@ export function createQuizController(options = {}) {
 
   async function submitAnswer(option) {
     if (state.role !== 'player' || state.snapshot?.phase !== 'question' || state.answerSubmitted || state.answerPending || !ANSWERS.includes(option) || (state.transport !== 'connected' && !commandTransport)) return false;
+    audioManager.userGesture();
     state.answerPending = true;
     queryAll('[data-answer]').forEach((button) => { button.disabled = true; });
     query(`[data-answer="${option}"]`)?.setAttribute('data-state', 'selected');
@@ -581,6 +829,7 @@ export function createQuizController(options = {}) {
 
   async function createOrJoin(event, role) {
     event.preventDefault();
+    audioManager.userGesture();
     const form = event.currentTarget;
     const values = Object.fromEntries(new FormData(form).entries());
     const payload = { type: role === 'host' ? 'create' : 'join', role, nickname: values.nickname };
@@ -594,6 +843,7 @@ export function createQuizController(options = {}) {
       state.snapshot = body.snapshot;
       setRole(role);
       setConnection('connected');
+      audioManager.handleEvent('snapshot', body.snapshot);
       render();
       byRole(role === 'host' ? 'host-lobby-heading' : 'player-lobby-heading')?.focus();
       connectSocket();
@@ -750,6 +1000,7 @@ export function createQuizController(options = {}) {
         state.lastResult = { event: payload.event, accepted: payload.result?.accepted === true };
       }
       applyAuthoritativeEffects(ownAnswerAccepted ? payload.event : (['correct', 'incorrect'].includes(payload.event) ? null : payload.event), payload, payload.snapshot);
+      if (state.audioEnabled) audioManager.handleEvent(payload.event, payload.snapshot);
       if (payload.event === 'finished' || payload.snapshot.phase === 'finished') {
         state.saveState = 'saving';
       }
@@ -847,6 +1098,8 @@ export function createQuizController(options = {}) {
     action('toggle-audio')?.addEventListener('click', (event) => {
       const pressed = event.currentTarget.getAttribute('aria-pressed') === 'true';
       state.audioEnabled = !pressed;
+      audioManager.userGesture();
+      audioManager.setEnabled(state.audioEnabled);
       event.currentTarget.setAttribute('aria-pressed', String(state.audioEnabled));
       text(byRole('audio-label'), state.audioEnabled ? 'Tắt âm thanh' : 'Bật âm thanh');
       persistSession();
