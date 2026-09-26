@@ -16,7 +16,7 @@ This file is the Nyquist validation map for the nine Phase 3 plans. Every automa
 | D1 schema | BACK-03; D-09, D-13, D-14 | `tests/schema.test.js`, `tests/helpers/d1-runtime.js` | `npm exec vitest run tests/schema.test.js` | The migration applies twice without drift; `presentations` remains available; room/player/answer/result tables, constraints, indexes, score/time/sequence fields, and the compatibility schema at `presentation/workers/schema.sql` match the canonical migration contract. |
 | Questions and explanations | QUIZ-01, QUIZ-07; D-02, D-09 | `tests/questions.test.js` | `npm exec vitest run tests/questions.test.js` | Exactly q01–q20 from the DOCX appear in order with four A/B/C/D options; public data has no trusted correct option; Worker data has the answer key and non-empty explanation; IDs/order remain in parity. |
 | Reconnect/offline | BACK-04; D-14, D-15, D-16 | `tests/offline.test.js`, `tests/client-events.test.js` | `npm exec vitest run tests/offline.test.js tests/client-events.test.js` | Only room/session capability metadata and the last authoritative version persist; answers and scores are never queued or replayed; host pause and player offline states are distinct; effects appear only after authoritative events. |
-| UI/mobile | QUIZ-04, QUIZ-05, QUIZ-06; D-02, D-03, D-05, D-09, D-17 | `tests/client-contract.test.js` | `npm exec vitest run tests/client-contract.test.js` | Vietnamese host/player screens expose one question, one irreversible answer action, reveal/result/leaderboard/paused/error states, A-D/1-4 player shortcuts, one-time 10s/5s timer announcements, focus-trapped Escape-cancellable confirmation, copy/share room code feedback, SaveState and global leaderboard loading/success/empty/error states, `100dvh`/safe-area behavior, keyboard/focus semantics, visible announcements, 44px controls, and no horizontal scroll at the 320px contract width. |
+| UI/mobile | QUIZ-04, QUIZ-05, QUIZ-06; D-02, D-03, D-05, D-09, D-17 | `tests/client-contract.test.js`, `tests/client-integration.test.js` | `npm exec vitest run tests/client-contract.test.js tests/client-integration.test.js` | Vietnamese host/player screens expose one question, one irreversible answer action, reveal/result/leaderboard/paused/error states, A-D/1-4 player shortcuts, one-time 10s/5s timer announcements, focus-trapped Escape-cancellable confirmation, copy/share room code feedback, SaveState and global leaderboard loading/success/empty/error states, `100dvh`/safe-area behavior, keyboard/focus semantics, visible announcements, 44px controls, and no horizontal scroll at the 320px contract width; integration assertions cover q01-q20 sanitized rendering, reveal-only answers, score/leaderboard requests, and current-room fallback. |
 | Audio and voice | QUIZ-05; D-17, D-18, D-19, D-20, D-21 | `tests/audio-assets.test.js`, `tests/audio-contract.test.js` | `npm exec vitest run tests/audio-assets.test.js tests/audio-contract.test.js` | All shipped voice, background music, and correct/incorrect/timeout SFX assets are non-empty and licensed; Web Audio mute/user-gesture/music ducking works; timeout/correct/incorrect SFX map to authoritative events; fixed cues and dynamic `vi-VN` speech follow the locked schedule; visible text remains when audio is unavailable. |
 
 ## Wave-local Gates
@@ -28,14 +28,15 @@ Run only the tests that already exist at the end of each wave; do not require `n
 | 1 | `npm run test:scoring` | `tests/scoring.test.js` is green for the scoring boundaries and tie-break contract. |
 | 2 | `npm exec vitest run tests/questions.test.js tests/schema.test.js` | The DOCX question contract and repeatable migration/schema contract are green; Vitest returns non-zero if either file fails. |
 | 3 | `npx vitest run tests/scoring.test.js tests/quiz-room.test.js` | Scoring and the complete room state-machine suite are green. |
-| 4 | `npm exec vitest run tests/quiz-api.test.js tests/client-contract.test.js` | API/security and static client contracts are green; Vitest returns non-zero if either file fails. |
-| 5 | `npm exec vitest run tests/offline.test.js tests/client-events.test.js tests/audio-assets.test.js` | Offline/event behavior and licensed audio packaging checks are green; Vitest returns non-zero if any file fails. |
-| 6 | `npm exec vitest run tests/audio-contract.test.js` | Hybrid audio schedule, mute, ducking, and fallback tests are green. |
-| 7 | `npm exec vitest run tests/deployment-contract.test.js` | Deployment configuration, documentation, and required test-file presence checks are green. |
+| 4 | `npm exec vitest run tests/quiz-api.test.js` | API/security contract is green; Vitest returns non-zero on any failure. |
+| 5 | `npm exec vitest run tests/client-contract.test.js tests/client-integration.test.js` | Static and executable client contracts are green; Vitest returns non-zero if either file fails. |
+| 6 | `npm exec vitest run tests/offline.test.js tests/client-events.test.js tests/audio-assets.test.js` | Offline/event behavior and licensed audio packaging checks are green; Vitest returns non-zero if any file fails. |
+| 7 | `npm exec vitest run tests/audio-contract.test.js` | Hybrid audio schedule, mute, ducking, and fallback tests are green. |
+| 8 | `npm exec vitest run tests/deployment-contract.test.js` | Deployment configuration, documentation, and required test-file presence checks are green. |
 
 ## Final Full-suite Gate
 
-Run from the repository root only after Wave 7 and Task 3 of `03-09-PLAN.md` have completed:
+Run from the repository root only after Wave 8 and Task 3 of `03-09-PLAN.md` have completed:
 
 ```text
 npm test
