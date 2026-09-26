@@ -378,7 +378,10 @@ export function createQuizController(options = {}) {
     text(byRole('explanation'), reveal.explanation || '');
     const mine = snapshot.leaderboard?.find((row) => row.playerId === state.session?.playerId);
     const answerAccepted = Boolean(snapshot.answers?.[state.session?.playerId]);
-    if (!answerAccepted) text(byRole('result-message'), 'Bạn chưa chọn đáp án. Câu này được tính 0 điểm.');
+    if (snapshot.reveal?.reason === 'timeout' && !answerAccepted) text(byRole('result-message'), 'Hết giờ. Bạn chưa chọn đáp án nên câu này được tính 0 điểm.');
+    else if (state.lastAuthoritativeEvent === 'incorrect') text(byRole('result-message'), 'Đã ghi nhận câu trả lời. Đáp án chưa chính xác.');
+    else if (state.lastAuthoritativeEvent === 'correct') text(byRole('result-message'), 'Chính xác! Điểm được cập nhật từ máy chủ.');
+    else if (!answerAccepted) text(byRole('result-message'), 'Bạn chưa chọn đáp án. Câu này được tính 0 điểm.');
     else if (mine) text(byRole('result-message'), `Kết quả hiện tại: ${formatScore(mine.totalScore)}.`);
     else text(byRole('result-message'), 'Đã ghi nhận câu trả lời.');
     announce(snapshot.announcement?.text || '');
@@ -464,7 +467,23 @@ export function createQuizController(options = {}) {
     if (typeof hook === 'function') hook(eventName, state.snapshot);
   }
 
+  function setResultState(resultState) {
+    const shell = byRole('quiz-shell');
+    const targets = [shell, byRole('question-panel'), byRole('reveal-panel')].filter(Boolean);
+    for (const target of targets) {
+      if (target.dataset) target.dataset.result = resultState;
+      if (target.classList) {
+        ['is-success', 'is-error', 'is-timeout', 'is-reveal', 'is-finished'].forEach((className) => target.classList.remove(className));
+        const className = `is-${resultState}`;
+        if (['is-success', 'is-error', 'is-timeout', 'is-reveal', 'is-finished'].includes(className)) target.classList.add(className);
+      }
+    }
+  }
+
   function triggerEffect(effectName, eventName) {
+    state.lastEffect = eventName;
+    state.effects.push({ event: eventName, effect: effectName, at: now() });
+    if (state.effects.length > 20) state.effects.shift();
     const hook = options.effectHook || options.onEffect;
     if (typeof hook === 'function') hook(effectName, { event: eventName, reducedMotion: reducedMotion() });
     if (reducedMotion()) return;
@@ -493,18 +512,23 @@ export function createQuizController(options = {}) {
     state.lastAuthoritativeEvent = derivedEvent;
     if (derivedEvent === 'correct' || derivedEvent === 'incorrect') {
       markAuthoritativeAnswer(derivedEvent);
+      setResultState(derivedEvent === 'correct' ? 'success' : 'error');
       playCue(derivedEvent);
       triggerEffect(derivedEvent === 'correct' ? 'confetti' : 'shake', derivedEvent);
     } else if (derivedEvent === 'timeout') {
       state.answerPending = false;
       state.answerSubmitted = Boolean(snapshot?.answers?.[state.session?.playerId]);
+      setResultState('timeout');
       announce('Hết giờ. Đáp án được mở để giải thích.');
       playCue('timeout');
       triggerEffect('shake', 'timeout');
+      if (eventName === 'reveal') playCue('reveal');
     } else if (derivedEvent === 'reveal') {
+      setResultState('reveal');
       announce(snapshot?.announcement?.text || 'Đáp án đã được mở.');
       playCue('reveal');
     } else if (derivedEvent === 'finished') {
+      setResultState('finished');
       announce(snapshot?.announcement?.text || 'Ván chơi đã kết thúc.');
       playCue('finished');
       triggerEffect('confetti', 'finished');
@@ -595,17 +619,21 @@ export function createQuizController(options = {}) {
     const factory = options.webSocketFactory || ((url) => new windowRef.WebSocket(url));
     try {
       state.awaitingResume = Boolean(state.session.reconnectToken && state.reconnectAttempt > 0);
+      state.reconnectRejected = false;
       setConnection(state.awaitingResume ? 'reconnecting' : 'reconnecting', state.awaitingResume ? 'Đang khôi phục phiên…' : 'Đang kết nối');
       state.socket = factory(roomWebSocketUrl(windowRef, state.session.roomCode, state.session, state.awaitingResume ? state.session.reconnectToken : null));
-      state.socket.addEventListener?.('open', () => {
+      const socket = state.socket;
+      socket.addEventListener?.('open', () => {
+        if (state.socket !== socket) return;
         if (!state.awaitingResume) {
           state.reconnectAttempt = 0;
           setConnection('connected');
           render();
         }
       });
-      state.socket.addEventListener?.('message', (event) => { try { applyMessage(JSON.parse(event.data)); } catch { /* protocol errors arrive as structured server events */ } });
-      state.socket.addEventListener?.('close', (event) => {
+      socket.addEventListener?.('message', (event) => { if (state.socket !== socket) return; try { applyMessage(JSON.parse(event.data)); } catch { /* protocol errors arrive as structured server events */ } });
+      socket.addEventListener?.('close', (event) => {
+        if (state.socket !== socket) return;
         state.socket = null;
         if (event?.code === 4001 || event?.reason === 'invalid_reconnect') {
           rejectReconnect();
@@ -616,7 +644,8 @@ export function createQuizController(options = {}) {
         render();
         scheduleReconnect();
       });
-      state.socket.addEventListener?.('error', (event) => {
+      socket.addEventListener?.('error', (event) => {
+        if (state.socket !== socket) return;
         if (event?.code === 'invalid_reconnect') rejectReconnect();
         else setConnection('reconnecting');
       });
@@ -698,6 +727,8 @@ export function createQuizController(options = {}) {
         state.lastQuestionId = questionId;
         state.answerSubmitted = Boolean(payload.snapshot.answers?.[state.session?.playerId]);
         state.answerPending = false;
+        state.lastAuthoritativeEvent = null;
+        setResultState('idle');
         state.warned.clear();
         byRole('question-heading')?.focus();
       } else if (payload.snapshot.answers?.[state.session?.playerId]?.accepted) {
