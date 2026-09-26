@@ -912,11 +912,12 @@ export class QuizRoom extends DurableObject {
     const capabilityToken = url.searchParams.get('capabilityToken');
     const reconnectToken = url.searchParams.get('reconnectToken');
     const player = await this.authenticate({ playerId, capabilityToken });
+    let resumeResult = null;
     if (player.status === 'offline' && !reconnectToken) {
       throw new RoomError('Reconnect token bắt buộc sau khi mất kết nối.', 401, 'invalid_reconnect');
     }
     if (reconnectToken) {
-      await this.resumeWithReconnect(player, reconnectToken);
+      resumeResult = await this.resumeWithReconnect(player, reconnectToken);
     }
     player.status = 'online';
     player.connectedAt = currentTime();
@@ -935,6 +936,7 @@ export class QuizRoom extends DurableObject {
     this.sessions.set(server, attachment);
     this.bumpVersion({ kind: 'participant_online', playerId: player.playerId });
     await this.save();
+    if (resumeResult) this.send(server, { ok: true, ...resumeResult });
     this.broadcast({ event: 'snapshot', snapshot: this.snapshot() });
     return new Response(null, { status: 101, webSocket: client });
   }

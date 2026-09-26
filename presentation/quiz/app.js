@@ -5,6 +5,28 @@ const SAVE_COPY = {
   success: 'Đã lưu bảng xếp hạng chung',
   fallback: 'Chưa lưu được — kết quả phòng vẫn còn'
 };
+export const QUIZ_SESSION_STORAGE_KEY = 'quiz_room_session';
+export const QUIZ_SESSION_FIELDS = Object.freeze([
+  'roomCode',
+  'role',
+  'playerId',
+  'reconnectToken',
+  'roomVersion',
+  'audioEnabled'
+]);
+const RECONNECT_INITIAL_DELAY_MS = 500;
+const RECONNECT_MAX_DELAY_MS = 10_000;
+const EFFECT_DURATION_MS = Object.freeze({ confetti: 700, shake: 400 });
+
+export function sessionMetadata(session, audioEnabled = false) {
+  if (!session) return null;
+  const metadata = {};
+  for (const field of QUIZ_SESSION_FIELDS) {
+    if (field === 'audioEnabled') metadata[field] = Boolean(audioEnabled);
+    else if (session[field] != null && session[field] !== '') metadata[field] = session[field];
+  }
+  return metadata;
+}
 
 function cleanOptions(options = {}) {
   return Object.fromEntries(ANSWERS.map((letter) => [letter, String(options[letter] ?? '')]));
@@ -31,6 +53,7 @@ export function projectSnapshot(snapshot, role = 'player', questionBank = { ques
     role,
     phase: snapshot?.phase || 'lobby',
     roomCode: String(snapshot?.roomCode || ''),
+    roomVersion: Number(snapshot?.roomVersion || 0),
     questionIndex: Number(snapshot?.questionIndex ?? -1),
     question,
     reveal: reveal ? {
@@ -47,6 +70,19 @@ export function projectSnapshot(snapshot, role = 'player', questionBank = { ques
     autoAdvance: Boolean(snapshot?.autoAdvance),
     announcement: snapshot?.announcement ? String(snapshot.announcement.text || '') : ''
   };
+}
+
+export function readSessionMetadata(source = globalThis) {
+  const store = source?.getItem ? source : source?.localStorage;
+  if (!store) return null;
+  try {
+    const parsed = JSON.parse(store.getItem(QUIZ_SESSION_STORAGE_KEY) || 'null');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const metadata = sessionMetadata(parsed, parsed.audioEnabled);
+    return metadata?.roomCode && metadata?.role && metadata?.playerId ? metadata : null;
+  } catch {
+    return null;
+  }
 }
 
 function text(node, value) {
@@ -82,20 +118,30 @@ export function createQuizController(options = {}) {
     snapshot: null,
     phase: 'entry',
     connection: 'disconnected',
+    transport: 'disconnected',
+    audioEnabled: Boolean(readSessionMetadata(windowRef)?.audioEnabled),
     clockOffset: 0,
     globalLeaderboard: [],
     globalState: 'idle',
     saveState: 'idle',
     answerSubmitted: false,
+    answerPending: false,
     lastQuestionId: null,
     warned: new Set(),
     lastResult: null,
     socket: null,
     reconnectTimer: null,
+    reconnectAttempt: 0,
+    awaitingResume: false,
+    reconnectRejected: false,
+    lastAuthoritativeEvent: null,
+    effects: [],
+    lastEffect: null,
     finalizing: false,
     timerHandle: null,
     previousFocus: null
   };
+  state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
 
   const query = (selector) => root?.querySelector?.(selector) || null;
   const queryAll = (selector) => [...(root?.querySelectorAll?.(selector) || [])];
@@ -106,17 +152,68 @@ export function createQuizController(options = {}) {
     try { return windowRef?.localStorage || null; } catch { return null; }
   }
 
-  function persistSession() {
+  function persistSession(session = state.session) {
     const store = storage();
-    if (!store || !state.session) return;
-    try { store.setItem('quiz_room_session', JSON.stringify(state.session)); } catch { /* metadata is optional */ }
+    if (!store || !session) return false;
+    try {
+      store.setItem(QUIZ_SESSION_STORAGE_KEY, JSON.stringify(sessionMetadata(session, state.audioEnabled)));
+      return true;
+    } catch { /* metadata is optional */ return false; }
   }
 
-  function setConnection(status, copy) {
+  function clearReconnectCapability() {
+    if (!state.session) return;
+    state.session = { ...state.session, reconnectToken: null };
+    persistSession(state.session);
+  }
+
+  function clearPersistedSession() {
+    try { storage()?.removeItem(QUIZ_SESSION_STORAGE_KEY); } catch { /* localStorage is optional */ }
+  }
+
+  function rotateReconnectToken(token, snapshot) {
+    if (typeof token !== 'string' || !token) return false;
+    const nextSession = { ...state.session, reconnectToken: token };
+    if (snapshot && Number.isFinite(Number(snapshot.roomVersion))) nextSession.roomVersion = Number(snapshot.roomVersion);
+    // Persist the replacement in one storage write before any later reconnect can read it.
+    persistSession(nextSession);
+    state.session = nextSession;
+    return true;
+  }
+
+  function preferredAudio() {
+    try { return JSON.parse(storage()?.getItem(QUIZ_SESSION_STORAGE_KEY) || '{}').audioEnabled === true; } catch { return false; }
+  }
+
+  function reducedMotion() {
+    if (typeof options.reducedMotion === 'boolean') return options.reducedMotion;
+    try { return Boolean(windowRef?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches); } catch { return false; }
+  }
+
+  function visibleStatus() {
+    if (state.transport === 'reconnecting' || state.transport === 'offline') return state.transport;
+    if (state.snapshot?.phase === 'paused_host_disconnect') return 'paused';
+    if (state.role === 'player' && state.answerSubmitted) return 'answer-recorded';
+    return state.transport;
+  }
+
+  function renderConnectionStatus(copy) {
+    const status = visibleStatus();
     state.connection = status;
     const band = byRole('status-band');
     if (band) band.dataset.state = status;
-    text(byRole('connection-status'), copy || ({ connected: 'Đã kết nối', reconnecting: 'Mất kết nối. Đang thử kết nối lại…', offline: 'Mất kết nối' }[status] || 'Đang kết nối'));
+    text(byRole('connection-status'), copy || ({
+      connected: 'Đã kết nối',
+      reconnecting: 'Mất kết nối. Đang thử kết nối lại…',
+      offline: 'Mất kết nối. Bạn có thể thử lại hoặc về trang đầu.',
+      paused: 'Phòng đang tạm dừng vì chủ phòng mất kết nối',
+      'answer-recorded': 'Đã ghi nhận câu trả lời'
+    }[status] || 'Đang kết nối'));
+  }
+
+  function setConnection(status, copy) {
+    state.transport = status;
+    renderConnectionStatus(copy);
   }
 
   async function request(url, init) {
@@ -229,16 +326,19 @@ export function createQuizController(options = {}) {
     }
     ANSWERS.forEach((letter) => text(query(`[data-answer-text="${letter}"]`), question.options[letter]));
     const isPlayerQuestion = state.role === 'player' && snapshot.phase === 'question';
+    const canAnswer = Boolean(commandTransport) || state.transport === 'connected';
     queryAll('[data-answer]').forEach((button) => {
       button.hidden = !isPlayerQuestion;
-      button.disabled = !isPlayerQuestion || state.answerSubmitted;
+      button.disabled = !isPlayerQuestion || !canAnswer || state.answerSubmitted || state.answerPending;
+      if (!state.answerSubmitted && !state.answerPending) delete button.dataset.state;
+      if (state.answerPending) button.dataset.state = 'selected';
       if (state.answerSubmitted && snapshot.answers?.[state.session?.playerId]?.accepted) button.dataset.state = 'selected';
     });
     if (hostAnswers) hostAnswers.hidden = state.role !== 'host';
     const shortcut = byRole('shortcut-help');
     if (shortcut) shortcut.hidden = !isPlayerQuestion;
     text(byRole('answer-count'), state.role === 'host' ? `${Object.values(snapshot.answers || {}).filter(Boolean).length} đã trả lời` : '');
-    text(byRole('answer-status'), state.answerSubmitted ? 'Đã ghi nhận câu trả lời.' : '');
+    text(byRole('answer-status'), state.answerSubmitted ? 'Đã ghi nhận câu trả lời.' : state.answerPending ? 'Đang gửi câu trả lời…' : '');
   }
 
   function updateTimer(remainingMs, paused = false) {
@@ -350,11 +450,75 @@ export function createQuizController(options = {}) {
     if (pauseBanner) pauseBanner.hidden = !paused;
     const status = byRole('status-band');
     if (status) status.dataset.state = state.connection;
+    renderControls();
   }
 
   function announce(message) {
     text(byRole('announcement'), message);
     text(byRole('announcement-footer'), message || 'Bạn sẽ luôn thấy thông báo bằng chữ khi âm thanh bị tắt.');
+  }
+
+  function playCue(eventName) {
+    if (!state.audioEnabled || state.audioMuted) return;
+    const hook = options.audioHook || options.onAudio;
+    if (typeof hook === 'function') hook(eventName, state.snapshot);
+  }
+
+  function triggerEffect(effectName, eventName) {
+    const hook = options.effectHook || options.onEffect;
+    if (typeof hook === 'function') hook(effectName, { event: eventName, reducedMotion: reducedMotion() });
+    if (reducedMotion()) return;
+    const target = byRole('quiz-shell') || byRole('question-panel') || root;
+    if (!target?.classList) return;
+    target.classList.remove(effectName);
+    target.classList.add(effectName);
+    if (windowRef?.setTimeout) windowRef.setTimeout(() => target.classList.remove(effectName), EFFECT_DURATION_MS[effectName] || 500);
+  }
+
+  function markAuthoritativeAnswer(eventName) {
+    state.answerPending = false;
+    state.answerSubmitted = true;
+    queryAll('[data-answer]').forEach((button) => {
+      button.disabled = true;
+      if (button.dataset.state === 'selected') button.dataset.state = eventName;
+    });
+    setConnection(state.transport, eventName === 'correct' ? 'Đã ghi nhận câu trả lời đúng' : 'Đã ghi nhận câu trả lời');
+    announce(eventName === 'correct' ? 'Bạn trả lời đúng.' : 'Bạn đã trả lời. Đáp án chưa chính xác.');
+  }
+
+  function applyAuthoritativeEffects(eventName, payload, snapshot) {
+    const derivedEvent = eventName === 'reveal' && snapshot?.reveal?.reason === 'timeout' ? 'timeout' : eventName;
+    if (!['correct', 'incorrect', 'timeout', 'reveal', 'finished'].includes(derivedEvent)) return;
+    if (['correct', 'incorrect'].includes(derivedEvent) && payload?.result?.accepted !== true) return;
+    state.lastAuthoritativeEvent = derivedEvent;
+    if (derivedEvent === 'correct' || derivedEvent === 'incorrect') {
+      markAuthoritativeAnswer(derivedEvent);
+      playCue(derivedEvent);
+      triggerEffect(derivedEvent === 'correct' ? 'confetti' : 'shake', derivedEvent);
+    } else if (derivedEvent === 'timeout') {
+      state.answerPending = false;
+      state.answerSubmitted = Boolean(snapshot?.answers?.[state.session?.playerId]);
+      announce('Hết giờ. Đáp án được mở để giải thích.');
+      playCue('timeout');
+      triggerEffect('shake', 'timeout');
+    } else if (derivedEvent === 'reveal') {
+      announce(snapshot?.announcement?.text || 'Đáp án đã được mở.');
+      playCue('reveal');
+    } else if (derivedEvent === 'finished') {
+      announce(snapshot?.announcement?.text || 'Ván chơi đã kết thúc.');
+      playCue('finished');
+      triggerEffect('confetti', 'finished');
+    }
+  }
+
+  function renderControls() {
+    const connected = state.transport === 'connected' || Boolean(commandTransport);
+    const paused = state.snapshot?.phase === 'paused_host_disconnect';
+    for (const name of ['start-quiz', 'next-question', 'finish-quiz', 'toggle-auto']) {
+      const node = action(name);
+      if (node) node.disabled = !connected || paused;
+    }
+    renderConnectionStatus();
   }
 
   async function sendCommand(command) {
@@ -365,17 +529,17 @@ export function createQuizController(options = {}) {
   }
 
   async function submitAnswer(option) {
-    if (state.role !== 'player' || state.snapshot?.phase !== 'question' || state.answerSubmitted || !ANSWERS.includes(option)) return false;
-    state.answerSubmitted = true;
+    if (state.role !== 'player' || state.snapshot?.phase !== 'question' || state.answerSubmitted || state.answerPending || !ANSWERS.includes(option) || (state.transport !== 'connected' && !commandTransport)) return false;
+    state.answerPending = true;
     queryAll('[data-answer]').forEach((button) => { button.disabled = true; });
     query(`[data-answer="${option}"]`)?.setAttribute('data-state', 'selected');
     try {
       const result = await sendCommand({ type: 'answer', option });
       if (result) applyMessage(result);
-      text(byRole('answer-status'), 'Đã ghi nhận câu trả lời.');
+      if (!result) text(byRole('answer-status'), 'Đang gửi câu trả lời…');
       return true;
     } catch (error) {
-      state.answerSubmitted = false;
+      state.answerPending = false;
       queryAll('[data-answer]').forEach((button) => { button.disabled = false; });
       text(byRole('answer-status'), error.message || 'Không thể ghi nhận câu trả lời.');
       return false;
@@ -391,7 +555,8 @@ export function createQuizController(options = {}) {
     try {
       setConnection('reconnecting', 'Đang kết nối');
       const body = await request('/api/quiz/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      state.session = { ...body.player, roomCode: body.snapshot.roomCode, capabilityToken: body.capabilityToken, reconnectToken: body.reconnectToken };
+      state.session = { ...body.player, roomCode: body.snapshot.roomCode, capabilityToken: body.capabilityToken, reconnectToken: body.reconnectToken, roomVersion: body.snapshot.roomVersion };
+      state.audioEnabled = preferredAudio();
       persistSession();
       state.snapshot = body.snapshot;
       setRole(role);
@@ -406,23 +571,59 @@ export function createQuizController(options = {}) {
     }
   }
 
+  function scheduleReconnect() {
+    if (!state.session || state.reconnectTimer || state.reconnectRejected || !windowRef?.setTimeout) return;
+    const delay = Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_INITIAL_DELAY_MS * (2 ** state.reconnectAttempt));
+    state.reconnectAttempt += 1;
+    state.reconnectTimer = windowRef.setTimeout(() => {
+      state.reconnectTimer = null;
+      connectSocket();
+    }, delay);
+  }
+
+  function rejectReconnect(message = 'Phiên kết nối đã hết hạn. Vui lòng vào lại phòng.') {
+    state.reconnectRejected = true;
+    clearReconnectCapability();
+    setConnection('offline', message);
+    text(byRole('error-message'), message);
+    showScreen('error');
+    render();
+  }
+
   function connectSocket() {
     if (!state.session || !windowRef) return;
     const factory = options.webSocketFactory || ((url) => new windowRef.WebSocket(url));
     try {
-      state.socket = factory(roomWebSocketUrl(windowRef, state.session.roomCode, state.session, state.session.reconnectToken));
-      state.socket.addEventListener?.('open', () => { setConnection('connected'); render(); });
+      state.awaitingResume = Boolean(state.session.reconnectToken && state.reconnectAttempt > 0);
+      setConnection(state.awaitingResume ? 'reconnecting' : 'reconnecting', state.awaitingResume ? 'Đang khôi phục phiên…' : 'Đang kết nối');
+      state.socket = factory(roomWebSocketUrl(windowRef, state.session.roomCode, state.session, state.awaitingResume ? state.session.reconnectToken : null));
+      state.socket.addEventListener?.('open', () => {
+        if (!state.awaitingResume) {
+          state.reconnectAttempt = 0;
+          setConnection('connected');
+          render();
+        }
+      });
       state.socket.addEventListener?.('message', (event) => { try { applyMessage(JSON.parse(event.data)); } catch { /* protocol errors arrive as structured server events */ } });
-      state.socket.addEventListener?.('close', () => {
+      state.socket.addEventListener?.('close', (event) => {
         state.socket = null;
+        if (event?.code === 4001 || event?.reason === 'invalid_reconnect') {
+          rejectReconnect();
+          return;
+        }
+        state.answerPending = false;
         setConnection('reconnecting');
         render();
-        if (!state.reconnectTimer) state.reconnectTimer = windowRef.setTimeout(() => { state.reconnectTimer = null; connectSocket(); }, 1500);
+        scheduleReconnect();
       });
-      state.socket.addEventListener?.('error', () => setConnection('reconnecting'));
+      state.socket.addEventListener?.('error', (event) => {
+        if (event?.code === 'invalid_reconnect') rejectReconnect();
+        else setConnection('reconnecting');
+      });
     } catch {
       setConnection('offline');
       render();
+      scheduleReconnect();
     }
   }
 
@@ -470,22 +671,41 @@ export function createQuizController(options = {}) {
   function applyMessage(payload) {
     if (!payload || typeof payload !== 'object') return;
     if (payload.event === 'error' || payload.ok === false) {
+      if (payload.code === 'invalid_reconnect') {
+        rejectReconnect(payload.error || 'Phiên kết nối đã hết hạn. Vui lòng vào lại phòng.');
+        return;
+      }
       text(byRole('error-message'), payload.error || 'Chưa thể kết nối lại. Kiểm tra mạng rồi thử lại.');
       if (!state.snapshot) showScreen('error');
       return;
     }
+    if (payload.event === 'resumed' && payload.reconnectToken) {
+      rotateReconnectToken(payload.reconnectToken, payload.snapshot);
+      state.awaitingResume = false;
+      state.reconnectAttempt = 0;
+      setConnection('connected', 'Đã khôi phục phiên');
+    }
     if (payload.snapshot) {
       const previousPhase = state.snapshot?.phase;
       state.snapshot = payload.snapshot;
+      if (Number.isFinite(Number(payload.snapshot.roomVersion))) {
+        state.session = state.session ? { ...state.session, roomVersion: Number(payload.snapshot.roomVersion) } : state.session;
+        persistSession();
+      }
       if (Number.isFinite(Number(payload.snapshot.serverNow))) state.clockOffset = now() - Number(payload.snapshot.serverNow);
       const questionId = payload.snapshot.question?.id;
       if (questionId !== state.lastQuestionId) {
         state.lastQuestionId = questionId;
         state.answerSubmitted = Boolean(payload.snapshot.answers?.[state.session?.playerId]);
+        state.answerPending = false;
         state.warned.clear();
         byRole('question-heading')?.focus();
+      } else if (payload.snapshot.answers?.[state.session?.playerId]?.accepted) {
+        state.answerPending = false;
+        state.answerSubmitted = true;
       }
-      if (payload.event === 'correct' || payload.event === 'incorrect') state.lastResult = payload.result || null;
+      if (payload.event === 'correct' || payload.event === 'incorrect') state.lastResult = { event: payload.event, accepted: payload.result?.accepted === true };
+      applyAuthoritativeEffects(payload.event, payload, payload.snapshot);
       if (payload.event === 'finished' || payload.snapshot.phase === 'finished') {
         state.saveState = 'saving';
       }
@@ -569,12 +789,23 @@ export function createQuizController(options = {}) {
     action('copy-code')?.addEventListener('click', copyRoomCode);
     action('share-room')?.addEventListener('click', shareRoom);
     action('load-global')?.addEventListener('click', loadGlobalLeaderboard);
-    action('new-room')?.addEventListener('click', () => { state.session = null; state.snapshot = null; state.role = null; showScreen('entry'); });
+    action('new-room')?.addEventListener('click', () => {
+      clearPersistedSession();
+      state.session = null;
+      state.snapshot = null;
+      state.role = null;
+      state.reconnectRejected = false;
+      state.reconnectAttempt = 0;
+      showScreen('entry');
+      setConnection('disconnected', 'Đang kết nối');
+    });
     action('retry')?.addEventListener('click', () => state.session ? connectSocket() : showScreen('entry'));
     action('toggle-audio')?.addEventListener('click', (event) => {
       const pressed = event.currentTarget.getAttribute('aria-pressed') === 'true';
-      event.currentTarget.setAttribute('aria-pressed', String(!pressed));
-      text(byRole('audio-label'), pressed ? 'Bật âm thanh' : 'Tắt âm thanh');
+      state.audioEnabled = !pressed;
+      event.currentTarget.setAttribute('aria-pressed', String(state.audioEnabled));
+      text(byRole('audio-label'), state.audioEnabled ? 'Tắt âm thanh' : 'Bật âm thanh');
+      persistSession();
     });
     byRole('confirm-dialog')?.addEventListener('click', (event) => { if (event.target === event.currentTarget) closeConfirmation(); });
     windowRef?.addEventListener?.('keydown', onKeydown);
@@ -582,9 +813,22 @@ export function createQuizController(options = {}) {
 
   async function start() {
     bind();
+    state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
     setConnection('disconnected', 'Đang kết nối');
     render();
-    if (!state.session) return;
+    if (!state.session) {
+      const saved = readSessionMetadata(windowRef);
+      if (saved) {
+        state.session = saved;
+        state.audioEnabled = saved.audioEnabled === true;
+        setRole(saved.role);
+        setConnection('offline', 'Đã tìm thấy phiên cũ. Vui lòng vào lại phòng để cấp quyền kết nối.');
+        text(byRole('error-message'), 'Phiên cũ chỉ lưu thông tin tối thiểu; hãy vào lại phòng để tiếp tục an toàn.');
+        showScreen('error');
+        render();
+      }
+      return;
+    }
     setRole(state.session.role);
     try {
       const params = new URLSearchParams({ roomCode: state.session.roomCode, playerId: state.session.playerId, capabilityToken: state.session.capabilityToken });
