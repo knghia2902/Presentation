@@ -19,15 +19,29 @@ This file is the Nyquist validation map for the nine Phase 3 plans. Every automa
 | UI/mobile | QUIZ-04, QUIZ-05, QUIZ-06; D-02, D-03, D-05, D-09, D-17 | `tests/client-contract.test.js` | `npx vitest run tests/client-contract.test.js -t "structure|accessibility|controls"`, `npx vitest run tests/client-contract.test.js -t "responsive|tokens|focus|motion"`, and `npx vitest run tests/client-contract.test.js` | Vietnamese host/player screens expose one question, one irreversible answer action, reveal/result/leaderboard/paused/error states, keyboard/focus semantics, visible announcements, 44px controls, and no horizontal scroll at the 320px contract width. |
 | Audio and voice | QUIZ-05; D-17, D-18, D-19, D-20, D-21 | `tests/audio-assets.test.js`, `tests/audio-contract.test.js` | `npx vitest run tests/audio-assets.test.js` and `npx vitest run tests/audio-contract.test.js` | All shipped voice, background music, and correct/incorrect/timeout SFX assets are non-empty and licensed; Web Audio mute/user-gesture/music ducking works; timeout/correct/incorrect SFX map to authoritative events; fixed cues and dynamic `vi-VN` speech follow the locked schedule; visible text remains when audio is unavailable. |
 
-## Full-suite Gate
+## Wave-local Gates
 
-Run from the repository root after the final plan in each wave has completed:
+Run only the tests that already exist at the end of each wave; do not require `npm test` while later wave test files are not yet present.
+
+| Wave | Command(s) | Deterministic gate |
+|---|---|---|
+| 1 | `npm run test:scoring` | `tests/scoring.test.js` is green for the scoring boundaries and tie-break contract. |
+| 2 | `npm run test:questions`; `npm run test:schema` | The DOCX question contract and repeatable migration/schema contract are green. |
+| 3 | `npx vitest run tests/scoring.test.js tests/quiz-room.test.js` | Scoring and the complete room state-machine suite are green. |
+| 4 | `npx vitest run tests/quiz-api.test.js`; `npx vitest run tests/client-contract.test.js` | API/security and static client contracts are green. |
+| 5 | `npx vitest run tests/offline.test.js tests/client-events.test.js`; `npx vitest run tests/audio-assets.test.js` | Offline/event behavior and licensed audio packaging checks are green. |
+| 6 | `npx vitest run tests/audio-contract.test.js` | Hybrid audio schedule, mute, ducking, and fallback tests are green. |
+| 7 | `npx vitest run tests/deployment-contract.test.js` | Deployment configuration, documentation, and required test-file presence checks are green. |
+
+## Final Full-suite Gate
+
+Run from the repository root only after Wave 7 and Task 3 of `03-09-PLAN.md` have completed:
 
 ```text
 npm test
 ```
 
-The full suite must include scoring, questions, schema/D1, room lifecycle, API/security, offline/reconnect, client contract/events, audio assets/contract, and deployment-contract tests. The deployment-contract test must also verify `presentation/workers/api.js`, `presentation/workers/schema.sql`, the external Worker `main`/exports mapping, the Pages `QUIZ_ROOM` binding, README commands, and required test-file presence.
+The final suite must include scoring, questions, schema/D1, room lifecycle, API/security, offline/reconnect, client contract/events, audio assets/contract, and deployment-contract tests. The deployment-contract test must also verify `presentation/workers/api.js`, `presentation/workers/schema.sql`, the external Worker `main`/exports mapping, the Pages `QUIZ_ROOM` binding, README commands, and required test-file presence.
 
 ## Human Acceptance Checks
 
@@ -35,7 +49,7 @@ The full suite must include scoring, questions, schema/D1, room lifecycle, API/s
 2. Disconnect the host during a question and confirm the deadline is frozen with a Vietnamese paused banner; reconnect the same host capability and resume. Disconnect a player instead and confirm the other participants continue while the disconnected player's missed answer remains zero.
 3. Load `/presentation/quiz/` at 320px and a desktop width. Confirm no horizontal scroll, readable room code/timer, keyboard focus, reduced-motion-safe feedback, and distinct correct/incorrect/timeout text states.
 4. After the blocking audio license checkpoint approves every shipped asset, use a user gesture to enable audio. Confirm background music, correct/incorrect/timeout SFX, fixed cues, mute, music ducking during voice, no speech on ordinary question transitions, fastest-correct announcement after reveal, and top-five announcement only at final results. Repeat with no Vietnamese browser voice and confirm visible text fallback.
-5. Run the Worker dry-run/config validation and local Pages/Worker smoke test when the installed Wrangler/runtime is available. Do not treat a local dry run as a live Cloudflare deployment; live Pages/D1/QR publication remains Phase 4.
+5. Run the exact local deployment checks below. First run `npx wrangler deploy --config presentation/workers/wrangler.toml --dry-run`; success is exit code 0 with a parsed `quiz-room-worker`/`QuizRoom` bundle and no upload. Then use two terminals: terminal A runs `npx wrangler dev --config presentation/workers/wrangler.toml --local --port 8787`, terminal B runs `npx wrangler pages dev . --do QUIZ_ROOM=QuizRoom@quiz-room-worker --port 8788`, and terminal C runs `Invoke-WebRequest http://127.0.0.1:8788/presentation/quiz/ -UseBasicParsing` (HTTP 200) plus `Test-NetConnection 127.0.0.1 -Port 8787 -InformationLevel Quiet` and `Test-NetConnection 127.0.0.1 -Port 8788 -InformationLevel Quiet` (both `True`). If Wrangler, the Workers runtime, or account access is unavailable, record the exact command/error, run `npm exec vitest run tests/deployment-contract.test.js` and `npm test`, then perform the two-browser host/player flow against the next available Pages/Worker preview; mark only the runtime smoke as manual/unavailable. Do not treat a local dry run as a live Cloudflare deployment; live Pages/D1/QR publication remains Phase 4.
 
 ## Phase Acceptance
 
