@@ -26,8 +26,8 @@
 - [x] **QUIZ-02**: Timer đếm ngược 30 giây cho mỗi câu
 - [x] **QUIZ-03**: Tính điểm: +10đ mỗi câu đúng, bonus thời gian
 - [x] **QUIZ-04**: Màn hình nhập tên → Quiz → Kết quả → Bảng xếp hạng
-- [ ] **QUIZ-05**: Hiệu ứng confetti khi đúng, shake khi sai
-- [ ] **QUIZ-06**: Responsive — chơi được trên điện thoại
+- [x] **QUIZ-05**: Hiệu ứng confetti khi đúng, shake khi sai
+- [x] **QUIZ-06**: Responsive — chơi được trên điện thoại
 - [x] **QUIZ-07**: Giải thích đáp án sau mỗi câu
 
 ### Backend (BACK)

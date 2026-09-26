@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: — Bài thuyết trình hoàn chỉnh + Mini Game
-current_plan: 5
+current_plan: 6
 status: In Progress
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-09-26T04:37:26.677Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-09-26T04:50:06.646Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 12
-  completed_plans: 7
-  percent: 58
+  completed_plans: 8
+  percent: 25
 ---
 
 # STATE.md — Project Memory
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 ## Current State
 
 - **Active phase:** Phase 3 — Quiz Webapp + Backend
-- **Current Plan:** 5
+- **Current Plan:** 6
 - **Total Plans in Phase:** 9
 - **Status:** Ready to execute; 9 plans across 8 waves; checker passed with no blockers
 - **Blockers:** None
@@ -56,8 +56,8 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 ## Session
 
-**Last session:** 2026-09-26T04:37:20.608Z
-**Stopped at:** Completed 03-04-PLAN.md
+**Last session:** 2026-09-26T04:50:06.530Z
+**Stopped at:** Completed 03-05-PLAN.md
 **Resume file:** None
 
 ## Performance Metrics
@@ -68,6 +68,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 | Phase 03 P02 | 11min | 3 tasks | 10 files |
 | Phase 03 P03 | 14min | 3 tasks | 5 files |
 | Phase 03 P04 | 10min | 3 tasks | 6 files |
+| Phase 03 P05 | 15min | 3 tasks | 5 files |
 
 ## Decisions
 
@@ -83,3 +84,5 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 - [Phase 03]: Allocate host room codes through a reserved Durable Object boundary so Pages never creates room state, capabilities, or reconnect tokens.
 - [Phase 03]: Treat POST /api/score as an authoritative host finalization request; discard client score, timing, correctness, rank, and option fields and make a repeated authorized request idempotent.
 - [Phase 03]: Allow previously issued capabilities to read the finished room snapshot for current-room leaderboard display while retaining token revocation for room commands.
+- [Phase 03]: Use sanitized question snapshots for active client rendering and expose correct answers only from authoritative reveal events.
+- [Phase 03]: Keep current-room results visible while score persistence or global leaderboard requests are pending or fail.
