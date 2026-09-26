@@ -410,6 +410,11 @@ export class QuizRoom extends DurableObject {
     if (player.role !== 'player') {
       throw new RoomError('Chủ phòng không trả lời như người chơi.', 403, 'host_cannot_answer');
     }
+    const answerReceivedAt = currentTime();
+    if (this.room.phase === 'question' && answerReceivedAt >= this.room.deadlineAt) {
+      await this.maybeExpireQuestion();
+      throw new RoomError('Đã hết giờ trả lời.', 409, 'late_answer');
+    }
     await this.maybeExpireQuestion();
     if (this.room.phase !== 'question') {
       throw new RoomError('Câu hỏi hiện tại đã khóa.', 409, 'question_locked');
@@ -821,7 +826,7 @@ export class QuizRoom extends DurableObject {
         new Date(answer.receivedAt).toISOString()
       ));
     }
-    for (const player of this.room.players) {
+    for (const player of this.room.players.filter(({ role }) => role === 'player')) {
       statements.push(this.env.DB.prepare(
         'INSERT OR REPLACE INTO quiz_results (result_id, room_code, player_id, display_name, player_sequence, total_score, total_response_ms, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       ).bind(
