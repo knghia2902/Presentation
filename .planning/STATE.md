@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: — Bài thuyết trình hoàn chỉnh + Mini Game
-current_plan: 4
+current_plan: 5
 status: In Progress
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-09-26T04:23:56.875Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-09-26T04:37:26.677Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 12
-  completed_plans: 6
-  percent: 25
+  completed_plans: 7
+  percent: 58
 ---
 
 # STATE.md — Project Memory
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 ## Current State
 
 - **Active phase:** Phase 3 — Quiz Webapp + Backend
-- **Current Plan:** 4
+- **Current Plan:** 5
 - **Total Plans in Phase:** 9
 - **Status:** Ready to execute; 9 plans across 8 waves; checker passed with no blockers
 - **Blockers:** None
@@ -56,8 +56,8 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 ## Session
 
-**Last session:** 2026-09-26T04:23:00.331Z
-**Stopped at:** Completed 03-02-PLAN.md
+**Last session:** 2026-09-26T04:37:20.608Z
+**Stopped at:** Completed 03-04-PLAN.md
 **Resume file:** None
 
 ## Performance Metrics
@@ -67,6 +67,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 | Phase 03 P01 | 10min | 3 tasks | 6 files |
 | Phase 03 P02 | 11min | 3 tasks | 10 files |
 | Phase 03 P03 | 14min | 3 tasks | 5 files |
+| Phase 03 P04 | 10min | 3 tasks | 6 files |
 
 ## Decisions
 
@@ -78,3 +79,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 - [Phase 03]: Use a single SQLite-backed QuizRoom Durable Object per room — Keeps room state authoritative, hibernatable, and serialized while allowing the Worker facade to remain thin.
 - [Phase 03]: Use opaque hashed capability and reconnect tokens with bounded TTLs — Prevents bearer secrets from being persisted in plaintext and makes expiry/revocation enforceable for both host and player sessions.
 - [Phase 03]: Persist final results only when the room finishes — Avoids partial final-result records while retaining room, participant, and answer persistence for auditability.
+- [Phase 03]: Keep Pages Functions stateless: create, join, snapshot, WebSocket, score, and leaderboard requests forward validated data to the existing room actor or D1 binding.
+- [Phase 03]: Allocate host room codes through a reserved Durable Object boundary so Pages never creates room state, capabilities, or reconnect tokens.
+- [Phase 03]: Treat POST /api/score as an authoritative host finalization request; discard client score, timing, correctness, rank, and option fields and make a repeated authorized request idempotent.
+- [Phase 03]: Allow previously issued capabilities to read the finished room snapshot for current-room leaderboard display while retaining token revocation for room commands.

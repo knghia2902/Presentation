@@ -32,8 +32,8 @@
 
 ### Backend (BACK)
 
-- [ ] **BACK-01**: Cloudflare Worker API lưu điểm (POST /api/score)
-- [ ] **BACK-02**: API bảng xếp hạng top 20 (GET /api/leaderboard)
+- [x] **BACK-01**: Cloudflare Worker API lưu điểm (POST /api/score)
+- [x] **BACK-02**: API bảng xếp hạng top 20 (GET /api/leaderboard)
 - [x] **BACK-03**: Cloudflare D1 database lưu scores
 - [ ] **BACK-04**: LocalStorage fallback khi offline
 

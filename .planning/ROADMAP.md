@@ -47,7 +47,7 @@
 - `presentation/workers/api.js` — Cloudflare Worker
 - `presentation/workers/schema.sql` — D1 schema
 
-**Plans:** 3/9 plans executed
+**Plans:** 4/9 plans executed
 Plans:
 **Wave 1**
 
@@ -63,7 +63,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 03-04-PLAN.md — Pages API and WebSocket proxies
+- [x] 03-04-PLAN.md — Pages API and WebSocket proxies
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -108,7 +108,7 @@ Plans:
 |-------|------|-------------|-------------|--------|
 | 1 | Web Slide (Prezi-style) | SLIDE-01~06 | None | ✅ Complete |
 | 2 | Nội dung nói + Phản biện | SCRP-01~03, ARGS-01~03 | Phase 1 | Not Started |
-| 3 | Quiz Webapp + Backend | 3/9 | In Progress|  |
+| 3 | Quiz Webapp + Backend | 4/9 | In Progress|  |
 | 4 | Deploy + Tích hợp | DPLY-01~03 | Phase 1, 3 | Not Started |
 
 **Parallel opportunities:** Phase 1 và Phase 3 có thể chạy song song (không phụ thuộc nhau).
