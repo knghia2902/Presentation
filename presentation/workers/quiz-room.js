@@ -1,3 +1,4 @@
+import { DurableObject } from 'cloudflare:workers';
 import { questions } from './questions.js';
 import { QUESTION_MS, calculateScore, compareLeaderboard } from './scoring.js';
 
@@ -149,9 +150,7 @@ export class QuizRoom extends DurableObject {
         await this.expireIfNeeded();
         const capabilityToken = url.searchParams.get('capabilityToken');
         const playerId = url.searchParams.get('playerId');
-        if (capabilityToken && playerId) {
-          await this.authenticate({ playerId, capabilityToken });
-        }
+        await this.authenticate({ playerId, capabilityToken });
         return safeJson({ ok: true, event: 'snapshot', snapshot: this.snapshot() });
       }
 
@@ -226,13 +225,13 @@ export class QuizRoom extends DurableObject {
     }
 
     const player = await this.authenticate(command);
-    if (type === 'start') return this.startQuiz(player);
-    if (type === 'answer') return this.submitAnswer(player, command);
-    if (type === 'next') return this.hostNext(player);
-    if (type === 'setAutoAdvance') return this.setAutoAdvance(player, command.enabled);
-    if (type === 'resume') return this.resumePlayer(player, command.reconnectToken);
-    if (type === 'finish') return this.finishQuiz(player, 'host');
-    if (type === 'leave') return this.leaveRoom(player);
+    if (type === 'start') return await this.startQuiz(player);
+    if (type === 'answer') return await this.submitAnswer(player, command);
+    if (type === 'next') return await this.hostNext(player);
+    if (type === 'setAutoAdvance') return await this.setAutoAdvance(player, command.enabled);
+    if (type === 'resume') return await this.resumePlayer(player, command.reconnectToken);
+    if (type === 'finish') return await this.finishQuiz(player, 'host');
+    if (type === 'leave') return await this.leaveRoom(player);
     throw new RoomError('Lệnh không được xử lý.', 400, 'unhandled_command');
   }
 
@@ -398,20 +397,20 @@ export class QuizRoom extends DurableObject {
     return player;
   }
 
-  startQuiz(player) {
+  async startQuiz(player) {
     this.requireHost(player);
     if (this.room.phase !== 'lobby') {
       throw new RoomError('Quiz không ở sảnh chờ.', 409, 'invalid_phase');
     }
-    this.beginQuestion(0, { announcement: { kind: 'quiz_started', text: 'Quiz bắt đầu!' } });
+    await this.beginQuestion(0, { announcement: { kind: 'quiz_started', text: 'Quiz bắt đầu!' } });
     return { event: 'question', snapshot: this.snapshot() };
   }
 
-  submitAnswer(player, command) {
+  async submitAnswer(player, command) {
     if (player.role !== 'player') {
       throw new RoomError('Chủ phòng không trả lời như người chơi.', 403, 'host_cannot_answer');
     }
-    this.maybeExpireQuestion();
+    await this.maybeExpireQuestion();
     if (this.room.phase !== 'question') {
       throw new RoomError('Câu hỏi hiện tại đã khóa.', 409, 'question_locked');
     }
@@ -448,42 +447,47 @@ export class QuizRoom extends DurableObject {
     player.totalScore += result.score;
     player.totalResponseMs += result.responseTimeMs;
     this.bumpVersion();
-    this.save();
+    await this.save();
     const event = result.score > 0 ? 'correct' : 'incorrect';
     this.broadcast({ event, snapshot: this.snapshot(), result: { ...result, accepted: true } });
     return { event, result: { ...result, accepted: true }, snapshot: this.snapshot() };
   }
 
-  hostNext(player) {
+  async hostNext(player) {
     this.requireHost(player);
     if (this.room.phase === 'question') {
-      this.maybeExpireQuestion();
+      await this.maybeExpireQuestion();
       if (this.room.phase === 'question') {
-        this.enterReveal('manual');
+        await this.enterReveal('manual');
       }
     } else if (this.room.phase === 'reveal') {
-      this.advanceQuestion();
+      await this.advanceQuestion();
     } else {
       throw new RoomError('Không thể chuyển câu ở giai đoạn này.', 409, 'invalid_phase');
     }
     return { event: this.room.phase === 'reveal' ? 'reveal' : this.room.phase === 'finished' ? 'finished' : 'question', snapshot: this.snapshot() };
   }
 
-  setAutoAdvance(player, enabled) {
+  async setAutoAdvance(player, enabled) {
     this.requireHost(player);
     if (typeof enabled !== 'boolean') {
       throw new RoomError('Chế độ tự chuyển phải là true hoặc false.', 400, 'invalid_auto_advance');
     }
     this.room.autoAdvance = enabled;
+    if (enabled && this.room.phase === 'reveal' && !this.room.revealUntil) {
+      this.room.revealUntil = currentTime() + REVEAL_MS;
+      this.ctx.storage.setAlarm(this.room.revealUntil);
+    }
+    if (!enabled) this.room.revealUntil = null;
     this.bumpVersion({ kind: 'auto_advance_changed', enabled });
-    this.save();
+    await this.save();
     this.broadcast({ event: 'snapshot', snapshot: this.snapshot() });
     return { event: 'snapshot', snapshot: this.snapshot() };
   }
 
-  resumePlayer(player, reconnectToken) {
+  async resumePlayer(player, reconnectToken) {
     const token = typeof reconnectToken === 'string' ? reconnectToken : '';
-    return this.resumeWithReconnect(player, token);
+    return await this.resumeWithReconnect(player, token);
   }
 
   async resumeWithReconnect(player, reconnectToken) {
@@ -503,7 +507,7 @@ export class QuizRoom extends DurableObject {
     player.connectedAt = now;
     player.disconnectedAt = null;
     if (this.room.phase === 'paused_host_disconnect' && player.role === 'host') {
-      this.resumeHostAfterDisconnect();
+      await this.resumeHostAfterDisconnect();
     }
     this.bumpVersion({ kind: 'participant_resumed', playerId: player.playerId });
     await this.save();
@@ -524,12 +528,12 @@ export class QuizRoom extends DurableObject {
     return { token };
   }
 
-  finishQuiz(player, reason = 'host') {
+  async finishQuiz(player, reason = 'host') {
     this.requireHost(player);
     if (!['lobby', 'question', 'reveal', 'paused_host_disconnect'].includes(this.room.phase)) {
       throw new RoomError('Quiz đã kết thúc.', 409, 'invalid_phase');
     }
-    if (this.room.phase === 'question') this.enterReveal('finish');
+    if (this.room.phase === 'question') await this.enterReveal('finish');
     this.room.phase = 'finished';
     this.room.roomStatus = reason === 'expired' ? 'expired' : 'finished';
     this.room.finishedAt = currentTime();
@@ -541,28 +545,28 @@ export class QuizRoom extends DurableObject {
     };
     this.revokeAllTokens();
     this.bumpVersion();
-    this.save();
-    this.persistFinalResults();
+    await this.save();
+    await this.persistFinalResults();
     this.broadcast({ event: 'finished', snapshot: this.snapshot() });
     return { event: 'finished', snapshot: this.snapshot() };
   }
 
-  leaveRoom(player) {
+  async leaveRoom(player) {
     player.status = 'left';
     player.leftAt = currentTime();
     player.disconnectedAt = player.leftAt;
     this.revokePlayerTokens(player);
     if (player.role === 'host' && this.room.phase !== 'finished') {
-      this.pauseForHostDisconnect(player.leftAt);
+      await this.pauseForHostDisconnect(player.leftAt);
     } else {
       this.bumpVersion({ kind: 'participant_left', playerId: player.playerId });
-      this.save();
+      await this.save();
       this.broadcast({ event: 'snapshot', snapshot: this.snapshot() });
     }
     return { event: 'left', snapshot: this.snapshot() };
   }
 
-  beginQuestion(index, { announcement = null } = {}) {
+  async beginQuestion(index, { announcement = null } = {}) {
     const now = currentTime();
     this.room.phase = 'question';
     this.room.pausedFromPhase = null;
@@ -574,7 +578,7 @@ export class QuizRoom extends DurableObject {
     this.room.revealUntil = null;
     this.room.announcement = announcement;
     this.bumpVersion();
-    this.save();
+    await this.save();
     this.ctx.storage.setAlarm(this.room.deadlineAt);
     this.broadcast({ event: 'question', snapshot: this.snapshot() });
   }
@@ -583,13 +587,13 @@ export class QuizRoom extends DurableObject {
     return `${playerId}:${questionIndex}`;
   }
 
-  maybeExpireQuestion() {
+  async maybeExpireQuestion() {
     if (this.room.phase === 'question' && currentTime() >= this.room.deadlineAt) {
-      this.enterReveal('timeout');
+      await this.enterReveal('timeout');
     }
   }
 
-  enterReveal(reason) {
+  async enterReveal(reason) {
     if (this.room.phase !== 'question') return;
     const now = currentTime();
     const question = questions[this.room.questionIndex];
@@ -620,26 +624,26 @@ export class QuizRoom extends DurableObject {
       ? { kind: 'fastest_correct', text: `${this.playerById(correct.playerId).displayName} trả lời đúng và nhanh nhất!`, playerId: correct.playerId }
       : { kind: 'no_correct_answer', text: 'Chưa có người trả lời đúng câu này.' };
     this.bumpVersion();
-    this.save();
+    await this.save();
     if (this.room.autoAdvance) this.ctx.storage.setAlarm(this.room.revealUntil);
     this.broadcast({ event: 'reveal', snapshot: this.snapshot() });
   }
 
-  advanceQuestion() {
+  async advanceQuestion() {
     if (this.room.questionIndex >= questions.length - 1) {
       const host = this.room.players.find((player) => player.role === 'host');
-      if (host) return this.finishQuiz(host, 'host');
+      if (host) return await this.finishQuiz(host, 'host');
       this.room.phase = 'finished';
       this.room.roomStatus = 'finished';
       this.revokeAllTokens();
       this.bumpVersion();
-      this.save();
+      await this.save();
       return;
     }
-    this.beginQuestion(this.room.questionIndex + 1);
+    await this.beginQuestion(this.room.questionIndex + 1);
   }
 
-  pauseForHostDisconnect(now = currentTime()) {
+  async pauseForHostDisconnect(now = currentTime()) {
     if (this.room.phase === 'finished' || this.room.phase === 'paused_host_disconnect') return;
     this.room.pausedFromPhase = this.room.phase;
     this.room.pausedRemainingMs = this.room.phase === 'question'
@@ -650,11 +654,11 @@ export class QuizRoom extends DurableObject {
     this.room.revealUntil = null;
     this.room.announcement = { kind: 'host_disconnected', text: 'Chủ phòng đã mất kết nối. Đang tạm dừng.' };
     this.bumpVersion();
-    this.save();
+    await this.save();
     this.broadcast({ event: 'paused_host_disconnect', snapshot: this.snapshot() });
   }
 
-  resumeHostAfterDisconnect() {
+  async resumeHostAfterDisconnect() {
     if (this.room.phase !== 'paused_host_disconnect') return;
     const previousPhase = this.room.pausedFromPhase || 'lobby';
     this.room.phase = previousPhase;
@@ -663,14 +667,14 @@ export class QuizRoom extends DurableObject {
       const now = currentTime();
       this.room.questionStartedAt = now - (QUESTION_MS - remainingMs);
       this.room.deadlineAt = now + remainingMs;
-      if (remainingMs === 0) this.enterReveal('timeout');
+      if (remainingMs === 0) await this.enterReveal('timeout');
       else this.ctx.storage.setAlarm(this.room.deadlineAt);
     }
     this.room.pausedFromPhase = null;
     this.room.pausedRemainingMs = null;
     this.room.announcement = { kind: 'host_resumed', text: 'Chủ phòng đã kết nối lại.' };
     this.bumpVersion();
-    this.save();
+    await this.save();
   }
 
   async expireIfNeeded() {
@@ -738,7 +742,7 @@ export class QuizRoom extends DurableObject {
     const question = this.room && this.room.questionIndex >= 0 ? questions[this.room.questionIndex] : null;
     const currentAnswer = question ? Object.fromEntries(this.room.players.map((player) => [
       player.playerId,
-      this.publicAnswerForPlayer(player)
+      this.publicAnswerForPlayer(player) ? { accepted: true } : null
     ])) : {};
     return {
       roomCode: this.room?.roomCode || null,
@@ -773,7 +777,10 @@ export class QuizRoom extends DurableObject {
   }
 
   async persistFinalResults() {
-    if (this.room?.persisted || !this.room || !this.env.DB) return;
+    if (!this.room || this.room.persisted) return;
+    if (!this.env.DB) {
+      throw new RoomError('D1 binding chưa được cấu hình cho kết quả cuối.', 503, 'missing_db_binding');
+    }
     const statements = [
       this.env.DB.prepare(
         'INSERT OR REPLACE INTO quiz_rooms (room_code, host_player_id, status, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?)'
@@ -842,6 +849,9 @@ export class QuizRoom extends DurableObject {
     const capabilityToken = url.searchParams.get('capabilityToken');
     const reconnectToken = url.searchParams.get('reconnectToken');
     const player = await this.authenticate({ playerId, capabilityToken });
+    if (player.status === 'offline' && !reconnectToken) {
+      throw new RoomError('Reconnect token bắt buộc sau khi mất kết nối.', 401, 'invalid_reconnect');
+    }
     if (reconnectToken) {
       await this.resumeWithReconnect(player, reconnectToken);
     }
@@ -855,7 +865,8 @@ export class QuizRoom extends DurableObject {
     const attachment = {
       playerId: player.playerId,
       role: player.role,
-      capabilityTokenHash: player.capabilityTokenHash
+      capabilityTokenHash: player.capabilityTokenHash,
+      reconnectTokenHash: player.reconnectTokenHash
     };
     server.serializeAttachment(attachment);
     this.sessions.set(server, attachment);
@@ -895,10 +906,15 @@ export class QuizRoom extends DurableObject {
   }
 
   async dispatchSocketCommand(command, player) {
-    const tokenCommand = { ...command, playerId: player.playerId };
-    if (command.type === 'resume') return this.resumeWithReconnect(player, command.reconnectToken);
-    const result = await this.dispatchCommand(tokenCommand, { roomCode: this.room.roomCode });
-    return result;
+    if (command.type === 'start') return await this.startQuiz(player);
+    if (command.type === 'answer') return await this.submitAnswer(player, command);
+    if (command.type === 'next') return await this.hostNext(player);
+    if (command.type === 'setAutoAdvance') return await this.setAutoAdvance(player, command.enabled);
+    if (command.type === 'resume') return await this.resumeWithReconnect(player, command.reconnectToken);
+    if (command.type === 'finish') return await this.finishQuiz(player, 'host');
+    if (command.type === 'leave') return await this.leaveRoom(player);
+    if (command.type === 'snapshot') return { event: 'snapshot', snapshot: this.snapshot() };
+    throw new RoomError('Lệnh WebSocket không hợp lệ.', 400, 'invalid_message_type');
   }
 
   enforceRateLimit(playerId) {
@@ -943,7 +959,7 @@ export class QuizRoom extends DurableObject {
     player.disconnectedAt = now;
     player.reconnectIssuedAt = now;
     player.reconnectExpiresAt = now + RECONNECT_TTL_MS;
-    if (player.role === 'host') this.pauseForHostDisconnect(now);
+    if (player.role === 'host') await this.pauseForHostDisconnect(now);
     else {
       this.bumpVersion({ kind: 'player_offline', playerId: player.playerId });
       await this.save();
@@ -955,11 +971,11 @@ export class QuizRoom extends DurableObject {
     await this.ready;
     if (!this.room || this.room.phase === 'finished') return;
     if (this.room.phase === 'question' && currentTime() >= this.room.deadlineAt) {
-      this.enterReveal('timeout');
+      await this.enterReveal('timeout');
       return;
     }
     if (this.room.phase === 'reveal' && this.room.autoAdvance && currentTime() >= this.room.revealUntil) {
-      this.advanceQuestion();
+      await this.advanceQuestion();
     }
   }
 }
