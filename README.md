@@ -64,3 +64,38 @@ npx wrangler pages dev .
 ```
 
 Hoặc chỉ cần mở trực tiếp file `index.html` trên trình duyệt để sử dụng với bộ nhớ cục bộ (LocalStorage + IndexedDB).
+
+## 🎯 Quiz tương tác theo phòng
+
+Quiz nằm tại [`/presentation/quiz/`](presentation/quiz/). Một người tạo phòng và bắt đầu ván; người chơi nhập mã phòng rồi chỉ chọn A/B/C/D. Mỗi câu tối đa 1.000 điểm, trả lời đúng và nhanh hơn được xếp cao hơn; hết thời gian hoặc không chọn đáp án thì nhận 0 điểm. Chế độ offline chỉ giữ kết quả đã có, không phát lại câu chưa chọn khi kết nối lại.
+
+### Chạy local
+
+```bash
+npm install
+npm test
+npm run test:scoring
+npm run test:backend
+npm run test:audio
+
+# Terminal 1: Worker Durable Object + D1 local
+npx wrangler dev --config presentation/workers/wrangler.toml --local --port 8787
+
+# Terminal 2: Pages + Functions, trỏ binding QUIZ_ROOM vào Worker local
+npx wrangler pages dev . --do QUIZ_ROOM=QuizRoom@quiz-room-worker --port 8788
+```
+
+Mở `http://127.0.0.1:8788/presentation/quiz/`. Nếu trình duyệt chặn autoplay, bấm nút bật âm thanh; quiz vẫn hoạt động và thông báo vẫn hiện bằng chữ. Audio cố định, nhạc nền và SFX được khai báo trong [`presentation/quiz/audio/LICENSE.md`](presentation/quiz/audio/LICENSE.md); bốn câu tiếng Việt hiện là asset tạm để thay sau.
+
+### D1 và ranh giới deploy
+
+Schema chuẩn là [`migrations/0001_quiz.sql`](migrations/0001_quiz.sql). Chạy local bằng Wrangler; chỉ áp dụng remote sau khi kiểm tra đúng database:
+
+```bash
+npx wrangler d1 migrations apply presentation-db --local
+npx wrangler d1 migrations apply presentation-db --remote
+```
+
+Pages giữ binding `DB` cho presentation và khai báo binding ngoài `QUIZ_ROOM` tới Worker `quiz-room-worker`. Worker riêng là nơi sở hữu Durable Object SQLite; không nhúng vòng đời Durable Object vào Pages. Các API chính là `POST /api/quiz/rooms`, WebSocket `/api/quiz/rooms/:roomCode/socket`, `POST /api/score`, và `GET /api/leaderboard`.
+
+Phase 3 chỉ khóa mã nguồn, migration, contract test và hướng dẫn deploy; chưa tự ý mutate tài khoản Cloudflare, chạy migration remote hay publish live. Khi sẵn sàng phát hành, Phase 4 sẽ deploy Worker trước, kiểm tra binding Pages, áp dụng migration remote, rồi mới công bố QR/link phòng.
