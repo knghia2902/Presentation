@@ -148,6 +148,7 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .participant-count { color: var(--muted); }
 .participant-count strong { color: var(--ink); font: 600 24px/1 "IBM Plex Mono", monospace; }
 .participant-list, .leaderboard-list { list-style: none; margin: 16px 0 24px; padding: 0; }
+.leaderboard-list { min-height: 0; max-height: 360px; overflow-y: auto; padding-right: 6px; margin-bottom: 0; scrollbar-color: var(--line-strong) transparent; scrollbar-width: thin; }
 .participant-list:empty::before { display: block; content: "Chưa có người chơi kết nối."; color: var(--muted-light); padding-block: 16px; }
 .participant-row, .leaderboard-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .participant-row:first-child, .leaderboard-row:first-child { border-top: 1px solid var(--line); }
@@ -202,8 +203,19 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .final-score strong { color: var(--accent-dark); font: 600 48px/1.1 "IBM Plex Mono", monospace; }
 .final-score span:last-child { color: var(--ink); font-weight: 700; }
 .side-rail { display: grid; align-content: start; gap: 20px; min-width: 0; }
-.host-rail { display: grid; gap: 16px; }
-.host-rail h2 { margin-bottom: 0; }
+.host-rail { display: grid; gap: 12px; padding: 18px; color: var(--surface); border-color: var(--ink); background: var(--ink); box-shadow: 0 12px 30px rgba(32, 42, 53, .12); }
+.host-control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.host-control-heading .eyebrow { margin-bottom: 4px; color: #e5c49d; font-size: 10px; }
+.host-control-heading h2 { margin-bottom: 0; color: var(--surface); font-size: 21px; letter-spacing: -.035em; }
+.control-status { padding: 4px 7px; color: #d6e9dc; border: 1px solid rgba(214, 233, 220, .25); border-radius: 999px; font: 600 10px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; }
+.host-rail > p { margin: 0; color: #c6cdd0; font-size: 12px; }
+.host-control-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.host-control-actions .secondary-button, .host-control-actions .danger-button { min-height: 42px; padding: 8px 10px; font-size: 12px; }
+.host-control-actions .secondary-button { color: var(--surface); border-color: #62717a; background: rgba(255, 253, 249, .08); }
+.host-control-actions .secondary-button:hover, .host-control-actions .secondary-button:focus-visible { border-color: #e5c49d; background: rgba(255, 253, 249, .14); }
+.host-control-actions .danger-button { color: #f2c3bc; border-color: #9e5d58; background: rgba(173, 79, 73, .18); }
+.host-control-actions .danger-button:hover, .host-control-actions .danger-button:focus-visible { color: var(--surface); background: rgba(173, 79, 73, .34); }
+.leaderboard-panel { min-height: 0; max-height: min(520px, calc(100dvh - 220px)); display: flex; flex-direction: column; overflow: hidden; }
 .leaderboard-panel h2 { margin: 0; font-size: 22px; }
 .leaderboard-row:nth-child(-n+3) .rank { color: var(--accent-dark); font-weight: 700; }
 .rank, .score { font-variant-numeric: tabular-nums; }
@@ -278,6 +290,7 @@ h2 { margin-bottom: 16px; font-size: 26px; }
   h1 { font-size: 42px; overflow-wrap: anywhere; }
   .form-screen, .room-panel, .question-panel { padding: 20px; }
   .question-panel h2 { min-height: 0; font-size: 25px; }
+  .host-control-actions { grid-template-columns: 1fr; }
   .dialog-actions, .room-code-actions { align-items: stretch; flex-direction: column; }
   .dialog-actions > *, .room-code-actions .small-button { width: 100%; }
 }

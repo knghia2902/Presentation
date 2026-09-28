@@ -153,10 +153,15 @@
                 <span class="feedback" data-role="copy-feedback" aria-live="polite"></span>
               </div>
               <section class="host-rail room-panel" data-role="host-rail" hidden>
-                <h2>Điều khiển chủ phòng</h2>
+                <div class="host-control-heading">
+                  <div><p class="eyebrow">Điều khiển</p><h2>Chủ phòng</h2></div>
+                  <span class="control-status">LIVE</span>
+                </div>
                 <p data-role="host-mode-copy">Chuyển câu thủ công</p>
-                <button class="secondary-button" type="button" data-action="next-question">Câu tiếp theo</button>
-                <button class="danger-button" type="button" data-action="finish-quiz">Kết thúc ván chơi</button>
+                <div class="host-control-actions">
+                  <button class="secondary-button" type="button" data-action="next-question">Câu tiếp theo</button>
+                  <button class="danger-button" type="button" data-action="finish-quiz">Kết thúc</button>
+                </div>
               </section>
               <section class="leaderboard-panel room-panel" data-role="room-leaderboard" aria-labelledby="room-leaderboard-heading">
                 <div class="panel-title-row"><h2 id="room-leaderboard-heading">Bảng xếp hạng phòng</h2><span data-role="leaderboard-count"></span></div>
