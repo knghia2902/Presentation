@@ -1264,12 +1264,13 @@ export function createQuizController(options = {}) {
     query('[data-form="join"]')?.addEventListener('submit', (event) => createOrJoin(event, 'player'));
     queryAll('[data-action="back-entry"]').forEach((node) => node.addEventListener('click', () => showScreen('entry')));
     queryAll('[data-answer]').forEach((node) => node.addEventListener('click', () => submitAnswer(node.dataset.answer)));
-    action('start-quiz')?.addEventListener('click', () => { if (state.role === 'host') sendCommand({ type: 'start' }); });
-    action('next-question')?.addEventListener('click', () => { if (state.role === 'host') sendCommand({ type: 'next' }); });
+    action('start-quiz')?.addEventListener('click', () => { unlockAudio(); if (state.role === 'host') sendCommand({ type: 'start' }); });
+    action('next-question')?.addEventListener('click', () => { unlockAudio(); if (state.role === 'host') sendCommand({ type: 'next' }); });
     action('toggle-auto')?.addEventListener('change', (event) => { if (state.role === 'host') sendCommand({ type: 'setAutoAdvance', enabled: event.target.checked }); });
     action('finish-quiz')?.addEventListener('click', () => { if (state.role === 'host') openConfirmation(); });
     action('confirm-finish')?.addEventListener('click', (event) => {
       event.preventDefault();
+      unlockAudio();
       if (state.role === 'host') { closeConfirmation(); void sendCommand({ type: 'finish' }); }
     });
     action('cancel-confirm')?.addEventListener('click', closeConfirmation);
