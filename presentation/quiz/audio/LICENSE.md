@@ -8,15 +8,15 @@ Generated/downloaded: 2026-09-26. Scope: temporary classroom web app and GitHub 
 
 ## Music and SFX
 
-`background-music.mp3` is a CC0 game-show-style loop used as the quiz background;
-it is not the official “Ai là triệu phú” television theme. Replace it only with
-an appropriately licensed file if the exact theme is required.
+`background-music.mp3`, `sfx-correct.mp3`, and `sfx-incorrect.mp3` were supplied
+by the project owner from `Tài liệu/` and copied into this folder for the quiz.
+Confirm permission before redistributing the app outside the intended classroom.
 
 | File | Source / asset | License | Attribution |
 | --- | --- | --- | --- |
-| `background-music.mp3` | [Simple Game Music Loop by Seth_Makes_Sounds](https://freesound.org/people/Seth_Makes_Sounds/sounds/684511/) | CC0 1.0 | Seth_Makes_Sounds, Freesound |
-| `sfx-correct.mp3` | [correct1.wav by StavSounds](https://freesound.org/people/StavSounds/sounds/546083/) | CC0 1.0 | StavSounds, Freesound |
-| `sfx-incorrect.mp3` | [Buzzer sounds (Wrong answer / Error) by Breviceps](https://freesound.org/people/Breviceps/sounds/493163/) | CC0 1.0 | Breviceps, Freesound |
+| `background-music.mp3` | `Tài liệu/nhac_nen_ai_la_trieu_phu.mp3` | User-supplied | Project owner |
+| `sfx-correct.mp3` | `Tài liệu/tra_loi_dung.mp3` | User-supplied | Project owner |
+| `sfx-incorrect.mp3` | `Tài liệu/tra_loi_sai.mp3` | User-supplied | Project owner |
 | `sfx-timeout.mp3` | [Setting Electronic Timer Multiple Beeps by Rudmer_Rotteveel](https://freesound.org/people/Rudmer_Rotteveel/sounds/536421/) | CC0 1.0 | Rudmer_Rotteveel, Freesound |
 
 Only final audio files are shipped; source downloads, model weights, and TTS caches are excluded.
