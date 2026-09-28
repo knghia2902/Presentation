@@ -3,7 +3,7 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T08:45:00+07:00
+updated: 2026-09-28T09:08:00+07:00
 ---
 
 ## Current Test
@@ -60,9 +60,9 @@ result: pending
 ## Summary
 
 total: 18
-passed: 15
+passed: 16
 issues: 1
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
@@ -196,6 +196,22 @@ blocked: 0
     - "Ẩn host-rail thật sự khi người dùng là player"
   debug_session: ".planning/debug/host-rail-visible-to-player.md"
 
+- truth: "Snapshot reveal cũ không được ghi đè kết quả finished mới"
+  status: resolved
+  reason: "User reported: Bấm kết thúc bên chủ phòng rồi ở đâu cũng thấy bảng kết quả câu hỏi"
+  severity: major
+  test: 18
+  root_cause: "Client nhận reveal snapshot phát trong bước kết thúc sau finished snapshot nhưng không kiểm tra roomVersion, nên trạng thái mới bị snapshot cũ ghi đè."
+  artifacts:
+    - path: "presentation/quiz/app.js"
+      issue: "applyMessage() nhận mọi snapshot mà không loại snapshot có roomVersion thấp hơn"
+    - path: "tests/client-events.test.js"
+      issue: "Thiếu regression test thứ tự finished rồi reveal cũ"
+  missing:
+    - "So sánh roomVersion trước khi áp snapshot"
+    - "Có đường khôi phục khi WebSocket bỏ lỡ event finished"
+  debug_session: ".planning/debug/finished-event-order.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -234,4 +250,5 @@ result: pass
 
 ### 18. Retest quyền điều khiển và kết thúc ván
 expected: Người chơi không thấy/không thể dùng điều khiển chủ phòng; chủ phòng thấy nút kết thúc, kết thúc ván thành công và người chơi thấy kết quả cuối cùng cùng bảng xếp hạng.
-result: pending
+result: pass
+note: "Đã kiểm thử live với hai phiên khác origin: host bấm kết thúc và cả host/player đều chuyển sang Kết quả ván chơi; test suite 64/64 pass."

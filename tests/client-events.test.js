@@ -199,4 +199,14 @@ describe('authoritative client result events', () => {
     expect(audio).toEqual(['reveal', 'finished']);
     expect(effects.every(({ detail }) => detail.reducedMotion)).toBe(true);
   });
+
+  it('does not let a stale reveal overwrite a newer finished snapshot', () => {
+    const { controller, root } = controllerWithHooks();
+    controller.state.snapshot = snapshot({ phase: 'finished', roomVersion: 12, finalResults: [{ playerId: 'player-1', totalScore: 300, rank: 1 }] });
+    controller.render();
+    controller.applyMessage({ event: 'reveal', snapshot: snapshot({ phase: 'reveal', roomVersion: 11, reveal: { correctOption: 'A', explanation: 'Cũ' } }) });
+    expect(controller.state.snapshot.phase).toBe('finished');
+    expect(root.roles.get('finished-panel').hidden).toBe(false);
+    expect(root.roles.get('reveal-panel').hidden).toBe(true);
+  });
 });

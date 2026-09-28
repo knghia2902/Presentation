@@ -32,6 +32,7 @@ export const QUIZ_AUDIO_ASSETS = Object.freeze({
 });
 
 const QUIZ_AUDIO_GAIN = Object.freeze({ music: 0.16, sfx: 0.45, voice: 0.8, master: 1, duckedMusic: 0.05 });
+const FINISHED_SYNC_DELAY_MS = 800;
 // The timeout sting is intentionally brief so the last-second feedback does
 // not dominate the reveal or feel like a repeated alarm.
 export const QUIZ_AUDIO_MAX_DURATION_MS = Object.freeze({ timeout: 900 });
@@ -423,6 +424,8 @@ export function createQuizController(options = {}) {
     lastEffect: null,
     finalizing: false,
     timerHandle: null,
+    finishedSyncTimer: null,
+    finishedSyncInFlight: false,
     previousFocus: null
   };
   state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
@@ -718,6 +721,42 @@ export function createQuizController(options = {}) {
     }
   }
 
+  function clearFinishedSync() {
+    if (state.finishedSyncTimer && windowRef?.clearTimeout) windowRef.clearTimeout(state.finishedSyncTimer);
+    state.finishedSyncTimer = null;
+  }
+
+  async function reconcileFinishedSnapshot() {
+    if (state.finishedSyncInFlight || state.snapshot?.phase !== 'reveal' || !state.session) return;
+    state.finishedSyncInFlight = true;
+    try {
+      const params = new URLSearchParams({
+        roomCode: state.session.roomCode,
+        playerId: state.session.playerId,
+        capabilityToken: state.session.capabilityToken,
+        finished: '1'
+      });
+      const body = await request(`/api/quiz/rooms?${params}`);
+      if (body.snapshot?.phase === 'finished') {
+        applyMessage({ event: 'finished', snapshot: body.snapshot });
+      }
+    } catch {
+      // The WebSocket remains the primary transport; a temporary API failure
+      // should not interrupt the reveal screen or the reconnect loop.
+    } finally {
+      state.finishedSyncInFlight = false;
+      if (state.snapshot?.phase === 'reveal') scheduleFinishedSync();
+    }
+  }
+
+  function scheduleFinishedSync() {
+    if (state.finishedSyncTimer || !windowRef?.setTimeout || !state.session || state.snapshot?.phase !== 'reveal') return;
+    state.finishedSyncTimer = windowRef.setTimeout(() => {
+      state.finishedSyncTimer = null;
+      reconcileFinishedSnapshot();
+    }, FINISHED_SYNC_DELAY_MS);
+  }
+
   function renderReveal(snapshot) {
     const question = resolveQuestion(snapshot, questionBank);
     const reveal = snapshot.reveal || {};
@@ -751,6 +790,8 @@ export function createQuizController(options = {}) {
     }
     const phase = snapshot.phase;
     syncTimerLoop(phase);
+    if (phase === 'reveal') scheduleFinishedSync();
+    else clearFinishedSync();
     if (phase === 'finished') showScreen('room');
     else if (phase === 'lobby') showScreen('room');
     else showScreen('room');
@@ -1093,6 +1134,9 @@ export function createQuizController(options = {}) {
       if (!payload.snapshot) render();
     }
     if (payload.snapshot) {
+      const currentVersion = Number(state.snapshot?.roomVersion);
+      const incomingVersion = Number(payload.snapshot.roomVersion);
+      if (Number.isFinite(currentVersion) && Number.isFinite(incomingVersion) && incomingVersion < currentVersion) return;
       const previousPhase = state.snapshot?.phase;
       state.snapshot = payload.snapshot;
       if (Number.isFinite(Number(payload.snapshot.roomVersion))) {
@@ -1200,7 +1244,10 @@ export function createQuizController(options = {}) {
     action('next-question')?.addEventListener('click', () => { if (state.role === 'host') sendCommand({ type: 'next' }); });
     action('toggle-auto')?.addEventListener('change', (event) => { if (state.role === 'host') sendCommand({ type: 'setAutoAdvance', enabled: event.target.checked }); });
     action('finish-quiz')?.addEventListener('click', () => { if (state.role === 'host') openConfirmation(); });
-    action('confirm-finish')?.addEventListener('click', () => { if (state.role === 'host') { closeConfirmation(); sendCommand({ type: 'finish' }); } });
+    action('confirm-finish')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      if (state.role === 'host') { closeConfirmation(); void sendCommand({ type: 'finish' }); }
+    });
     action('cancel-confirm')?.addEventListener('click', closeConfirmation);
     action('copy-code')?.addEventListener('click', copyRoomCode);
     action('share-room')?.addEventListener('click', shareRoom);

@@ -85,4 +85,37 @@ describe('authoritative quiz client projection', () => {
     expect(controller.state.snapshot.leaderboard[0].totalScore).toBe(500);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  it('reconciles a missed finished event while the room is showing a reveal', async () => {
+    const timers = [];
+    const fetchImpl = vi.fn(async (url) => {
+      if (String(url).includes('/api/quiz/rooms?')) {
+        return response({ ok: true, snapshot: {
+          roomCode: 'ABC123', roomVersion: 9, phase: 'finished', finalResults: [{ playerId: 'player-1', totalScore: 1000, rank: 1 }], leaderboard: []
+        } });
+      }
+      if (String(url).startsWith('/api/score')) return response({ ok: true, event: 'finished' });
+      return response({ ok: true, globalLeaderboard: [] });
+    });
+    const controller = createQuizController({
+      fetchImpl,
+      windowRef: {
+        location: { protocol: 'https:', host: 'quiz.test' },
+        matchMedia: () => ({ matches: false }),
+        setTimeout: vi.fn((callback, delay) => { timers.push({ callback, delay }); return timers.length; }),
+        clearTimeout: vi.fn()
+      }
+    });
+    controller.state.role = 'player';
+    controller.state.session = { roomCode: 'ABC123', playerId: 'player-1', capabilityToken: 'capability' };
+    controller.state.snapshot = { roomCode: 'ABC123', roomVersion: 8, phase: 'reveal', leaderboard: [] };
+
+    controller.render();
+    expect(timers[0].delay).toBe(800);
+    timers[0].callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchImpl.mock.calls[0][0]).toContain('finished=1');
+    expect(controller.state.snapshot.phase).toBe('finished');
+  });
 });
