@@ -125,6 +125,7 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .text-button { text-align: left; padding-inline: 0; }
 .small-button { border: 1px solid var(--line-strong); border-radius: var(--radius-sm); color: var(--ink-soft); padding: 8px 14px; background: var(--surface); }
 .feedback { min-height: 24px; display: block; color: var(--success); font-size: 13px; }
+.feedback:empty { display: none; }
 
 .form-screen { width: min(100%, 620px); margin: auto; padding: 34px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: rgba(255, 253, 249, .86); box-shadow: var(--shadow); }
 .section-heading { margin-bottom: 28px; }
@@ -219,7 +220,7 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .host-rail .room-code { color: var(--accent-dark); font-size: 26px; letter-spacing: .04em; }
 .host-control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid #dfc9aa; }
 .host-control-heading h2 { margin-bottom: 0; color: var(--ink); font-size: 18px; letter-spacing: -.035em; }
-.host-control-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.host-control-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
 .host-control-actions .secondary-button, .host-control-actions .danger-button { min-height: 36px; padding: 6px 8px; font-size: 11px; }
 .host-control-actions .secondary-button { color: var(--ink); border-color: var(--line-strong); background: var(--surface); }
 .host-control-actions .secondary-button:hover, .host-control-actions .secondary-button:focus-visible { border-color: var(--accent); background: var(--surface-warm); }
