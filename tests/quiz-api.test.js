@@ -5,6 +5,7 @@ import { onRequestGet as roomsGet, onRequestPost as roomsPost } from '../functio
 import { onRequestGet as socketGet } from '../functions/api/quiz/rooms/[roomCode]/socket.js';
 import { onRequestPost as scorePost } from '../functions/api/score.js';
 import { onRequestGet as leaderboardGet } from '../functions/api/leaderboard.js';
+import { onRequestGet as historyGet } from '../functions/api/history.js';
 
 const TOKEN = 'a'.repeat(64);
 
@@ -246,6 +247,30 @@ describe('Pages quiz API contracts', () => {
     const missingRoom = await leaderboardGet(context(new Request('https://pages.test/api/leaderboard'), {}));
     expect(missingRoom.status).toBe(400);
     expect((await missingRoom.json()).code).toBe('room_context_required');
+  });
+
+  it('lists finished rooms from the SQLite-backed Durable Object history index', async () => {
+    const roomCode = 'HIST01';
+    const room = env.QUIZ_ROOM.get(env.QUIZ_ROOM.idFromName(roomCode));
+    const created = await room.fetch('https://quiz.test/rooms/' + roomCode, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'create', nickname: 'Chủ phòng' })
+    });
+    const host = await created.json();
+    const finalized = await scorePost(context(jsonRequest('https://pages.test/api/score', {
+      roomCode,
+      playerId: host.player.playerId,
+      capabilityToken: host.capabilityToken
+    }, { ip: 'history-finalize' })));
+    expect(finalized.status).toBe(200);
+
+    const response = await historyGet(context(new Request('https://pages.test/api/history', {
+      headers: { 'CF-Connecting-IP': 'history-read' }
+    })));
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.history[0]).toMatchObject({ roomCode, playerCount: 0, questionCount: 20 });
   });
 
   it('rate-limits repeated finalization attempts without using nickname identity', async () => {

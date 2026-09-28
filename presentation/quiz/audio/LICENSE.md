@@ -8,6 +8,10 @@ Generated/downloaded: 2026-09-26. Scope: temporary classroom web app and GitHub 
 
 ## Music and SFX
 
+`background-music.mp3` is a CC0 game-show-style loop used as the quiz background;
+it is not the official “Ai là triệu phú” television theme. Replace it only with
+an appropriately licensed file if the exact theme is required.
+
 | File | Source / asset | License | Attribution |
 | --- | --- | --- | --- |
 | `background-music.mp3` | [Simple Game Music Loop by Seth_Makes_Sounds](https://freesound.org/people/Seth_Makes_Sounds/sounds/684511/) | CC0 1.0 | Seth_Makes_Sounds, Freesound |

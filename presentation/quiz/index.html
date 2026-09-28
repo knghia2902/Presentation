@@ -54,6 +54,15 @@
             <button class="primary-button" type="button" data-action="show-create">Tạo phòng</button>
             <button class="secondary-button" type="button" data-action="show-join">Tham gia phòng</button>
           </div>
+          <section class="history-panel" data-role="history-panel" aria-labelledby="history-heading">
+            <div class="panel-title-row">
+              <div><p class="eyebrow">LƯU TRÊN MÁY CHỦ LOCAL</p><h2 id="history-heading">Lịch sử ván chơi</h2></div>
+              <button class="text-button" type="button" data-action="refresh-history">Làm mới</button>
+            </div>
+            <ol class="history-list" data-role="history-list"></ol>
+            <p class="empty-state" data-role="history-empty">Chưa có ván chơi nào được lưu.</p>
+            <p class="history-error" data-role="history-error" hidden>Không tải được lịch sử. Ván mới vẫn chơi bình thường.</p>
+          </section>
         </section>
 
         <section class="screen form-screen" data-screen="create" aria-labelledby="create-heading" hidden>

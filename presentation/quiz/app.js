@@ -2,6 +2,7 @@ const ANSWERS = ['A', 'B', 'C', 'D'];
 const QUESTION_COUNT = 20;
 export const QUIZ_SESSION_STORAGE_KEY = 'quiz_room_session';
 export const QUIZ_RESULT_STORAGE_PREFIX = 'quiz_room_result:';
+export const QUIZ_HISTORY_STORAGE_KEY = 'quiz_room_history';
 export const QUIZ_RUNTIME_SESSION_STORAGE_KEY = 'quiz_room_runtime_session';
 export const QUIZ_SESSION_FIELDS = Object.freeze([
   'roomCode',
@@ -335,6 +336,12 @@ function finishedResultStorageKey(session) {
   return `${QUIZ_RESULT_STORAGE_PREFIX}${session.roomCode}:${session.playerId}`;
 }
 
+function formatHistoryDate(value) {
+  const date = new Date(Number(value));
+  if (!Number.isFinite(date.getTime())) return 'Không rõ thời gian';
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
+
 function readRuntimeSession(source = globalThis) {
   const store = source?.sessionStorage;
   if (!store) return null;
@@ -418,7 +425,8 @@ export function createQuizController(options = {}) {
     timerHandle: null,
     finishedSyncTimer: null,
     finishedSyncInFlight: false,
-    previousFocus: null
+    previousFocus: null,
+    history: []
   };
   state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
   const audioManager = options.audioManager || createQuizAudioManager({
@@ -508,7 +516,60 @@ export function createQuizController(options = {}) {
   }
 
   function preferredAudio() {
-    try { return JSON.parse(storage()?.getItem(QUIZ_SESSION_STORAGE_KEY) || '{}').audioEnabled === true; } catch { return false; }
+    try { return JSON.parse(storage()?.getItem(QUIZ_SESSION_STORAGE_KEY) || '{}').audioEnabled !== false; } catch { return true; }
+  }
+
+  function renderAudioControl() {
+    const toggle = action('toggle-audio');
+    if (!toggle) return;
+    toggle.setAttribute('aria-pressed', String(state.audioEnabled));
+    text(byRole('audio-label'), state.audioEnabled ? 'Tắt âm thanh' : 'Bật âm thanh');
+  }
+
+  function renderHistory(rows = state.history) {
+    const list = byRole('history-list');
+    const empty = byRole('history-empty');
+    if (!list || !documentRef) return;
+    list.replaceChildren();
+    rows.forEach((entry) => {
+      const item = documentRef.createElement('li');
+      item.className = 'history-entry';
+      const header = documentRef.createElement('div');
+      header.className = 'history-entry-header';
+      const room = documentRef.createElement('strong');
+      text(room, 'Phòng ' + (entry.roomCode || '—'));
+      const date = documentRef.createElement('time');
+      date.dateTime = new Date(Number(entry.finishedAt) || 0).toISOString();
+      text(date, formatHistoryDate(entry.finishedAt));
+      header.append(room, date);
+      const meta = documentRef.createElement('p');
+      meta.className = 'history-meta';
+      text(meta, String(entry.playerCount || 0) + ' người chơi · ' + String(entry.questionCount || 0) + ' câu hỏi');
+      const top = documentRef.createElement('p');
+      top.className = 'history-top';
+      const leaders = Array.isArray(entry.leaderboard) ? entry.leaderboard.slice(0, 3) : [];
+      text(top, leaders.length
+        ? leaders.map((row) => String(row.rank) + '. ' + row.displayName + ' — ' + formatScore(row.totalScore)).join('  ·  ')
+        : 'Chưa có bảng điểm.');
+      item.append(header, meta, top);
+      list.append(item);
+    });
+    empty.hidden = rows.length > 0;
+  }
+
+  async function loadHistory() {
+    if (!documentRef) return;
+    const error = byRole('history-error');
+    if (error) error.hidden = true;
+    try {
+      const body = await request('/api/history');
+      state.history = Array.isArray(body.history) ? body.history : [];
+      try { storage()?.setItem(QUIZ_HISTORY_STORAGE_KEY, JSON.stringify(state.history)); } catch { /* optional cache */ }
+    } catch {
+      try { state.history = JSON.parse(storage()?.getItem(QUIZ_HISTORY_STORAGE_KEY) || '[]'); } catch { state.history = []; }
+      if (error) error.hidden = false;
+    }
+    renderHistory();
   }
 
   function reducedMotion() {
@@ -1197,6 +1258,7 @@ export function createQuizController(options = {}) {
     if (!root?.addEventListener) return;
     action('show-create')?.addEventListener('click', () => showScreen('create'));
     action('show-join')?.addEventListener('click', () => showScreen('join'));
+    action('refresh-history')?.addEventListener('click', () => { void loadHistory(); });
     query('[data-form="create"]')?.addEventListener('submit', (event) => createOrJoin(event, 'host'));
     query('[data-form="join"]')?.addEventListener('submit', (event) => createOrJoin(event, 'player'));
     queryAll('[data-action="back-entry"]').forEach((node) => node.addEventListener('click', () => showScreen('entry')));
@@ -1222,6 +1284,8 @@ export function createQuizController(options = {}) {
       state.reconnectAttempt = 0;
       showScreen('entry');
       setConnection('disconnected', 'Đang kết nối');
+      render();
+      void loadHistory();
     });
     action('retry')?.addEventListener('click', () => state.session ? connectSocket() : showScreen('entry'));
     action('toggle-audio')?.addEventListener('click', (event) => {
@@ -1232,6 +1296,7 @@ export function createQuizController(options = {}) {
       event.currentTarget.setAttribute('aria-pressed', String(state.audioEnabled));
       text(byRole('audio-label'), state.audioEnabled ? 'Tắt âm thanh' : 'Bật âm thanh');
       persistSession();
+      renderAudioControl();
     });
     byRole('confirm-dialog')?.addEventListener('click', (event) => { if (event.target === event.currentTarget) closeConfirmation(); });
     windowRef?.addEventListener?.('keydown', onKeydown);
@@ -1240,8 +1305,10 @@ export function createQuizController(options = {}) {
   async function start() {
     bind();
     state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
+    renderAudioControl();
     setConnection('disconnected', 'Đang kết nối');
     render();
+    void loadHistory();
     if (!state.session) {
       const saved = readSessionMetadata(windowRef);
       if (saved) {
@@ -1249,7 +1316,8 @@ export function createQuizController(options = {}) {
         state.session = runtime?.roomCode === saved.roomCode && runtime?.playerId === saved.playerId
           ? { ...saved, ...runtime }
           : saved;
-        state.audioEnabled = saved.audioEnabled === true;
+        state.audioEnabled = saved.audioEnabled !== false;
+        renderAudioControl();
         setRole(saved.role);
         const finishedSnapshot = readFinishedSnapshot(windowRef, saved);
         if (finishedSnapshot) {

@@ -9,6 +9,8 @@ export const REVEAL_MS = 2_500;
 export const MAX_MESSAGE_BYTES = 8 * 1024;
 export const MAX_PLAYERS = 100;
 export const ROOM_ALLOCATOR_ID = '__quiz_room_allocator__';
+export const HISTORY_STORAGE_KEY = 'quiz-history-v1';
+const HISTORY_LIMIT = 50;
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -150,6 +152,13 @@ export class QuizRoom extends DurableObject {
 
     try {
       const url = new URL(request.url);
+      if (url.pathname.endsWith('/history')) {
+        if (request.method === 'GET') return await this.readHistory();
+        if (request.method === 'POST' && request.headers.get('X-Quiz-Internal') === 'history-writer') {
+          return await this.recordHistory(request);
+        }
+        return safeJson({ ok: false, error: 'Phương thức không được hỗ trợ.', code: 'method_not_allowed' }, 405);
+      }
       if (url.pathname.endsWith('/allocate')) {
         return await this.allocateRoom(request);
       }
@@ -841,13 +850,66 @@ export class QuizRoom extends DurableObject {
 
   async persistFinalResults() {
     if (!this.room || this.room.persisted) return;
-    await this.ctx.storage.put('quiz-final-results-v1', {
+    const finalResults = {
       roomCode: this.room.roomCode,
       finishedAt: this.room.finishedAt || currentTime(),
+      createdAt: this.room.createdAt,
+      questionCount: questions.length,
+      playerCount: this.room.players.filter(({ role, status }) => role === 'player' && status !== 'left').length,
       leaderboard: this.leaderboard()
-    });
+    };
+    await this.ctx.storage.put('quiz-final-results-v1', finalResults);
+    await this.persistHistory(finalResults);
     this.room.persisted = true;
     await this.save();
+  }
+
+  async persistHistory(finalResults) {
+    const binding = this.env?.QUIZ_ROOM;
+    if (!binding || typeof binding.idFromName !== 'function' || typeof binding.get !== 'function') return;
+    try {
+      const allocator = binding.get(binding.idFromName(ROOM_ALLOCATOR_ID));
+      await allocator.fetch(new Request('https://quiz-room.internal/history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'X-Quiz-Internal': 'history-writer'
+        },
+        body: JSON.stringify({ type: 'record', ...finalResults })
+      }));
+    } catch {
+      // Room-local results remain authoritative if the history index is unavailable.
+    }
+  }
+
+  async readHistory() {
+    const history = await this.ctx.storage.get(HISTORY_STORAGE_KEY) || [];
+    return safeJson({ ok: true, history: Array.isArray(history) ? history : [] });
+  }
+
+  async recordHistory(request) {
+    const body = await this.readJson(request);
+    if (body?.type !== 'record' || typeof body.roomCode !== 'string' || !body.roomCode) {
+      return safeJson({ ok: false, error: 'Dữ liệu lịch sử không hợp lệ.', code: 'invalid_history_record' }, 400);
+    }
+    const entry = {
+      roomCode: body.roomCode,
+      createdAt: Number(body.createdAt) || currentTime(),
+      finishedAt: Number(body.finishedAt) || currentTime(),
+      questionCount: Math.max(0, Number(body.questionCount) || 0),
+      playerCount: Math.max(0, Number(body.playerCount) || 0),
+      leaderboard: Array.isArray(body.leaderboard) ? body.leaderboard.slice(0, 100).map((row, index) => ({
+        rank: Number(row.rank) || index + 1,
+        displayName: String(row.displayName || 'Người chơi').slice(0, 32),
+        totalScore: Math.max(0, Number(row.totalScore) || 0),
+        totalResponseMs: Math.max(0, Number(row.totalResponseMs) || 0)
+      })) : []
+    };
+    const history = await this.ctx.storage.get(HISTORY_STORAGE_KEY) || [];
+    const next = [entry, ...(Array.isArray(history) ? history : []).filter((item) => item?.roomCode !== entry.roomCode)]
+      .slice(0, HISTORY_LIMIT);
+    await this.ctx.storage.put(HISTORY_STORAGE_KEY, next);
+    return safeJson({ ok: true, history: next });
   }
 
   async upgradeWebSocket(request, roomCode) {

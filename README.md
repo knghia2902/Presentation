@@ -38,8 +38,9 @@ Các API chính:
 - `WebSocket /api/quiz/rooms/:roomCode/socket`
 - `POST /api/score`
 - `GET /api/leaderboard`
+- `GET /api/history`
 
-Pages chỉ proxy tới binding Durable Object `QUIZ_ROOM` của Worker `quiz-room-worker`. Cloudflare Tunnel trỏ domain `quiz.natime.vn` về Pages local trên port `8788`. Không còn editor slide, API lưu presentation hoặc runtime trình chiếu trong project này; slide được thực hiện trên Prezi bên ngoài.
+Pages chỉ proxy tới binding Durable Object `QUIZ_ROOM` của Worker `quiz-room-worker`. Cloudflare Tunnel trỏ domain `quiz.natime.vn` về Pages local trên port `8788`. Lịch sử tối đa 50 ván gần nhất được lưu trong SQLite storage của allocator Durable Object. Không còn editor slide, API lưu presentation hoặc runtime trình chiếu trong project này; slide được thực hiện trên Prezi bên ngoài.
 
 ## Kiểm thử
 
