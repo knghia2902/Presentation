@@ -404,7 +404,7 @@ export function createQuizController(options = {}) {
     phase: 'entry',
     connection: 'disconnected',
     transport: 'disconnected',
-    audioEnabled: Boolean(readSessionMetadata(windowRef)?.audioEnabled),
+    audioEnabled: readSessionMetadata(windowRef)?.audioEnabled ?? true,
     clockOffset: 0,
     answerSubmitted: false,
     answerPending: false,
@@ -1019,6 +1019,7 @@ export function createQuizController(options = {}) {
       const body = await request('/api/quiz/rooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       state.session = { ...body.player, roomCode: body.snapshot.roomCode, capabilityToken: body.capabilityToken, reconnectToken: body.reconnectToken, roomVersion: body.snapshot.roomVersion };
       state.audioEnabled = preferredAudio();
+      audioManager.setEnabled(state.audioEnabled);
       persistSession();
       persistRuntimeSession();
       state.snapshot = body.snapshot;
@@ -1305,6 +1306,7 @@ export function createQuizController(options = {}) {
   async function start() {
     bind();
     state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
+    audioManager.setEnabled(state.audioEnabled);
     renderAudioControl();
     setConnection('disconnected', 'Đang kết nối');
     render();
@@ -1317,6 +1319,7 @@ export function createQuizController(options = {}) {
           ? { ...saved, ...runtime }
           : saved;
         state.audioEnabled = saved.audioEnabled !== false;
+        audioManager.setEnabled(state.audioEnabled);
         renderAudioControl();
         setRole(saved.role);
         const finishedSnapshot = readFinishedSnapshot(windowRef, saved);
