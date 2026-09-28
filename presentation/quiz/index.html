@@ -146,10 +146,17 @@
             <aside class="side-rail" aria-label="Điều khiển và bảng xếp hạng">
               <section class="host-rail room-panel" data-role="host-rail" hidden>
                 <div class="room-code-block" data-role="room-code-block">
-                  <span class="label">Mã phòng</span><strong class="room-code" data-role="room-code" tabindex="0"></strong>
-                  <div class="room-code-actions">
-                    <button class="small-button" type="button" data-action="copy-code">Sao chép</button>
-                    <button class="small-button" type="button" data-action="share-room">Chia sẻ</button>
+                  <span class="label">Mã phòng</span>
+                  <div class="room-code-line">
+                    <strong class="room-code" data-role="room-code" tabindex="0"></strong>
+                    <div class="room-code-icon-actions">
+                      <button class="room-code-icon-button" type="button" data-action="copy-code" aria-label="Sao chép mã phòng" title="Sao chép mã phòng">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>
+                      </button>
+                      <button class="room-code-icon-button" type="button" data-action="share-room" aria-label="Chia sẻ phòng" title="Chia sẻ phòng">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5"></path></svg>
+                      </button>
+                    </div>
                   </div>
                   <span class="feedback" data-role="copy-feedback" aria-live="polite"></span>
                 </div>
