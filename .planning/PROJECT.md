@@ -12,16 +12,16 @@ Bài thuyết trình phải truyền tải rõ ràng nội dung quy luật phủ
 
 ### Validated
 
-(None yet — ship to validate)
+- Mini game quiz webapp với 20 câu trắc nghiệm 4 đáp án — Validated in Phase 3: Quiz Webapp + Backend
+- Timer đếm ngược, tính điểm, bảng xếp hạng realtime — Validated in Phase 3: Quiz Webapp + Backend
+- Responsive — chạy được trên điện thoại — Validated in Phase 3: Quiz Webapp + Backend
+- Tiếng Việt hoàn toàn — Validated in Phase 3: Quiz Webapp + Backend
 
 ### Active
 
 - [ ] Web slide 12 trang phong cách Prezi (reveal.js) với hiệu ứng zoom/pan
 - [ ] Nội dung slide đúng theo giáo trình Triết học Mác-Lênin 2021
 - [ ] Script nói (speaker notes) đồng nhất với từng slide
-- [ ] Mini game quiz webapp với 20 câu trắc nghiệm 4 đáp án
-- [ ] Timer đếm ngược, tính điểm, bảng xếp hạng realtime
-- [ ] Responsive — chạy được trên điện thoại
 - [ ] Deploy trên Cloudflare Pages + D1
 - [ ] Câu phản biện chuẩn bị cho Q&A (10-15 câu)
 - [ ] Tiếng Việt hoàn toàn
@@ -77,4 +77,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-22 after initialization*
+*Last updated: 2026-09-28 after Phase 3 completion*

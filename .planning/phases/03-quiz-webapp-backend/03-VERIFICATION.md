@@ -1,8 +1,8 @@
 ---
 phase: 03-quiz-webapp-backend
-verified: 2026-09-26
+verified: 2026-09-28
 verifier: main-agent (manual goal-backward verification after automated verifier timeout)
-status: passed-with-known-limitations
+status: passed
 ---
 
 # Phase 3 verification
@@ -13,7 +13,9 @@ Deliver a 20-question room-based quiz with authoritative timer/scoring, realtime
 
 ## Evidence
 
-- `npm test`: 12 test files, 56 tests passed.
+- `npm test -- --run`: 12 test files, 65 tests passed.
+- Phase 3 UAT: 20/20 current user-observable checks passed, including responsive layout, reconnect/finish flows, and room-only leaderboard display.
+- The quiz client renders only the current-room leaderboard and no longer automatically requests the global leaderboard endpoint; the backend endpoint remains available for compatibility.
 - `npx wrangler deploy --config presentation/workers/wrangler.toml --dry-run`: passed; Wrangler recognized `env.QUIZ_ROOM (QuizRoom)` and `env.DB (presentation-db)`.
 - All required scoring, question, schema, room, API/security, offline, client, audio, and deployment contract tests are included in the passing suite.
 - `presentation/workers/api.js` exports `QuizRoom`; its Worker config owns the SQLite Durable Object boundary.
@@ -30,7 +32,7 @@ Deliver a 20-question room-based quiz with authoritative timer/scoring, realtime
 | 1,000-point scoring and fastest-correct ordering | PASS | scoring tests and Worker scoring implementation |
 | Host/player room lifecycle | PASS | room and API/security tests |
 | Offline/reconnect without answer replay | PASS | offline/reconnect tests and capability handling |
-| Responsive quiz screens and feedback effects | PASS | client event tests and semantic quiz UI |
+| Responsive quiz screens, feedback effects, and room-only leaderboard UI | PASS | client contract/integration/event tests and Phase 3 UAT |
 | Music/SFX/fixed cues/dynamic Vietnamese voice | PASS with temporary voice limitation | audio asset and audio contract tests |
 | Pages/Worker/D1 deploy boundary | PASS for static/dry-run contract | deployment contract and Wrangler dry-run |
 
