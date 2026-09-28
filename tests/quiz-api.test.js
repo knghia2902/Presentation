@@ -85,6 +85,13 @@ describe('Pages quiz API contracts', () => {
     expect(snapshot.status).toBe(200);
     expect(new URL(calls[2].request.url).pathname).toBe('/rooms/ABC123');
 
+    const finishedSnapshot = await roomsGet(context(new Request(
+      `https://pages.test/api/quiz/rooms?roomCode=ABC123&playerId=player-1234&capabilityToken=${TOKEN}&finished=1`,
+      { headers: { 'CF-Connecting-IP': 'room-finished-snapshot' } }
+    ), bindings));
+    expect(finishedSnapshot.status).toBe(200);
+    expect(new URL(calls[3].request.url).searchParams.get('finished')).toBe('1');
+
     const malformed = await roomsPost(context(new Request('https://pages.test/api/quiz/rooms', {
       method: 'POST', body: JSON.stringify({ type: 'join', roomCode: 'ABC123', nickname: 'Minh' })
     }), bindings));
@@ -107,7 +114,7 @@ describe('Pages quiz API contracts', () => {
       { headers: { 'CF-Connecting-IP': 'room-missing-capability' } }
     ), bindings));
     expect(missingCapability.status).toBe(401);
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
 
     const missingBinding = await roomsPost(context(jsonRequest('https://pages.test/api/quiz/rooms', {
       type: 'join', roomCode: 'ABC123', nickname: 'Minh'

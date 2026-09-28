@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T08:30:00+07:00
+updated: 2026-09-28T08:35:00+07:00
 ---
 
 ## Current Test
 
-number: 16
-name: Retest reload cùng tab sau khi kết thúc
+number: 17
+name: Retest endpoint khôi phục kết quả finished
 expected: |
-  Trong cùng tab, sau khi kết thúc ván và reload trang, màn hình kết quả cuối, bảng xếp hạng và top 5 vẫn mở lại; không hiện lỗi “Phiên cũ chỉ lưu thông tin tối thiểu”.
+  Sau khi kết thúc ván và reload cùng tab, endpoint snapshot finished trả thành công; màn hình kết quả cuối, bảng xếp hạng và top 5 mở lại, không có lỗi 401.
 awaiting: user response
 
 ## Tests
@@ -60,9 +60,9 @@ result: pending
 
 ## Summary
 
-total: 16
+total: 17
 passed: 11
-issues: 2
+issues: 3
 pending: 3
 skipped: 0
 blocked: 0
@@ -167,6 +167,21 @@ blocked: 0
     - "Khôi phục màn hình finished trước khi thử kết nối"
   debug_session: ".planning/debug/finished-result-reload.md"
 
+- truth: "Pages proxy giữ tham số finished=1 khi lấy snapshot sau khi kết thúc"
+  status: fixed_pending_retest
+  reason: "User reported: GET snapshot với finished=1 trả 401 Unauthorized"
+  severity: major
+  test: 16
+  root_cause: "functions/api/quiz/rooms.js chỉ forward playerId và capabilityToken, làm rơi finished=1 nên Durable Object chạy nhánh authenticate thường và từ chối phòng đã kết thúc."
+  artifacts:
+    - path: "functions/api/quiz/rooms.js"
+      issue: "handleSnapshot() không chuyển tiếp finished=1"
+    - path: "tests/quiz-api.test.js"
+      issue: "Thiếu assertion finished=1 được giữ khi forward"
+  missing:
+    - "Forward finished=1 tới Durable Object"
+  debug_session: ".planning/debug/finished-snapshot-proxy.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -195,4 +210,10 @@ severity: major
 
 ### 16. Retest reload cùng tab sau khi kết thúc
 expected: Trong cùng tab, sau khi kết thúc ván và reload trang, màn hình kết quả cuối, bảng xếp hạng và top 5 vẫn mở lại; không hiện lỗi “Phiên cũ chỉ lưu thông tin tối thiểu”.
+result: issue
+reported: "GET .../api/quiz/rooms?...&finished=1 trả 401 Unauthorized"
+severity: major
+
+### 17. Retest endpoint khôi phục kết quả finished
+expected: Sau khi kết thúc ván và reload cùng tab, endpoint snapshot finished trả thành công; màn hình kết quả cuối, bảng xếp hạng và top 5 mở lại, không có lỗi 401.
 result: pending

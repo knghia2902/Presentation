@@ -201,6 +201,7 @@ async function handleSnapshot(context) {
   const capabilityToken = normalizeCapabilityToken(url.searchParams.get('capabilityToken'));
   enforceRateLimit(request, { action: 'snapshot', roomCode, limit: 60, windowMs: 60_000 });
   const query = new URLSearchParams({ playerId, capabilityToken });
+  if (url.searchParams.get('finished') === '1') query.set('finished', '1');
   return forwardJson(getRoomStub(env, roomCode), `/rooms/${roomCode}?${query.toString()}`, null, 'GET');
 }
 
