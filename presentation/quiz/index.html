@@ -3,11 +3,11 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#111827">
+    <meta name="theme-color" content="#f7f4ee">
     <title>Phòng chơi Triết học</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <script type="module" src="app.js"></script>
   </head>
@@ -18,7 +18,7 @@
         <div class="header-actions">
           <span class="role-badge" data-role="role-badge" hidden></span>
           <button class="icon-text-button" type="button" data-action="toggle-audio" aria-pressed="false">
-            <span aria-hidden="true">◌</span><span data-role="audio-label">Bật âm thanh</span>
+            <span class="audio-icon" aria-hidden="true"></span><span data-role="audio-label">Bật âm thanh</span>
           </button>
         </div>
       </header>
@@ -37,6 +37,18 @@
             <p class="eyebrow">Quiz theo phòng</p>
             <h1 id="entry-heading">Sẵn sàng thử sức?</h1>
             <p class="lede">Chọn vai trò để bắt đầu một ván chơi Triết học bằng tiếng Việt.</p>
+          </div>
+          <div class="entry-visual" aria-hidden="true">
+            <div class="visual-topline"><span>PHỦ ĐỊNH / 01</span><span>LIVE</span></div>
+            <div class="visual-number">20</div>
+            <div class="visual-label">câu hỏi để mở khóa mạch tư duy</div>
+            <div class="visual-rule"></div>
+            <div class="visual-bottomline"><span>30 GIÂY / CÂU</span><span>1000 ĐIỂM</span></div>
+          </div>
+          <div class="entry-stats" aria-label="Thông tin ván chơi">
+            <div><strong>20</strong><span>câu hỏi</span></div>
+            <div><strong>30s</strong><span>mỗi câu</span></div>
+            <div><strong>1K</strong><span>điểm tối đa</span></div>
           </div>
           <div class="entry-actions" aria-label="Chọn vai trò">
             <button class="primary-button" type="button" data-action="show-create">Tạo phòng</button>

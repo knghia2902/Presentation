@@ -27,6 +27,12 @@ describe('semantic quiz client contract', () => {
     expect(html).toContain('data-role="pause-banner"');
   });
 
+  it('keeps the light visual direction and entry composition hooks', () => {
+    expect(html).toContain('class="entry-visual"');
+    expect(html).toContain('class="entry-stats"');
+    expect(html).toContain('class="audio-icon"');
+  });
+
   it('keeps client authority and DOM safety visible in the controller source', () => {
     expect(app).toContain('textContent');
     expect(app).not.toContain('innerHTML');
