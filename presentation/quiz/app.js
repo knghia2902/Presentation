@@ -61,6 +61,7 @@ export function createQuizAudioManager(options = {}) {
   let activeSpeech = null;
   let pendingAssets = [];
   let musicBaseGain = QUIZ_AUDIO_GAIN.music;
+  const useWebAudio = options.useWebAudio !== false;
   const handled = new Set();
 
   function ensureGraph() {
@@ -104,7 +105,12 @@ export function createQuizAudioManager(options = {}) {
       audio.preload = 'auto';
       audio.loop = loop;
       audio.src = asset;
-      connectMedia(audio, bus);
+      if (!useWebAudio) {
+        const volume = bus === 'music' ? QUIZ_AUDIO_GAIN.music : bus === 'sfxGain' ? QUIZ_AUDIO_GAIN.sfx : QUIZ_AUDIO_GAIN.voice;
+        try { audio.volume = volume; } catch { /* media doubles may omit volume */ }
+      } else {
+        connectMedia(audio, bus);
+      }
       return audio;
     } catch { return null; }
   }
@@ -146,10 +152,12 @@ export function createQuizAudioManager(options = {}) {
 
   function restoreMusic() {
     if (graph?.musicGain?.gain) graph.musicGain.gain.value = musicBaseGain;
+    else if (music) try { music.volume = musicBaseGain; } catch { /* best effort */ }
   }
 
   function duckMusic() {
     if (graph?.musicGain?.gain) graph.musicGain.gain.value = QUIZ_AUDIO_GAIN.duckedMusic;
+    else if (music) try { music.volume = QUIZ_AUDIO_GAIN.duckedMusic; } catch { /* best effort */ }
   }
 
   function cancelSpeech() {
@@ -434,6 +442,7 @@ export function createQuizController(options = {}) {
     enabled: state.audioEnabled,
     AudioContext: options.AudioContext,
     Audio: options.Audio,
+    useWebAudio: false,
     speechSynthesis: options.speechSynthesis,
     SpeechSynthesisUtterance: options.SpeechSynthesisUtterance
   });
