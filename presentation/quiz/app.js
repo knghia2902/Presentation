@@ -519,18 +519,10 @@ export function createQuizController(options = {}) {
     return true;
   }
 
-  function renderAudioControl() {
-    const toggle = action('toggle-audio');
-    if (!toggle) return;
-    toggle.setAttribute('aria-pressed', String(state.audioEnabled));
-    text(byRole('audio-label'), 'Âm thanh đang bật');
-  }
-
   function unlockAudio() {
     state.audioEnabled = true;
     audioManager.setEnabled(true);
     audioManager.userGesture();
-    renderAudioControl();
     persistSession();
   }
 
@@ -1297,10 +1289,6 @@ export function createQuizController(options = {}) {
       void loadHistory();
     });
     action('retry')?.addEventListener('click', () => state.session ? connectSocket() : showScreen('entry'));
-    action('toggle-audio')?.addEventListener('click', (event) => {
-      unlockAudio();
-      event.currentTarget.setAttribute('aria-pressed', 'true');
-    });
     byRole('confirm-dialog')?.addEventListener('click', (event) => { if (event.target === event.currentTarget) closeConfirmation(); });
     windowRef?.addEventListener?.('keydown', onKeydown);
     windowRef?.addEventListener?.('pointerdown', unlockAudio, { once: true });
@@ -1311,7 +1299,6 @@ export function createQuizController(options = {}) {
     bind();
     state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
     audioManager.setEnabled(state.audioEnabled);
-    renderAudioControl();
     setConnection('disconnected', 'Đang kết nối');
     render();
     void loadHistory();
@@ -1324,7 +1311,6 @@ export function createQuizController(options = {}) {
           : saved;
         state.audioEnabled = true;
         audioManager.setEnabled(state.audioEnabled);
-        renderAudioControl();
         setRole(saved.role);
         const finishedSnapshot = readFinishedSnapshot(windowRef, saved);
         if (finishedSnapshot) {

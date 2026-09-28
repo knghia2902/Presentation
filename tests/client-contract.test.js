@@ -12,7 +12,8 @@ describe('semantic quiz client contract', () => {
     for (const hook of ['host-lobby', 'player-lobby', 'question-panel', 'reveal-panel', 'paused-panel', 'finished-panel', 'confirm-dialog', 'leaderboard']) {
       expect(html).toContain(hook);
     }
-    expect(html).toContain('data-action="toggle-audio"');
+    expect(html).toContain('Âm thanh luôn bật');
+    expect(html).not.toContain('data-action="toggle-audio"');
     expect((html.match(/data-answer="[ABCD]"/g) || []).length).toBe(4);
     expect(html.match(/<button[^>]+data-answer=/g)).toHaveLength(4);
     expect(html).toContain('aria-live="polite"');
