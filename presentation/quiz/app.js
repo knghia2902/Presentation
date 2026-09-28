@@ -794,9 +794,11 @@ export function createQuizController(options = {}) {
     const revealPanel = byRole('reveal-panel');
     const finishedPanel = byRole('finished-panel');
     const hostRail = byRole('host-rail');
+    const hostControls = byRole('host-controls');
     const pausedPanel = byRole('paused-panel');
     [hostLobby, playerLobby, questionPanel, revealPanel, finishedPanel, hostRail].forEach((node) => { if (node) node.hidden = true; });
     if (pausedPanel) pausedPanel.hidden = phase !== 'paused_host_disconnect';
+    if (hostControls) hostControls.hidden = phase === 'finished';
     text(byRole('room-code'), snapshot.roomCode || state.session?.roomCode || '');
     text(byRole('player-name'), state.session?.displayName || '');
     renderParticipants(snapshot.participants || []);
