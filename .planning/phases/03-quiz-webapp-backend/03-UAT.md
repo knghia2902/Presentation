@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T08:40:00+07:00
+updated: 2026-09-28T08:45:00+07:00
 ---
 
 ## Current Test
 
-number: 14
-name: Retest phiên WebSocket và bảng xếp hạng
+number: 18
+name: Retest quyền điều khiển và kết thúc ván
 expected: |
-  Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
+  Người chơi không thấy/không thể dùng điều khiển chủ phòng; chủ phòng thấy nút kết thúc, kết thúc ván thành công và người chơi thấy kết quả cuối cùng cùng bảng xếp hạng.
 awaiting: user response
 
 ## Tests
@@ -59,9 +59,9 @@ result: pending
 
 ## Summary
 
-total: 17
+total: 18
 passed: 15
-issues: 0
+issues: 1
 pending: 2
 skipped: 0
 blocked: 0
@@ -181,6 +181,21 @@ blocked: 0
     - "Forward finished=1 tới Durable Object"
   debug_session: ".planning/debug/finished-snapshot-proxy.md"
 
+- truth: "Điều khiển chủ phòng chỉ hiển thị cho chủ phòng"
+  status: fixed_pending_retest
+  reason: "User reported: Người chơi vẫn thấy bảng điều khiển chủ phòng"
+  severity: major
+  test: 14
+  root_cause: "CSS đặt display:grid cho .host-rail nhưng không bảo vệ trạng thái hidden, nên người chơi nhìn thấy nút Kết thúc dù state.role không phải host."
+  artifacts:
+    - path: "presentation/quiz/style.css"
+      issue: "Thiếu rule .host-rail[hidden]"
+    - path: "presentation/quiz/app.js"
+      issue: "Logic phân quyền đúng nhưng bị CSS ghi đè phần hiển thị"
+  missing:
+    - "Ẩn host-rail thật sự khi người dùng là player"
+  debug_session: ".planning/debug/host-rail-visible-to-player.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -199,7 +214,9 @@ result: pass
 
 ### 14. Retest phiên WebSocket và bảng xếp hạng
 expected: Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
-result: pending
+result: issue
+reported: "Người chơi vẫn thấy bảng điều khiển chủ phòng; bấm kết thúc chỉ còn ở bảng kết quả câu hỏi."
+severity: major
 
 ### 15. Retest reload sau khi kết thúc
 expected: Sau khi kết thúc ván, reload trang vẫn mở lại màn hình kết quả cuối, bảng xếp hạng và top 5; không yêu cầu credential của phiên đã kết thúc.
@@ -214,3 +231,7 @@ note: "Pages proxy đã forward finished=1; retest endpoint thành công ở Tes
 ### 17. Retest endpoint khôi phục kết quả finished
 expected: Sau khi kết thúc ván và reload cùng tab, endpoint snapshot finished trả thành công; màn hình kết quả cuối, bảng xếp hạng và top 5 mở lại, không có lỗi 401.
 result: pass
+
+### 18. Retest quyền điều khiển và kết thúc ván
+expected: Người chơi không thấy/không thể dùng điều khiển chủ phòng; chủ phòng thấy nút kết thúc, kết thúc ván thành công và người chơi thấy kết quả cuối cùng cùng bảng xếp hạng.
+result: pending

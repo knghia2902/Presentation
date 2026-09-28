@@ -144,6 +144,7 @@ h2 { margin-bottom: 16px; font-size: 24px; }
 .save-state[data-state="success"] { color: var(--success); }
 .save-state[data-state="error"] { color: #fecaca; }
 .paused-panel { margin: 24px 0 0; }
+.host-rail[hidden] { display: none !important; }
 .finished-panel { min-height: 360px; }
 .final-score { display: grid; gap: 8px; margin: 32px 0; color: var(--text-secondary); }
 .final-score strong { color: var(--gold-soft); font-size: 40px; line-height: 1.1; font-variant-numeric: tabular-nums; }
