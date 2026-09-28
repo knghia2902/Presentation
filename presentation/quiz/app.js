@@ -101,9 +101,11 @@ export function createQuizAudioManager(options = {}) {
 
   function makeAudio(asset, bus, loop = false) {
     try {
-      const audio = typeof AudioCtor === 'function'
-        ? new AudioCtor(asset)
-        : documentRef?.createElement?.('audio');
+      let audio = null;
+      if (typeof AudioCtor === 'function') {
+        try { audio = new AudioCtor(asset); } catch { /* fall through to DOM audio */ }
+      }
+      if (!audio) audio = documentRef?.createElement?.('audio');
       if (!audio) {
         try { windowRef.console?.warn?.('[quiz-audio] Không tạo được audio element', { hasAudioCtor: typeof AudioCtor === 'function', hasDocumentAudio: Boolean(documentRef?.createElement) }); } catch { /* diagnostics are optional */ }
         return null;
