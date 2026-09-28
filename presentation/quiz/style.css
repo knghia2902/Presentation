@@ -203,24 +203,24 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .final-score strong { color: var(--accent-dark); font: 600 48px/1.1 "IBM Plex Mono", monospace; }
 .final-score span:last-child { color: var(--ink); font-weight: 700; }
 .side-rail { display: grid; align-content: start; gap: 20px; min-width: 0; }
-.host-rail { display: grid; gap: 12px; padding: 18px; color: var(--surface); border-color: var(--ink); background: var(--ink); box-shadow: 0 12px 30px rgba(32, 42, 53, .12); }
-.host-rail .room-code-block { padding: 0 0 14px; border: 0; border-bottom: 1px solid rgba(255, 253, 249, .18); border-radius: 0; background: transparent; box-shadow: none; }
-.host-rail .room-code-block .label { color: #e5c49d; }
-.host-rail .room-code { color: var(--surface); font-size: 32px; }
+.host-rail { display: grid; gap: 12px; padding: 18px; color: var(--ink); border-color: #d8b990; background: var(--surface-warm); box-shadow: var(--shadow-soft); }
+.host-rail .room-code-block { padding: 0 0 14px; border: 0; border-bottom: 1px solid #dfc9aa; border-radius: 0; background: transparent; box-shadow: none; }
+.host-rail .room-code-block .label { color: var(--accent-dark); }
+.host-rail .room-code { color: var(--accent-dark); font-size: 32px; }
 .host-rail .room-code-actions { margin-top: 10px; }
-.host-rail .room-code-actions .small-button { color: var(--surface); border-color: #62717a; background: rgba(255, 253, 249, .08); }
-.host-rail .room-code-actions .small-button:hover, .host-rail .room-code-actions .small-button:focus-visible { border-color: #e5c49d; background: rgba(255, 253, 249, .14); }
+.host-rail .room-code-actions .small-button { color: var(--ink-soft); border-color: var(--line-strong); background: var(--surface); }
+.host-rail .room-code-actions .small-button:hover, .host-rail .room-code-actions .small-button:focus-visible { border-color: var(--accent); background: var(--surface-warm); }
 .host-control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.host-control-heading .eyebrow { margin-bottom: 4px; color: #e5c49d; font-size: 10px; }
-.host-control-heading h2 { margin-bottom: 0; color: var(--surface); font-size: 21px; letter-spacing: -.035em; }
-.control-status { padding: 4px 7px; color: #d6e9dc; border: 1px solid rgba(214, 233, 220, .25); border-radius: 999px; font: 600 10px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; }
-.host-rail > p { margin: 0; color: #c6cdd0; font-size: 12px; }
+.host-control-heading .eyebrow { margin-bottom: 4px; color: var(--accent-dark); font-size: 10px; }
+.host-control-heading h2 { margin-bottom: 0; color: var(--ink); font-size: 21px; letter-spacing: -.035em; }
+.control-status { padding: 4px 7px; color: var(--accent-dark); border: 1px solid #d8b990; border-radius: 999px; font: 600 10px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; }
+.host-rail > p { margin: 0; color: var(--muted); font-size: 12px; }
 .host-control-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .host-control-actions .secondary-button, .host-control-actions .danger-button { min-height: 42px; padding: 8px 10px; font-size: 12px; }
-.host-control-actions .secondary-button { color: var(--surface); border-color: #62717a; background: rgba(255, 253, 249, .08); }
-.host-control-actions .secondary-button:hover, .host-control-actions .secondary-button:focus-visible { border-color: #e5c49d; background: rgba(255, 253, 249, .14); }
-.host-control-actions .danger-button { color: #f2c3bc; border-color: #9e5d58; background: rgba(173, 79, 73, .18); }
-.host-control-actions .danger-button:hover, .host-control-actions .danger-button:focus-visible { color: var(--surface); background: rgba(173, 79, 73, .34); }
+.host-control-actions .secondary-button { color: var(--ink); border-color: var(--line-strong); background: var(--surface); }
+.host-control-actions .secondary-button:hover, .host-control-actions .secondary-button:focus-visible { border-color: var(--accent); background: var(--surface-warm); }
+.host-control-actions .danger-button { color: var(--danger); border-color: #dca7a1; background: var(--danger-soft); }
+.host-control-actions .danger-button:hover, .host-control-actions .danger-button:focus-visible { color: var(--danger); background: #f4d8d3; }
 .leaderboard-panel { min-height: 0; max-height: min(520px, calc(100dvh - 220px)); display: flex; flex-direction: column; overflow: hidden; }
 .leaderboard-panel h2 { margin: 0; font-size: 22px; }
 .leaderboard-row:nth-child(-n+3) .rank { color: var(--accent-dark); font-weight: 700; }
