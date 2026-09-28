@@ -3,6 +3,7 @@ import {
   QUIZ_SESSION_FIELDS,
   QUIZ_SESSION_STORAGE_KEY,
   QUIZ_RESULT_STORAGE_PREFIX,
+  QUIZ_RUNTIME_SESSION_STORAGE_KEY,
   createQuizController,
   readSessionMetadata,
   sessionMetadata
@@ -15,9 +16,10 @@ class MemoryStorage {
   removeItem(key) { this.values.delete(key); }
 }
 
-function windowRef(storage = new MemoryStorage()) {
+function windowRef(storage = new MemoryStorage(), sessionStorage = new MemoryStorage()) {
   return {
     localStorage: storage,
+    sessionStorage,
     location: { protocol: 'https:', host: 'quiz.test' },
     matchMedia: () => ({ matches: false }),
     setTimeout: vi.fn(() => 1),
@@ -171,6 +173,27 @@ describe('metadata-only quiz offline persistence', () => {
 
     expect(controller.state.snapshot.phase).toBe('finished');
     expect(controller.state.connection).toBe('offline');
+    expect(webSocketFactory).not.toHaveBeenCalled();
+  });
+
+  it('restores a finished server snapshot from same-tab runtime credentials without opening a socket', async () => {
+    const storage = new MemoryStorage();
+    const runtimeStorage = new MemoryStorage();
+    const saved = { roomCode: 'ABC123', role: 'player', playerId: 'player-1', audioEnabled: false };
+    storage.setItem(QUIZ_SESSION_STORAGE_KEY, JSON.stringify(saved));
+    runtimeStorage.setItem(QUIZ_RUNTIME_SESSION_STORAGE_KEY, JSON.stringify({
+      roomCode: 'ABC123', playerId: 'player-1', role: 'player', capabilityToken: 'runtime-capability'
+    }));
+    const fetchImpl = vi.fn(async (url) => {
+      expect(String(url)).toContain('finished=1');
+      return { ok: true, status: 200, async json() { return { ok: true, snapshot: snapshot({ phase: 'finished' }) }; } };
+    });
+    const webSocketFactory = vi.fn();
+    const controller = createQuizController({ windowRef: windowRef(storage, runtimeStorage), fetchImpl, webSocketFactory });
+
+    await controller.start();
+
+    expect(controller.state.snapshot.phase).toBe('finished');
     expect(webSocketFactory).not.toHaveBeenCalled();
   });
 

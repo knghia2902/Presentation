@@ -7,6 +7,7 @@ const SAVE_COPY = {
 };
 export const QUIZ_SESSION_STORAGE_KEY = 'quiz_room_session';
 export const QUIZ_RESULT_STORAGE_PREFIX = 'quiz_room_result:';
+export const QUIZ_RUNTIME_SESSION_STORAGE_KEY = 'quiz_room_runtime_session';
 export const QUIZ_SESSION_FIELDS = Object.freeze([
   'roomCode',
   'role',
@@ -338,6 +339,17 @@ function finishedResultStorageKey(session) {
   return `${QUIZ_RESULT_STORAGE_PREFIX}${session.roomCode}:${session.playerId}`;
 }
 
+function readRuntimeSession(source = globalThis) {
+  const store = source?.sessionStorage;
+  if (!store) return null;
+  try {
+    const parsed = JSON.parse(store.getItem(QUIZ_RUNTIME_SESSION_STORAGE_KEY) || 'null');
+    return parsed?.roomCode && parsed?.playerId && parsed?.capabilityToken ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function readFinishedSnapshot(source, session) {
   const store = source?.getItem ? source : source?.localStorage;
   const key = finishedResultStorageKey(session);
@@ -432,6 +444,10 @@ export function createQuizController(options = {}) {
     try { return windowRef?.localStorage || null; } catch { return null; }
   }
 
+  function runtimeStorage() {
+    try { return windowRef?.sessionStorage || null; } catch { return null; }
+  }
+
   function persistSession(session = state.session) {
     const store = storage();
     if (!store || !session) return false;
@@ -441,14 +457,31 @@ export function createQuizController(options = {}) {
     } catch { /* metadata is optional */ return false; }
   }
 
+  function persistRuntimeSession(session = state.session) {
+    const store = runtimeStorage();
+    if (!store || !session?.roomCode || !session?.playerId || !session?.capabilityToken) return false;
+    try {
+      store.setItem(QUIZ_RUNTIME_SESSION_STORAGE_KEY, JSON.stringify({
+        roomCode: session.roomCode,
+        playerId: session.playerId,
+        role: session.role,
+        capabilityToken: session.capabilityToken,
+        reconnectToken: session.reconnectToken || null
+      }));
+      return true;
+    } catch { return false; }
+  }
+
   function clearReconnectCapability() {
     if (!state.session) return;
     state.session = { ...state.session, reconnectToken: null };
     persistSession(state.session);
+    persistRuntimeSession(state.session);
   }
 
   function clearPersistedSession() {
     try { storage()?.removeItem(QUIZ_SESSION_STORAGE_KEY); } catch { /* localStorage is optional */ }
+    try { runtimeStorage()?.removeItem(QUIZ_RUNTIME_SESSION_STORAGE_KEY); } catch { /* runtime metadata is optional */ }
   }
 
   function persistFinishedSnapshot(snapshot = state.snapshot) {
@@ -474,6 +507,7 @@ export function createQuizController(options = {}) {
     if (snapshot && Number.isFinite(Number(snapshot.roomVersion))) nextSession.roomVersion = Number(snapshot.roomVersion);
     // Persist the replacement in one storage write before any later reconnect can read it.
     persistSession(nextSession);
+    persistRuntimeSession(nextSession);
     state.session = nextSession;
     return true;
   }
@@ -903,6 +937,7 @@ export function createQuizController(options = {}) {
       state.session = { ...body.player, roomCode: body.snapshot.roomCode, capabilityToken: body.capabilityToken, reconnectToken: body.reconnectToken, roomVersion: body.snapshot.roomVersion };
       state.audioEnabled = preferredAudio();
       persistSession();
+      persistRuntimeSession();
       state.snapshot = body.snapshot;
       setRole(role);
       setConnection('connected');
@@ -1022,6 +1057,21 @@ export function createQuizController(options = {}) {
     if (!scoreSaved) state.saveState = 'fallback';
     state.finalizing = false;
     render();
+  }
+
+  async function restoreSessionSnapshot() {
+    const params = new URLSearchParams({
+      roomCode: state.session.roomCode,
+      playerId: state.session.playerId,
+      capabilityToken: state.session.capabilityToken,
+      finished: '1'
+    });
+    const body = await request(`/api/quiz/rooms?${params}`);
+    state.snapshot = body.snapshot;
+    if (state.snapshot.phase === 'finished') persistFinishedSnapshot(state.snapshot);
+    setConnection('connected');
+    render();
+    if (state.snapshot.phase !== 'finished') connectSocket();
   }
 
   function applyMessage(payload) {
@@ -1188,7 +1238,10 @@ export function createQuizController(options = {}) {
     if (!state.session) {
       const saved = readSessionMetadata(windowRef);
       if (saved) {
-        state.session = saved;
+        const runtime = readRuntimeSession(windowRef);
+        state.session = runtime?.roomCode === saved.roomCode && runtime?.playerId === saved.playerId
+          ? { ...saved, ...runtime }
+          : saved;
         state.audioEnabled = saved.audioEnabled === true;
         setRole(saved.role);
         const finishedSnapshot = readFinishedSnapshot(windowRef, saved);
@@ -1197,6 +1250,17 @@ export function createQuizController(options = {}) {
           setConnection('offline', 'Đã khôi phục kết quả đã lưu');
           render();
           return;
+        }
+        if (hasCapabilityToken(state.session)) {
+          try {
+            await restoreSessionSnapshot();
+            return;
+          } catch (error) {
+            if (error?.code === 'room_finished' || error?.status === 401) {
+              rejectReconnect('Phiên phòng đã kết thúc và không thể khôi phục credential.');
+              return;
+            }
+          }
         }
         setConnection('offline', 'Đã tìm thấy phiên cũ. Vui lòng vào lại phòng để cấp quyền kết nối.');
         text(byRole('error-message'), 'Phiên cũ chỉ lưu thông tin tối thiểu; hãy vào lại phòng để tiếp tục an toàn.');
@@ -1207,12 +1271,7 @@ export function createQuizController(options = {}) {
     }
     setRole(state.session.role);
     try {
-      const params = new URLSearchParams({ roomCode: state.session.roomCode, playerId: state.session.playerId, capabilityToken: state.session.capabilityToken });
-      const body = await request(`/api/quiz/rooms?${params}`);
-      state.snapshot = body.snapshot;
-      setConnection('connected');
-      render();
-      connectSocket();
+      await restoreSessionSnapshot();
     } catch (error) {
       if (error?.status === 401 || error?.code === 'invalid_capability' || !hasCapabilityToken(state.session)) {
         rejectReconnect('Phiên phòng đã hết hạn hoặc không hợp lệ. Vui lòng vào lại phòng.');

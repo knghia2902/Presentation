@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T08:25:00+07:00
+updated: 2026-09-28T08:30:00+07:00
 ---
 
 ## Current Test
 
-number: 15
-name: Retest reload sau khi kết thúc
+number: 16
+name: Retest reload cùng tab sau khi kết thúc
 expected: |
-  Sau khi kết thúc ván, reload trang vẫn mở lại màn hình kết quả cuối, bảng xếp hạng và top 5; không yêu cầu credential của phiên đã kết thúc.
+  Trong cùng tab, sau khi kết thúc ván và reload trang, màn hình kết quả cuối, bảng xếp hạng và top 5 vẫn mở lại; không hiện lỗi “Phiên cũ chỉ lưu thông tin tối thiểu”.
 awaiting: user response
 
 ## Tests
@@ -60,9 +60,9 @@ result: pending
 
 ## Summary
 
-total: 15
+total: 16
 passed: 11
-issues: 1
+issues: 2
 pending: 3
 skipped: 0
 blocked: 0
@@ -189,4 +189,10 @@ result: pending
 
 ### 15. Retest reload sau khi kết thúc
 expected: Sau khi kết thúc ván, reload trang vẫn mở lại màn hình kết quả cuối, bảng xếp hạng và top 5; không yêu cầu credential của phiên đã kết thúc.
+result: issue
+reported: "Cứ báo Phiên cũ chỉ lưu thông tin tối thiểu; hãy vào lại phòng để tiếp tục an toàn."
+severity: major
+
+### 16. Retest reload cùng tab sau khi kết thúc
+expected: Trong cùng tab, sau khi kết thúc ván và reload trang, màn hình kết quả cuối, bảng xếp hạng và top 5 vẫn mở lại; không hiện lỗi “Phiên cũ chỉ lưu thông tin tối thiểu”.
 result: pending
