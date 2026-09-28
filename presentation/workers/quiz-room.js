@@ -8,7 +8,6 @@ export const RECONNECT_TTL_MS = 15 * 60 * 1000;
 export const REVEAL_MS = 2_500;
 export const MAX_MESSAGE_BYTES = 8 * 1024;
 export const MAX_PLAYERS = 100;
-const DB_BATCH_SIZE = 50;
 export const ROOM_ALLOCATOR_ID = '__quiz_room_allocator__';
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -842,69 +841,11 @@ export class QuizRoom extends DurableObject {
 
   async persistFinalResults() {
     if (!this.room || this.room.persisted) return;
-    if (!this.env.DB) {
-      throw new RoomError('D1 binding chưa được cấu hình cho kết quả cuối.', 503, 'missing_db_binding');
-    }
-    const statements = [
-      this.env.DB.prepare(
-        'INSERT OR REPLACE INTO quiz_rooms (room_code, host_player_id, status, created_at, updated_at, finished_at) VALUES (?, ?, ?, ?, ?, ?)'
-      ).bind(
-        this.room.roomCode,
-        this.room.players.find((player) => player.role === 'host')?.playerId || null,
-        this.room.roomStatus === 'expired' ? 'expired' : 'finished',
-        new Date(this.room.createdAt).toISOString(),
-        new Date(currentTime()).toISOString(),
-        this.room.finishedAt ? new Date(this.room.finishedAt).toISOString() : null
-      )
-    ];
-    for (const player of this.room.players) {
-      statements.push(this.env.DB.prepare(
-        'INSERT OR REPLACE INTO quiz_players (player_id, room_code, display_name, role, player_sequence, connected_at, disconnected_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).bind(
-        player.playerId,
-        this.room.roomCode,
-        player.displayName,
-        player.role,
-        player.playerSequence,
-        player.connectedAt ? new Date(player.connectedAt).toISOString() : null,
-        player.disconnectedAt ? new Date(player.disconnectedAt).toISOString() : null
-      ));
-    }
-    for (const answer of Object.values(this.room.answers)) {
-      statements.push(this.env.DB.prepare(
-        'INSERT OR REPLACE INTO quiz_answers (answer_id, room_code, player_id, question_id, answer_option, is_correct, score, response_time_ms, accepted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(
-        answer.answerId,
-        this.room.roomCode,
-        answer.playerId,
-        answer.questionId,
-        answer.option,
-        answer.isCorrect ? 1 : 0,
-        answer.score,
-        answer.responseTimeMs,
-        new Date(answer.receivedAt).toISOString()
-      ));
-    }
-    for (const player of this.room.players.filter(({ role }) => role === 'player')) {
-      statements.push(this.env.DB.prepare(
-        'INSERT OR REPLACE INTO quiz_results (result_id, room_code, player_id, display_name, player_sequence, total_score, total_response_ms, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(
-        `${this.room.roomCode}:${player.playerId}`,
-        this.room.roomCode,
-        player.playerId,
-        player.displayName,
-        player.playerSequence,
-        player.totalScore,
-        player.totalResponseMs,
-        new Date(this.room.finishedAt || currentTime()).toISOString()
-      ));
-    }
-    // Keep finalization below D1's per-request limits when a full room has
-    // answered several questions. Each statement is idempotent, so a retry
-    // can safely resume after an interrupted chunk.
-    for (let offset = 0; offset < statements.length; offset += DB_BATCH_SIZE) {
-      await this.env.DB.batch(statements.slice(offset, offset + DB_BATCH_SIZE));
-    }
+    await this.ctx.storage.put('quiz-final-results-v1', {
+      roomCode: this.room.roomCode,
+      finishedAt: this.room.finishedAt || currentTime(),
+      leaderboard: this.leaderboard()
+    });
     this.room.persisted = true;
     await this.save();
   }

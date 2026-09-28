@@ -9,6 +9,8 @@ import {
   normalizeRoomCode
 } from '../../rooms.js';
 
+const CLASSROOM_SOCKET_RATE_LIMIT = 100;
+
 function roomCodeFromContext(context) {
   const value = context.params?.roomCode || new URL(context.request.url).pathname.split('/').at(-2);
   return normalizeRoomCode(value);
@@ -27,7 +29,7 @@ export async function onRequestGet(context) {
     const reconnectToken = url.searchParams.get('reconnectToken');
     if (reconnectToken !== null) normalizeCapabilityToken(reconnectToken, 'reconnectToken');
     normalizeRole(url.searchParams.get('role') || undefined);
-    enforceRateLimit(request, { action: 'websocket', roomCode, limit: 30, windowMs: 60_000 });
+    enforceRateLimit(request, { action: 'websocket', roomCode, limit: CLASSROOM_SOCKET_RATE_LIMIT, windowMs: 60_000 });
 
     const target = new URL(`https://quiz-room.internal/rooms/${roomCode}`);
     target.searchParams.set('playerId', playerId);

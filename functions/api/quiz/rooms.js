@@ -6,6 +6,7 @@ const TOKEN_PATTERN = /^[A-Fa-f0-9]{64}$/u;
 const ROLE_PATTERN = /^(host|player)$/u;
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f]/u;
 const ROOM_ALLOCATOR_ID = '__quiz_room_allocator__';
+const CLASSROOM_JOIN_RATE_LIMIT = 100;
 
 const rateBuckets = new Map();
 
@@ -182,7 +183,7 @@ async function handleCreateOrJoin(context) {
   enforceRateLimit(request, {
     action,
     roomCode: roomCode || 'new',
-    limit: action === 'create' ? 5 : 20,
+    limit: action === 'create' ? 5 : CLASSROOM_JOIN_RATE_LIMIT,
     windowMs: 60_000
   });
   const stub = action === 'create' ? getRoomAllocatorStub(env) : getRoomStub(env, roomCode);

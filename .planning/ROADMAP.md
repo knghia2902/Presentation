@@ -20,7 +20,7 @@
 - `presentation/quiz/questions.json` — Question bank
 - `presentation/workers/api.js` — Cloudflare Worker entrypoint
 - `presentation/workers/quiz-room.js` — Durable Object room lifecycle
-- `migrations/0001_quiz.sql` — Quiz D1 schema
+- SQLite storage của Durable Object — trạng thái phòng và kết quả local
 
 ### Phase 2: Public access
 

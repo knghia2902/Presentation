@@ -32,7 +32,7 @@ Giúp lớp ôn và kiểm tra kiến thức nhanh qua phòng chơi realtime, ch
 ## Technical Context
 
 - **Frontend:** HTML/CSS/JavaScript tại `presentation/quiz/`.
-- **Backend:** Cloudflare Pages Functions, Durable Object và D1.
+- **Backend:** Cloudflare Pages Functions và SQLite-backed Durable Object.
 - **Local:** Pages server `127.0.0.1:8788` và Worker local `127.0.0.1:8787`.
 - **Public:** `https://quiz.natime.vn/` qua tunnel `quiz-natime`.
 - **Nội dung:** Giáo trình Triết học Mác–Lênin 2021, phần §748–761.

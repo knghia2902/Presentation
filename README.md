@@ -18,7 +18,7 @@ Webapp quiz realtime bằng tiếng Việt cho bài **Quy luật phủ định c
 npm install
 npm test
 
-# Terminal 1: Durable Object + D1 local
+# Terminal 1: Durable Object với SQLite local
 npx wrangler dev --config presentation/workers/wrangler.toml --local --port 8787
 
 # Terminal 2: Pages Functions + quiz Worker local
@@ -29,7 +29,7 @@ Mở `http://127.0.0.1:8788/presentation/quiz/` hoặc dùng hostname public `ht
 
 ## Dữ liệu và API
 
-Schema chuẩn nằm tại [`migrations/0001_quiz.sql`](migrations/0001_quiz.sql), còn bootstrap schema của Worker nằm tại [`presentation/workers/schema.sql`](presentation/workers/schema.sql).
+Trạng thái phòng, câu trả lời và kết quả cuối được Durable Object lưu trong SQLite storage local (`storage = "sqlite"`). Không cần D1 hoặc deploy lên Cloudflare Pages.
 
 Các API chính:
 
@@ -39,7 +39,7 @@ Các API chính:
 - `POST /api/score`
 - `GET /api/leaderboard`
 
-Pages giữ binding D1 `DB` và binding Durable Object `QUIZ_ROOM` tới Worker `quiz-room-worker`. Không còn editor slide, API lưu presentation hoặc runtime trình chiếu trong project này; slide được thực hiện trên Prezi bên ngoài.
+Pages chỉ proxy tới binding Durable Object `QUIZ_ROOM` của Worker `quiz-room-worker`. Cloudflare Tunnel trỏ domain `quiz.natime.vn` về Pages local trên port `8788`. Không còn editor slide, API lưu presentation hoặc runtime trình chiếu trong project này; slide được thực hiện trên Prezi bên ngoài.
 
 ## Kiểm thử
 

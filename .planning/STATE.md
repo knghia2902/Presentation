@@ -44,5 +44,5 @@ See: `.planning/PROJECT.md` and `.planning/ROADMAP.md`.
 ## Decisions
 
 - Slide và trình chiếu dùng Prezi bên ngoài, không duy trì editor trong repository.
-- Quiz dùng Pages Functions + Durable Object + D1.
+- Quiz dùng Pages Functions + SQLite-backed Durable Object; không cần D1.
 - Root hostname quiz phục vụ trực tiếp nội dung quiz, không redirect người dùng sang URL phụ.

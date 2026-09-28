@@ -22,7 +22,7 @@
 
 - [x] **BACK-01**: Pages Functions cho create/join/snapshot/score/leaderboard
 - [x] **BACK-02**: Durable Object giữ trạng thái phòng và WebSocket realtime
-- [x] **BACK-03**: D1 lưu phòng, người chơi, câu trả lời và kết quả
+- [x] **BACK-03**: SQLite-backed Durable Object lưu phòng, người chơi, câu trả lời và kết quả
 - [x] **BACK-04**: Server-authoritative scoring và token xác thực phiên
 
 ### Public access (PUBLIC)

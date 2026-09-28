@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:workers';
 import { reset } from 'cloudflare:test';
-import { applyTestMigrations } from './helpers/d1-runtime.js';
 import { onRequestGet as roomsGet, onRequestPost as roomsPost } from '../functions/api/quiz/rooms.js';
 import { onRequestGet as socketGet } from '../functions/api/quiz/rooms/[roomCode]/socket.js';
 import { onRequestPost as scorePost } from '../functions/api/score.js';
@@ -29,7 +28,7 @@ async function json(response) {
   return response.json();
 }
 
-function fakeBindings({ roomResponse, database, onRoomRequest } = {}) {
+function fakeBindings({ roomResponse, onRoomRequest } = {}) {
   const calls = [];
   const bindings = {
     QUIZ_ROOM: {
@@ -50,15 +49,10 @@ function fakeBindings({ roomResponse, database, onRoomRequest } = {}) {
       }
     }
   };
-  if (database) bindings.DB = database;
   return { bindings, calls };
 }
 
 describe('Pages quiz API contracts', () => {
-  beforeEach(async () => {
-    await applyTestMigrations();
-  });
-
   afterEach(async () => {
     await reset();
   });
@@ -224,12 +218,6 @@ describe('Pages quiz API contracts', () => {
     expect(playerAfterFinish.status).toBe(200);
     expect((await playerAfterFinish.json()).idempotent).toBe(true);
 
-    const results = await env.DB.prepare(
-      'SELECT player_id, total_score, total_response_ms FROM quiz_results WHERE room_code = ? ORDER BY player_sequence ASC'
-    ).bind(roomCode).all();
-    expect(results.results).toHaveLength(1);
-    expect(results.results[0]).toMatchObject({ player_id: player.player.playerId, total_score: 0, total_response_ms: 0 });
-
     const leaderboard = await leaderboardGet(context(new Request(
       `https://pages.test/api/leaderboard?roomCode=${roomCode}&playerId=${host.player.playerId}&capabilityToken=${host.capabilityToken}`,
       { headers: { 'CF-Connecting-IP': 'real-leaderboard' } }
@@ -241,30 +229,10 @@ describe('Pages quiz API contracts', () => {
     expect(leaderboardBody.leaderboard[0].totalScore).toBe(0);
   });
 
-  it('uses a prepared bounded query and returns current-room results first', async () => {
-    const queryLog = [];
-    const database = {
-      prepare(sql) {
-        queryLog.push(sql);
-        return {
-          bind(...values) {
-            expect(values).toEqual([20]);
-            return {
-              async all() {
-                return { results: Array.from({ length: 21 }, (_, index) => ({
-                  roomCode: 'GLOBAL1', playerId: `p-${index}`, displayName: `P${index}`,
-                  playerSequence: index + 1, totalScore: 1000 - index, totalResponseMs: index
-                })) };
-              }
-            };
-          }
-        };
-      }
-    };
+  it('returns only the current-room leaderboard', async () => {
     const { bindings } = fakeBindings({
-      database,
       roomResponse: new Response(JSON.stringify({ ok: true, snapshot: {
-        phase: 'reveal', leaderboard: [{ displayName: 'Phòng', playerSequence: 2, totalScore: 999, totalResponseMs: 10, rank: 1 }]
+        roomCode: 'ABC123', phase: 'reveal', leaderboard: [{ displayName: 'Phòng', playerSequence: 2, totalScore: 999, totalResponseMs: 10, rank: 1 }]
       } }), { headers: { 'Content-Type': 'application/json' } })
     });
     const response = await leaderboardGet(context(new Request(
@@ -274,13 +242,10 @@ describe('Pages quiz API contracts', () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.leaderboard[0].displayName).toBe('Phòng');
-    expect(body.globalLeaderboard).toHaveLength(20);
-    expect(body.globalLeaderboard[0].totalScore).toBe(1000);
-    expect(queryLog[0]).toContain('ORDER BY total_score DESC, total_response_ms ASC, player_sequence ASC LIMIT ?');
 
-    const missingDb = await leaderboardGet(context(new Request('https://pages.test/api/leaderboard'), {}));
-    expect(missingDb.status).toBe(503);
-    expect((await missingDb.json()).code).toBe('missing_db_binding');
+    const missingRoom = await leaderboardGet(context(new Request('https://pages.test/api/leaderboard'), {}));
+    expect(missingRoom.status).toBe(400);
+    expect((await missingRoom.json()).code).toBe('room_context_required');
   });
 
   it('rate-limits repeated finalization attempts without using nickname identity', async () => {

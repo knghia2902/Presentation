@@ -51,14 +51,14 @@ async function readCurrentRoom(request, env, roomCode, playerId, capabilityToken
 export async function onRequestGet(context) {
   try {
     const { request, env } = context;
-    if (!env?.DB || typeof env.DB.prepare !== 'function') {
-      throw new ApiError('D1 chưa được cấu hình cho bảng xếp hạng.', 503, 'missing_db_binding');
-    }
     const url = new URL(request.url);
     const roomParam = url.searchParams.get('roomCode');
     const playerParam = url.searchParams.get('playerId');
     const capabilityParam = url.searchParams.get('capabilityToken');
     const hasRoomContext = Boolean(roomParam || playerParam || capabilityParam);
+    if (!hasRoomContext) {
+      throw new ApiError('Cần mã phòng và thông tin phiên để xem bảng xếp hạng phòng.', 400, 'room_context_required');
+    }
     let roomCode = null;
     let playerId = null;
     let capabilityToken = null;
@@ -76,29 +76,17 @@ export async function onRequestGet(context) {
       currentRoom = current.snapshot;
     }
 
-    let result;
-    try {
-      result = await env.DB.prepare(
-        'SELECT room_code AS roomCode, player_id AS playerId, display_name AS displayName, player_sequence AS playerSequence, total_score AS totalScore, total_response_ms AS totalResponseMs FROM quiz_results ORDER BY total_score DESC, total_response_ms ASC, player_sequence ASC LIMIT ?'
-      ).bind(LEADERBOARD_LIMIT).all();
-    } catch {
-      throw new ApiError('Không thể tải bảng xếp hạng lúc này.', 503, 'leaderboard_unavailable');
-    }
-    const globalLeaderboard = Array.isArray(result?.results)
-      ? result.results.slice(0, LEADERBOARD_LIMIT).map(toLeaderboardRow)
-      : [];
     const currentRoomLeaderboard = Array.isArray(currentRoom?.leaderboard)
-      ? currentRoom.leaderboard.map(toLeaderboardRow)
-      : null;
+      ? currentRoom.leaderboard.slice(0, LEADERBOARD_LIMIT).map(toLeaderboardRow)
+      : [];
     return jsonResponse({
       ok: true,
-      leaderboard: currentRoomLeaderboard || globalLeaderboard,
-      currentRoom: currentRoom ? {
+      leaderboard: currentRoomLeaderboard,
+      currentRoom: {
         roomCode,
         phase: currentRoom.phase,
-        leaderboard: currentRoomLeaderboard || []
-      } : null,
-      globalLeaderboard,
+        leaderboard: currentRoomLeaderboard
+      },
       limit: LEADERBOARD_LIMIT
     });
   } catch (error) {

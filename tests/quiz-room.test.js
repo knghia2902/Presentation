@@ -6,7 +6,6 @@ import {
   runDurableObjectAlarm,
   runInDurableObject
 } from 'cloudflare:test';
-import { applyTestMigrations } from './helpers/d1-runtime.js';
 import {
   CAPABILITY_TTL_MS,
   RECONNECT_TTL_MS,
@@ -69,7 +68,7 @@ async function simulateDisconnect(credentials) {
 
 describe('authoritative QuizRoom Durable Object protocol', () => {
   beforeEach(async () => {
-    await applyTestMigrations();
+    await reset();
   });
 
   afterEach(async () => {
@@ -138,19 +137,10 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
     expect(revoked.status).toBe(401);
     expect(revoked.body.code).toBe('room_finished');
 
-    const persistedRoom = await env.DB.prepare(
-      'SELECT room_code, status FROM quiz_rooms WHERE room_code = ?'
-    ).bind(ROOM_CODE).first();
-    const persistedAnswers = await env.DB.prepare(
-      'SELECT player_id, score, response_time_ms FROM quiz_answers WHERE room_code = ?'
-    ).bind(ROOM_CODE).all();
-    const persistedResults = await env.DB.prepare(
-      'SELECT display_name, total_score FROM quiz_results WHERE room_code = ? ORDER BY total_score DESC, player_sequence ASC'
-    ).bind(ROOM_CODE).all();
-    expect(persistedRoom).toMatchObject({ room_code: ROOM_CODE, status: 'finished' });
-    expect(persistedAnswers.results).toHaveLength(2);
-    expect(persistedAnswers.results.find(({ score }) => score === 833)).toMatchObject({ score: 833, response_time_ms: 5_000 });
-    expect(persistedResults.results.map(({ display_name }) => display_name)).toEqual(['Minh', 'Minh #2']);
+    const persisted = await runInDurableObject(roomStub(), async (instance) => (
+      instance.ctx.storage.get('quiz-final-results-v1')
+    ));
+    expect(persisted.leaderboard.map(({ displayName }) => displayName)).toEqual(['Minh', 'Minh #2']);
   });
 
   it('accepts answers only before the single server deadline and rejects forged, late, and duplicate submissions', async () => {
@@ -263,7 +253,6 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
 
     vi.useRealTimers();
     await reset();
-    await applyTestMigrations();
     vi.useFakeTimers({ now: BASE_TIME, toFake: ['Date'] });
     const host2 = await createRoom('Host 2');
     const player2 = await joinRoom('Player 2');
@@ -280,7 +269,6 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
 
     vi.useRealTimers();
     await reset();
-    await applyTestMigrations();
     vi.useFakeTimers({ now: BASE_TIME, toFake: ['Date'] });
     const host3 = await createRoom('Host 3');
     const player3 = await joinRoom('Player 3');
@@ -302,7 +290,6 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
 
     vi.useRealTimers();
     await reset();
-    await applyTestMigrations();
     vi.useFakeTimers({ now: BASE_TIME, toFake: ['Date'] });
     const rotatedHost = await createRoom('Second host');
     const rotatedPlayer = await joinRoom('Second player');
