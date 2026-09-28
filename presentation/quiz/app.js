@@ -104,7 +104,10 @@ export function createQuizAudioManager(options = {}) {
       const audio = typeof AudioCtor === 'function'
         ? new AudioCtor(asset)
         : documentRef?.createElement?.('audio');
-      if (!audio) return null;
+      if (!audio) {
+        try { windowRef.console?.warn?.('[quiz-audio] Không tạo được audio element', { hasAudioCtor: typeof AudioCtor === 'function', hasDocumentAudio: Boolean(documentRef?.createElement) }); } catch { /* diagnostics are optional */ }
+        return null;
+      }
       audio.preload = 'auto';
       audio.setAttribute?.('playsinline', '');
       audio.setAttribute?.('aria-hidden', 'true');
