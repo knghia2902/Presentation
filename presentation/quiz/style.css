@@ -194,6 +194,7 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .answer-option[data-state="incorrect"] .answer-letter, .answer-option[data-state="timeout"] .answer-letter { background: var(--danger); }
 .shortcut-help { margin-top: 16px; }
 .answer-status, .result-message, .correct-answer, .explanation, .announcement, .save-state { min-height: 24px; margin: 8px 0 0; }
+.reveal-panel .result-message:empty, .reveal-panel .announcement:empty { display: none; }
 .answer-status, .result-message { color: var(--muted); }
 .correct-answer { color: var(--success); font-weight: 700; }
 .explanation { color: var(--ink-soft); }

@@ -761,9 +761,10 @@ export function createQuizController(options = {}) {
     else if (state.lastAuthoritativeEvent === 'incorrect') text(byRole('result-message'), 'Đã ghi nhận câu trả lời. Đáp án chưa chính xác.');
     else if (state.lastAuthoritativeEvent === 'correct') text(byRole('result-message'), 'Chính xác! Điểm được cập nhật từ máy chủ.');
     else if (!answerAccepted) text(byRole('result-message'), 'Bạn chưa chọn đáp án. Câu này được tính 0 điểm.');
-    else if (mine) text(byRole('result-message'), `Kết quả hiện tại: ${formatScore(mine.totalScore)}.`);
+    else if (mine) text(byRole('result-message'), '');
     else text(byRole('result-message'), 'Đã ghi nhận câu trả lời.');
-    announce(snapshot.announcement?.text || '');
+    text(byRole('announcement'), '');
+    text(byRole('announcement-footer'), 'Bạn sẽ luôn thấy thông báo bằng chữ khi âm thanh bị tắt.');
   }
 
   function renderFinished(snapshot) {
