@@ -89,14 +89,6 @@
             <div class="room-stage">
               <div class="room-heading-row">
                 <div><p class="eyebrow" data-role="phase-label">Sảnh chờ</p><h1 id="room-heading" data-role="room-heading">Phòng chơi</h1></div>
-                <div class="room-code-block" data-role="room-code-block">
-                  <span class="label">Mã phòng</span><strong class="room-code" data-role="room-code" tabindex="0"></strong>
-                  <div class="room-code-actions">
-                    <button class="small-button" type="button" data-action="copy-code">Sao chép</button>
-                    <button class="small-button" type="button" data-action="share-room">Chia sẻ</button>
-                  </div>
-                  <span class="feedback" data-role="copy-feedback" aria-live="polite"></span>
-                </div>
               </div>
 
               <section class="room-panel lobby-panel" data-role="host-lobby" aria-labelledby="host-lobby-heading" hidden>
@@ -153,6 +145,14 @@
             </div>
 
             <aside class="side-rail" aria-label="Điều khiển và bảng xếp hạng">
+              <div class="room-code-block" data-role="room-code-block">
+                <span class="label">Mã phòng</span><strong class="room-code" data-role="room-code" tabindex="0"></strong>
+                <div class="room-code-actions">
+                  <button class="small-button" type="button" data-action="copy-code">Sao chép</button>
+                  <button class="small-button" type="button" data-action="share-room">Chia sẻ</button>
+                </div>
+                <span class="feedback" data-role="copy-feedback" aria-live="polite"></span>
+              </div>
               <section class="host-rail room-panel" data-role="host-rail" hidden>
                 <h2>Điều khiển chủ phòng</h2>
                 <p data-role="host-mode-copy">Chuyển câu thủ công</p>

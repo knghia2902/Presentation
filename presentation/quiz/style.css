@@ -137,9 +137,9 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 
 .room-layout { display: grid; gap: 32px; }
 .room-stage { min-width: 0; }
-.room-heading-row { display: grid; gap: 28px; margin-bottom: 28px; }
+.room-heading-row { display: block; margin-bottom: 28px; }
 .room-heading-row h1 { max-width: 12ch; margin-bottom: 0; font-size: clamp(42px, 5vw, 58px); }
-.room-code-block { width: 100%; max-width: 300px; justify-self: end; padding: 18px 20px; border: 1px solid #d8b990; border-left: 5px solid var(--accent); border-radius: var(--radius); background: var(--surface-warm); box-shadow: var(--shadow-soft); }
+.room-code-block { width: 100%; padding: 18px 20px; border: 1px solid #d8b990; border-left: 5px solid var(--accent); border-radius: var(--radius); background: var(--surface-warm); box-shadow: var(--shadow-soft); }
 .room-code { display: block; color: var(--accent-dark); font: 600 40px/1.1 "IBM Plex Mono", monospace; letter-spacing: .05em; user-select: all; overflow-wrap: anywhere; }
 .room-code-actions { margin-top: 12px; }
 .room-panel, .question-panel { border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 253, 249, .9); box-shadow: var(--shadow-soft); }
@@ -240,8 +240,6 @@ h2 { margin-bottom: 16px; font-size: 26px; }
   .page-main { padding-block: 64px 80px; }
   .entry-actions { align-items: center; }
   .entry-actions > * { flex: 1; }
-  .room-heading-row { grid-template-columns: minmax(0, 1fr) 300px; align-items: center; }
-  .room-code-block { width: 300px; }
   .player-answer-grid, .host-answer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .answer-option { min-height: 76px; }
 }
