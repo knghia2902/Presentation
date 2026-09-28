@@ -143,6 +143,19 @@ describe('metadata-only quiz offline persistence', () => {
     expect(controller.state.reconnectAttempt).toBe(21);
   });
 
+  it('does not open a WebSocket when the restored session has no capability token', () => {
+    const storage = new MemoryStorage();
+    const webSocketFactory = vi.fn();
+    const controller = createQuizController({ windowRef: windowRef(storage), webSocketFactory });
+    controller.state.session = { roomCode: 'ABC123', role: 'player', playerId: 'player-1', reconnectToken: 'old-token' };
+
+    controller.connectSocket();
+
+    expect(webSocketFactory).not.toHaveBeenCalled();
+    expect(controller.state.transport).toBe('offline');
+    expect(controller.state.reconnectRejected).toBe(true);
+  });
+
   it('rotates the stored token before the next reconnect and never replays a disconnected answer', async () => {
     const storage = new MemoryStorage();
     const controller = createQuizController({ windowRef: windowRef(storage) });

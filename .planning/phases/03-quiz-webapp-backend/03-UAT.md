@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T00:10:00+07:00
+updated: 2026-09-28T08:20:00+07:00
 ---
 
 ## Current Test
 
-number: 8
-name: Kết thúc và bảng xếp hạng
+number: 14
+name: Retest phiên WebSocket và bảng xếp hạng
 expected: |
-  Chủ phòng kết thúc; người chơi thấy kết quả cuối, top 5/bảng xếp hạng và trạng thái lưu kết quả. Có thể mở bảng xếp hạng chung nếu API hoạt động.
+  Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
 awaiting: user response
 
 ## Tests
@@ -50,7 +50,9 @@ note: "Đã sửa CSS để các panel tạm dừng có hidden thực sự đư�
 
 ### 8. Kết thúc và bảng xếp hạng
 expected: Chủ phòng kết thúc; người chơi thấy kết quả cuối, top 5/bảng xếp hạng và trạng thái lưu kết quả. Có thể mở bảng xếp hạng chung nếu API hoạt động.
-result: pending
+result: issue
+reported: "WebSocket connection failed: HTTP Authentication failed; capabilityToken=undefined"
+severity: major
 
 ### 9. Hiển thị trên màn hình hẹp
 expected: Thu nhỏ cửa sổ hoặc dùng chế độ responsive; câu hỏi, đáp án, timer và nút thao tác vẫn nhìn thấy và bấm được.
@@ -58,9 +60,9 @@ result: pending
 
 ## Summary
 
-total: 13
+total: 14
 passed: 11
-issues: 0
+issues: 1
 pending: 2
 skipped: 0
 blocked: 0
@@ -133,6 +135,22 @@ blocked: 0
     - "Bắt buộc display:none cho pause-banner[hidden] và paused-panel[hidden]"
   debug_session: ".planning/debug/pause-banner-always-visible.md"
 
+- truth: "Phiên thiếu hoặc hết hạn capability token không retry WebSocket vô hạn"
+  status: fixed_pending_retest
+  reason: "User reported: WebSocket connection failed với capabilityToken=undefined"
+  severity: major
+  test: 8
+  root_cause: "Luồng khởi động/reconnect vẫn gọi connectSocket() sau lỗi xác thực hoặc khi session không có capabilityToken, khiến trình duyệt gửi URL chứa token undefined và retry liên tục."
+  artifacts:
+    - path: "presentation/quiz/app.js"
+      issue: "connectSocket() chưa chặn session thiếu capabilityToken; start() xử lý lỗi xác thực như lỗi mạng"
+    - path: "tests/offline.test.js"
+      issue: "Thiếu regression test không mở WebSocket khi token bị thiếu"
+  missing:
+    - "Chặn WebSocket nếu thiếu capability token"
+    - "Dừng retry và yêu cầu vào lại phòng khi credential hết hạn/không hợp lệ"
+  debug_session: ".planning/debug/websocket-capability-token.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -148,3 +166,7 @@ result: pass
 ### 13. Retest banner tạm dừng
 expected: Khi phòng đang ở lobby hoặc câu hỏi bình thường, không hiện banner “Phòng đang tạm dừng”; banner chỉ hiện khi snapshot có phase paused_host_disconnect.
 result: pass
+
+### 14. Retest phiên WebSocket và bảng xếp hạng
+expected: Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
+result: pending

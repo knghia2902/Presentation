@@ -351,6 +351,10 @@ function roomWebSocketUrl(windowRef, roomCode, session, reconnectToken) {
   return `${protocol}//${location.host}/api/quiz/rooms/${encodeURIComponent(roomCode)}/socket?${query}`;
 }
 
+function hasCapabilityToken(session) {
+  return typeof session?.capabilityToken === 'string' && session.capabilityToken.trim().length > 0;
+}
+
 export function createQuizController(options = {}) {
   const documentRef = options.documentRef || (typeof document !== 'undefined' ? document : null);
   const windowRef = options.windowRef || (typeof window !== 'undefined' ? window : globalThis);
@@ -898,6 +902,10 @@ export function createQuizController(options = {}) {
 
   function connectSocket() {
     if (!state.session || !windowRef) return;
+    if (!hasCapabilityToken(state.session)) {
+      rejectReconnect('Phiên phòng không còn thông tin xác thực. Vui lòng vào lại phòng.');
+      return;
+    }
     const factory = options.webSocketFactory || ((url) => new windowRef.WebSocket(url));
     try {
       state.awaitingResume = Boolean(state.session.reconnectToken && state.reconnectAttempt > 0);
@@ -1159,7 +1167,15 @@ export function createQuizController(options = {}) {
       setConnection('connected');
       render();
       connectSocket();
-    } catch { setConnection('reconnecting'); render(); connectSocket(); }
+    } catch (error) {
+      if (error?.status === 401 || error?.code === 'invalid_capability' || !hasCapabilityToken(state.session)) {
+        rejectReconnect('Phiên phòng đã hết hạn hoặc không hợp lệ. Vui lòng vào lại phòng.');
+        return;
+      }
+      setConnection('reconnecting');
+      render();
+      connectSocket();
+    }
   }
 
   return {
