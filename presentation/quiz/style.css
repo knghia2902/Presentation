@@ -203,14 +203,14 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .final-score strong { color: var(--accent-dark); font: 600 48px/1.1 "IBM Plex Mono", monospace; }
 .final-score span:last-child { color: var(--ink); font-weight: 700; }
 .side-rail { display: grid; align-content: start; gap: 20px; min-width: 0; }
-.host-rail { display: grid; gap: 12px; padding: 18px; color: var(--ink); border-color: #d8b990; background: var(--surface-warm); box-shadow: var(--shadow-soft); }
-.host-rail .room-code-block { padding: 0 0 14px; border: 0; border-bottom: 1px solid #dfc9aa; border-radius: 0; background: transparent; box-shadow: none; }
+.host-rail { display: grid; gap: 12px; padding: 18px; color: var(--ink); border-color: #d8b990; border-left: 5px solid var(--accent); background: var(--surface-warm); box-shadow: var(--shadow-soft); }
+.host-rail .room-code-block { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .host-rail .room-code-block .label { color: var(--accent-dark); }
-.host-rail .room-code { color: var(--accent-dark); font-size: 32px; }
-.host-rail .room-code-actions { margin-top: 10px; }
+.host-rail .room-code { color: var(--accent-dark); font-size: 40px; }
+.host-rail .room-code-actions { margin-top: 12px; }
 .host-rail .room-code-actions .small-button { color: var(--ink-soft); border-color: var(--line-strong); background: var(--surface); }
 .host-rail .room-code-actions .small-button:hover, .host-rail .room-code-actions .small-button:focus-visible { border-color: var(--accent); background: var(--surface-warm); }
-.host-control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.host-control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid #dfc9aa; }
 .host-control-heading .eyebrow { margin-bottom: 4px; color: var(--accent-dark); font-size: 10px; }
 .host-control-heading h2 { margin-bottom: 0; color: var(--ink); font-size: 21px; letter-spacing: -.035em; }
 .control-status { padding: 4px 7px; color: var(--accent-dark); border: 1px solid #d8b990; border-radius: 999px; font: 600 10px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; }
