@@ -3,6 +3,7 @@ import roomReady from '../presentation/quiz/audio/room-ready.mp3?url';
 import quizStart from '../presentation/quiz/audio/quiz-start.mp3?url';
 import timeUp from '../presentation/quiz/audio/time-up.mp3?url';
 import finalResults from '../presentation/quiz/audio/final-results.mp3?url';
+import welcome from '../presentation/quiz/audio/welcome.mp3?url';
 import backgroundMusic from '../presentation/quiz/audio/background-music.mp3?url';
 import sfxCorrect from '../presentation/quiz/audio/sfx-correct.mp3?url';
 import sfxIncorrect from '../presentation/quiz/audio/sfx-incorrect.mp3?url';
@@ -14,6 +15,7 @@ const assets = {
   'quiz-start.mp3': quizStart,
   'time-up.mp3': timeUp,
   'final-results.mp3': finalResults,
+  'welcome.mp3': welcome,
   'background-music.mp3': backgroundMusic,
   'sfx-correct.mp3': sfxCorrect,
   'sfx-incorrect.mp3': sfxIncorrect,

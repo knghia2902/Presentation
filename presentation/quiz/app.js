@@ -4,6 +4,7 @@ export const QUIZ_SESSION_STORAGE_KEY = 'quiz_room_session';
 export const QUIZ_RESULT_STORAGE_PREFIX = 'quiz_room_result:';
 export const QUIZ_HISTORY_STORAGE_KEY = 'quiz_room_history';
 export const QUIZ_RUNTIME_SESSION_STORAGE_KEY = 'quiz_room_runtime_session';
+export const QUIZ_WELCOME_STORAGE_KEY = 'quiz_welcome_voice_played_v1';
 export const QUIZ_SESSION_FIELDS = Object.freeze([
   'roomCode',
   'role',
@@ -21,6 +22,7 @@ export const QUIZ_AUDIO_ASSETS = Object.freeze({
   quizStart: '/presentation/quiz/audio/quiz-start.mp3',
   timeUp: '/presentation/quiz/audio/time-up.mp3',
   finalResults: '/presentation/quiz/audio/final-results.mp3',
+  welcome: '/presentation/quiz/audio/welcome.mp3',
   backgroundMusic: '/presentation/quiz/audio/background-music.mp3',
   correct: '/presentation/quiz/audio/sfx-correct.mp3',
   incorrect: '/presentation/quiz/audio/sfx-incorrect.mp3',
@@ -220,7 +222,9 @@ export function createQuizAudioManager(options = {}) {
     startMusic();
     const queued = pendingAssets;
     pendingAssets = [];
-    queued.forEach((name) => playAsset(name));
+    queued.forEach((name) => {
+      if (!playAsset(name)) pendingAssets.push(name);
+    });
     return true;
   }
 
@@ -449,7 +453,8 @@ export function createQuizController(options = {}) {
     finishedSyncTimer: null,
     finishedSyncInFlight: false,
     previousFocus: null,
-    history: []
+    history: [],
+    welcomePending: false
   };
   state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
   const audioManager = options.audioManager || createQuizAudioManager({
@@ -544,10 +549,38 @@ export function createQuizController(options = {}) {
     return true;
   }
 
+  function welcomeWasPlayed() {
+    try { return storage()?.getItem(QUIZ_WELCOME_STORAGE_KEY) === '1'; } catch { return false; }
+  }
+
+  function markWelcomePlayed() {
+    try { storage()?.setItem(QUIZ_WELCOME_STORAGE_KEY, '1'); } catch { /* localStorage is optional */ }
+  }
+
+  function queueWelcomeVoice() {
+    if (welcomeWasPlayed()) return false;
+    state.welcomePending = true;
+    const started = audioManager.playAsset('welcome');
+    if (started) {
+      state.welcomePending = false;
+      markWelcomePlayed();
+    }
+    return started;
+  }
+
+  function finalizeWelcomeVoice() {
+    if (!state.welcomePending) return;
+    if (!audioManager.pendingAssets().includes('welcome')) {
+      state.welcomePending = false;
+      markWelcomePlayed();
+    }
+  }
+
   function unlockAudio() {
     state.audioEnabled = true;
     audioManager.setEnabled(true);
     audioManager.userGesture();
+    finalizeWelcomeVoice();
     persistSession();
   }
 
@@ -1331,6 +1364,7 @@ export function createQuizController(options = {}) {
     audioManager.setEnabled(state.audioEnabled);
     setConnection('disconnected', 'Đang kết nối');
     render();
+    queueWelcomeVoice();
     void loadHistory();
     if (!state.session) {
       const saved = readSessionMetadata(windowRef);

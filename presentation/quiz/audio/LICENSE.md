@@ -8,12 +8,13 @@ Generated/downloaded: 2026-09-26. Scope: temporary classroom web app and GitHub 
 
 ## Music and SFX
 
-`background-music.mp3`, `sfx-correct.mp3`, and `sfx-incorrect.mp3` were supplied
-by the project owner from `Tài liệu/` and copied into this folder for the quiz.
+`welcome.mp3`, `background-music.mp3`, `sfx-correct.mp3`, and `sfx-incorrect.mp3` were supplied
+by the project owner and copied into this folder for the quiz.
 Confirm permission before redistributing the app outside the intended classroom.
 
 | File | Source / asset | License | Attribution |
 | --- | --- | --- | --- |
+| `welcome.mp3` | `Downloads/Chaomung.mp3` | User-supplied | Project owner |
 | `background-music.mp3` | `Tài liệu/nhac_nen_ai_la_trieu_phu.mp3` | User-supplied | Project owner |
 | `sfx-correct.mp3` | `Tài liệu/tra_loi_dung.mp3` | User-supplied | Project owner |
 | `sfx-incorrect.mp3` | `Tài liệu/tra_loi_sai.mp3` | User-supplied | Project owner |
