@@ -49,12 +49,11 @@ describe('authoritative quiz client projection', () => {
     expect(commands).toEqual([{ type: 'answer', option: 'A' }]);
   });
 
-  it('persists the final result and loads the global leaderboard with the session context', async () => {
+  it('persists the final result without loading a global leaderboard', async () => {
     const calls = [];
     const fetchImpl = vi.fn(async (url, init = {}) => {
       calls.push({ url, init });
-      if (String(url).startsWith('/api/score')) return response({ ok: true, event: 'finished' });
-      return response({ ok: true, globalLeaderboard: [{ rank: 1, displayName: 'Minh', totalScore: 833 }] });
+      return response({ ok: true, event: 'finished' });
     });
     const controller = createQuizController({ fetchImpl });
     controller.state.role = 'host';
@@ -65,32 +64,23 @@ describe('authoritative quiz client projection', () => {
     await controller.persistFinalResult();
     expect(calls[0].url).toBe('/api/score');
     expect(JSON.parse(calls[0].init.body)).toMatchObject({ roomCode: 'ABC123', playerId: 'player-1', capabilityToken: 'token', resultId: 'ABC123:player-1' });
-    expect(calls[1].url).toContain('/api/leaderboard?');
-    expect(calls[1].url).toContain('roomCode=ABC123');
-    expect(calls[1].url).toContain('playerId=player-1');
-    expect(calls[1].url).toContain('capabilityToken=token');
-    expect(controller.state.globalLeaderboard[0].displayName).toBe('Minh');
-    expect(controller.state.saveState).toBe('success');
+    expect(calls).toHaveLength(1);
     expect(controller.state.snapshot.phase).toBe('finished');
   });
 
-  it('keeps the current-room result visible when score or global persistence fails', async () => {
+  it('keeps the current-room result visible when optional persistence fails', async () => {
     const fetchImpl = vi.fn(async (url) => response({ ok: false, error: 'offline' }, false));
     const controller = createQuizController({ fetchImpl });
     controller.state.role = 'host';
     controller.state.session = { playerId: 'player-1', roomCode: 'ABC123', capabilityToken: 'token' };
     controller.state.snapshot = { phase: 'finished', roomCode: 'ABC123', leaderboard: [{ playerId: 'player-1', totalScore: 500 }] };
     await controller.persistFinalResult();
-    expect(controller.state.saveState).toBe('fallback');
     expect(controller.state.snapshot.leaderboard[0].totalScore).toBe(500);
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('does not ask a player to finalize a result after the host already persisted it', async () => {
-    const fetchImpl = vi.fn(async (url) => {
-      if (String(url).startsWith('/api/leaderboard')) return response({ ok: true, globalLeaderboard: [] });
-      return response({ ok: false, error: 'should not be called' }, false, 401);
-    });
+    const fetchImpl = vi.fn(async () => response({ ok: false, error: 'should not be called' }, false, 401));
     const controller = createQuizController({ fetchImpl });
     controller.state.role = 'player';
     controller.state.session = { playerId: 'player-1', roomCode: 'ABC123', capabilityToken: 'token' };
@@ -99,7 +89,7 @@ describe('authoritative quiz client projection', () => {
     await controller.persistFinalResult();
 
     expect(fetchImpl.mock.calls.some(([url]) => String(url).startsWith('/api/score'))).toBe(false);
-    expect(controller.state.saveState).toBe('success');
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it('reconciles a missed finished event while the room is showing a reveal', async () => {

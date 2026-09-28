@@ -1,10 +1,5 @@
 const ANSWERS = ['A', 'B', 'C', 'D'];
 const QUESTION_COUNT = 20;
-const SAVE_COPY = {
-  saving: 'Đang lưu kết quả',
-  success: 'Đã lưu bảng xếp hạng chung',
-  fallback: 'Chưa lưu được — kết quả phòng vẫn còn'
-};
 export const QUIZ_SESSION_STORAGE_KEY = 'quiz_room_session';
 export const QUIZ_RESULT_STORAGE_PREFIX = 'quiz_room_result:';
 export const QUIZ_RUNTIME_SESSION_STORAGE_KEY = 'quiz_room_runtime_session';
@@ -404,9 +399,6 @@ export function createQuizController(options = {}) {
     transport: 'disconnected',
     audioEnabled: Boolean(readSessionMetadata(windowRef)?.audioEnabled),
     clockOffset: 0,
-    globalLeaderboard: [],
-    globalState: 'idle',
-    saveState: 'idle',
     answerSubmitted: false,
     answerPending: false,
     selectedOption: null,
@@ -808,18 +800,6 @@ export function createQuizController(options = {}) {
     text(byRole('player-name'), state.session?.displayName || '');
     renderParticipants(snapshot.participants || []);
     renderLeaderboard(snapshot.leaderboard || [], 'leaderboard-list', 'room-leaderboard-empty', 'leaderboard-count');
-    const globalPanel = byRole('global-leaderboard');
-    if (globalPanel) globalPanel.hidden = phase !== 'finished';
-    renderLeaderboard(state.globalLeaderboard, 'global-leaderboard-list', 'global-leaderboard-empty', 'global-leaderboard-count');
-    const globalEmpty = byRole('global-leaderboard-empty');
-    const globalError = byRole('global-leaderboard-error');
-    const globalSave = byRole('global-save-state');
-    if (globalEmpty) globalEmpty.hidden = state.globalState === 'loading' || state.globalState === 'error' || state.globalLeaderboard.length > 0;
-    if (globalError) globalError.hidden = state.globalState !== 'error';
-    if (globalSave) {
-      globalSave.dataset.state = state.globalState === 'error' ? 'error' : state.globalState === 'success' ? 'success' : '';
-      text(globalSave, state.globalState === 'loading' ? 'Đang tải bảng xếp hạng chung…' : state.globalState === 'success' ? SAVE_COPY.success : state.globalState === 'error' ? SAVE_COPY.fallback : '');
-    }
     if (state.role === 'host' && hostRail) hostRail.hidden = false;
     if (phase === 'lobby') {
       if (state.role === 'host' && hostLobby) hostLobby.hidden = false;
@@ -834,8 +814,6 @@ export function createQuizController(options = {}) {
     } else if (phase === 'finished') {
       if (finishedPanel) finishedPanel.hidden = false;
       renderFinished(snapshot);
-      const saveState = byRole('save-state');
-      if (saveState) { saveState.dataset.state = state.saveState; text(saveState, SAVE_COPY[state.saveState] || ''); }
     }
     const paused = phase === 'paused_host_disconnect';
     const pauseBanner = byRole('pause-banner');
@@ -1058,30 +1036,11 @@ export function createQuizController(options = {}) {
     }
   }
 
-  async function loadGlobalLeaderboard() {
-    if (!state.session) return;
-    state.globalState = 'loading';
-    render();
-    try {
-      const params = new URLSearchParams({ roomCode: state.session.roomCode, playerId: state.session.playerId, capabilityToken: state.session.capabilityToken });
-      const body = await request(`/api/leaderboard?${params}`);
-      state.globalLeaderboard = Array.isArray(body.globalLeaderboard) ? body.globalLeaderboard : [];
-      state.globalState = 'success';
-      state.saveState = 'success';
-    } catch {
-      state.globalState = 'error';
-      state.saveState = 'fallback';
-    }
-    render();
-  }
-
   async function persistFinalResult() {
     if (state.finalizing || !state.session || state.snapshot?.phase !== 'finished') return;
     persistFinishedSnapshot();
     state.finalizing = true;
-    state.saveState = 'saving';
     render();
-    let scoreSaved = true;
     if (state.role === 'host') {
       try {
         const resultId = state.snapshot.resultId || `${state.session.roomCode}:${state.session.playerId}`;
@@ -1092,12 +1051,10 @@ export function createQuizController(options = {}) {
           resultId
         }) });
       } catch {
-        scoreSaved = false;
-        state.saveState = 'fallback';
+        // The finished room snapshot remains authoritative even if the optional
+        // idempotent persistence acknowledgement is temporarily unavailable.
       }
     }
-    await loadGlobalLeaderboard();
-    if (!scoreSaved) state.saveState = 'fallback';
     state.finalizing = false;
     render();
   }
@@ -1168,7 +1125,6 @@ export function createQuizController(options = {}) {
       applyAuthoritativeEffects(ownAnswerAccepted ? payload.event : (['correct', 'incorrect'].includes(payload.event) ? null : payload.event), payload, payload.snapshot);
       if (state.audioEnabled) audioManager.handleEvent(payload.event, payload.snapshot);
       if (payload.event === 'finished' || payload.snapshot.phase === 'finished') {
-        state.saveState = 'saving';
         persistFinishedSnapshot(payload.snapshot);
       }
       render();
@@ -1253,7 +1209,6 @@ export function createQuizController(options = {}) {
     action('cancel-confirm')?.addEventListener('click', closeConfirmation);
     action('copy-code')?.addEventListener('click', copyRoomCode);
     action('share-room')?.addEventListener('click', shareRoom);
-    action('load-global')?.addEventListener('click', loadGlobalLeaderboard);
     action('new-room')?.addEventListener('click', () => {
       clearFinishedSnapshot();
       clearPersistedSession();
@@ -1340,7 +1295,6 @@ export function createQuizController(options = {}) {
     applyMessage,
     sendCommand,
     submitAnswer,
-    loadGlobalLeaderboard,
     persistFinalResult,
     persistFinishedSnapshot,
     copyRoomCode,

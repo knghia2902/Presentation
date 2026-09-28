@@ -25,7 +25,6 @@ describe('semantic quiz client contract', () => {
     expect(html).toContain('viewport-fit=cover');
     expect(html).toContain('data-role="timer"');
     expect(html).toContain('data-role="pause-banner"');
-    expect(html).toContain('data-role="save-state"');
   });
 
   it('keeps client authority and DOM safety visible in the controller source', () => {
@@ -35,7 +34,7 @@ describe('semantic quiz client contract', () => {
     expect(app).toContain("type: 'next'");
     expect(app).toContain("type: 'finish'");
     expect(app).toContain("/api/score");
-    expect(app).toContain("/api/leaderboard?");
+    expect(app).not.toContain("/api/leaderboard?");
     expect(app).toContain('correctOption');
     expect(app).toContain('Còn ${seconds} giây');
     expect(app).toContain('state.warned.has(seconds)');
