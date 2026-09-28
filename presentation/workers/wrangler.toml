@@ -6,6 +6,7 @@ compatibility_date = "2024-09-22"
 binding = "DB"
 database_name = "presentation-db"
 database_id = "97579f7a-6737-42e7-88a2-51d2e35e066e"
+migrations_dir = "../../migrations"
 
 [[durable_objects.bindings]]
 name = "QUIZ_ROOM"

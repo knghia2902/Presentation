@@ -8,6 +8,7 @@ export const RECONNECT_TTL_MS = 15 * 60 * 1000;
 export const REVEAL_MS = 2_500;
 export const MAX_MESSAGE_BYTES = 8 * 1024;
 export const MAX_PLAYERS = 100;
+const DB_BATCH_SIZE = 50;
 export const ROOM_ALLOCATOR_ID = '__quiz_room_allocator__';
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -898,7 +899,12 @@ export class QuizRoom extends DurableObject {
         new Date(this.room.finishedAt || currentTime()).toISOString()
       ));
     }
-    await this.env.DB.batch(statements);
+    // Keep finalization below D1's per-request limits when a full room has
+    // answered several questions. Each statement is idempotent, so a retry
+    // can safely resume after an interrupted chunk.
+    for (let offset = 0; offset < statements.length; offset += DB_BATCH_SIZE) {
+      await this.env.DB.batch(statements.slice(offset, offset + DB_BATCH_SIZE));
+    }
     this.room.persisted = true;
     await this.save();
   }
