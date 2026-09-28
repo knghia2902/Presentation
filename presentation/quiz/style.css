@@ -208,13 +208,10 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .host-rail .room-code-block .label { color: var(--accent-dark); }
 .host-rail .room-code { color: var(--accent-dark); font-size: 30px; letter-spacing: .04em; }
 .host-rail .room-code-actions { margin-top: 12px; }
-.host-rail .room-code-actions .small-button { color: var(--ink-soft); border-color: var(--line-strong); background: var(--surface); }
+.host-rail .room-code-actions .small-button { min-height: 36px; padding: 6px 11px; color: var(--ink-soft); border-color: var(--line-strong); background: var(--surface); font-size: 12px; }
 .host-rail .room-code-actions .small-button:hover, .host-rail .room-code-actions .small-button:focus-visible { border-color: var(--accent); background: var(--surface-warm); }
 .host-control-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-top: 14px; border-top: 1px solid #dfc9aa; }
-.host-control-heading .eyebrow { margin-bottom: 4px; color: var(--accent-dark); font-size: 10px; }
 .host-control-heading h2 { margin-bottom: 0; color: var(--ink); font-size: 21px; letter-spacing: -.035em; }
-.control-status { padding: 4px 7px; color: var(--accent-dark); border: 1px solid #d8b990; border-radius: 999px; font: 600 10px/1 "IBM Plex Mono", monospace; letter-spacing: .08em; }
-.host-rail > p { margin: 0; color: var(--muted); font-size: 12px; }
 .host-control-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .host-control-actions .secondary-button, .host-control-actions .danger-button { min-height: 42px; padding: 8px 10px; font-size: 12px; }
 .host-control-actions .secondary-button { color: var(--ink); border-color: var(--line-strong); background: var(--surface); }
