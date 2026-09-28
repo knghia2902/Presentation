@@ -38,10 +38,12 @@ function isVietnameseVoice(voice) {
 }
 
 export function topFiveAnnouncement(rows = []) {
-  const topFive = rows.filter((row) => row?.displayName).slice(0, 5);
-  if (!topFive.length) return 'Chưa có bảng xếp hạng chung cuộc.';
-  return `Top ${topFive.length} chung cuộc: ${topFive.map((row, index) => `${index + 1}, ${row.displayName}, ${Number(row.totalScore || 0).toLocaleString('vi-VN')} điểm`).join('; ')}.`;
+  const topTen = rows.filter((row) => row?.displayName).slice(0, 10);
+  if (!topTen.length) return 'Chưa có bảng xếp hạng chung cuộc.';
+  return `Top ${topTen.length} người chiến thắng là ${topTen.map((row, index) => `${index + 1}, ${row.displayName}, ${Number(row.totalScore || 0).toLocaleString('vi-VN')} điểm`).join('; ')}.`;
 }
+
+export const topTenAnnouncement = topFiveAnnouncement;
 
 /**
  * Browser-only media manager. It deliberately degrades to visible text when a
@@ -54,6 +56,8 @@ export function createQuizAudioManager(options = {}) {
   const documentRef = options.documentRef || windowRef.document;
   const speech = options.speechSynthesis || windowRef.speechSynthesis;
   const UtteranceCtor = options.SpeechSynthesisUtterance || windowRef.SpeechSynthesisUtterance;
+  const fetchRef = options.fetch || (typeof windowRef.fetch === 'function' ? windowRef.fetch.bind(windowRef) : null);
+  const urlRef = options.URL || windowRef.URL || globalThis.URL;
   let context = options.audioContext || null;
   let graph = null;
   let music = null;
@@ -171,6 +175,34 @@ export function createQuizAudioManager(options = {}) {
     return playElement(audio, options);
   }
 
+  async function playRemoteVoice(url) {
+    if (!enabled || !hasUserGesture || !url || typeof fetchRef !== 'function') return false;
+    cancelSpeech();
+    let objectUrl = '';
+    let audio = null;
+    const cleanup = () => {
+      try { audio?.pause?.(); } catch { /* best effort */ }
+      try { audio?.remove?.(); } catch { /* best effort */ }
+      try { if (objectUrl) urlRef?.revokeObjectURL?.(objectUrl); } catch { /* best effort */ }
+    };
+    try {
+      const response = await fetchRef(url, { credentials: 'same-origin', cache: 'no-store' });
+      if (!response?.ok) return false;
+      const blob = await response.blob();
+      if (!blob || typeof urlRef?.createObjectURL !== 'function') return false;
+      objectUrl = urlRef.createObjectURL(blob);
+      audio = makeAudio(objectUrl, 'voiceGain');
+      if (!audio) { cleanup(); return false; }
+      if (audio.addEventListener) audio.addEventListener('ended', cleanup, { once: true });
+      const started = playElement(audio, { onRejected: cleanup });
+      if (!started) cleanup();
+      return started;
+    } catch {
+      cleanup();
+      return false;
+    }
+  }
+
   function restoreMusic() {
     if (graph?.musicGain?.gain) graph.musicGain.gain.value = musicBaseGain;
     else if (music) try { music.volume = musicBaseGain; } catch { /* best effort */ }
@@ -250,7 +282,7 @@ export function createQuizAudioManager(options = {}) {
     return `${eventName}:${snapshot.questionIndex ?? ''}:${snapshot.roomVersion ?? ''}`;
   }
 
-  function handleEvent(eventName, snapshot = {}) {
+  function handleEvent(eventName, snapshot = {}, options = {}) {
     const announcement = snapshot.announcement || {};
     const questionKey = snapshot.question?.id || snapshot.questionIndex || 'room';
     // Room-ready is a local lifecycle cue: play it only after a successful
@@ -262,14 +294,18 @@ export function createQuizAudioManager(options = {}) {
     }
     if (eventName === 'reveal' && !handled.has(`reveal:${questionKey}`)) {
       handled.add(`reveal:${questionKey}`);
-      speak(announcement.text || (announcement.kind === 'no_correct_answer' ? 'Chưa có người trả lời đúng câu này.' : ''));
+      const fallbackText = announcement.text || (announcement.kind === 'no_correct_answer' ? 'Chưa có người trả lời đúng câu này.' : '');
+      if (options.voiceUrl) void playRemoteVoice(options.voiceUrl).then((played) => { if (!played) speak(fallbackText); });
+      else speak(fallbackText);
     }
     if (eventName === 'finished') {
       const key = eventKey('finished', snapshot);
       if (!handled.has(key)) {
         handled.add(key);
         playAsset('finalResults');
-        speak(topFiveAnnouncement(announcement.topFive || snapshot.finalResults || snapshot.leaderboard || []));
+        const fallbackText = announcement.text || topTenAnnouncement(announcement.topTen || snapshot.finalResults || snapshot.leaderboard || []);
+        if (options.voiceUrl) void playRemoteVoice(options.voiceUrl).then((played) => { if (!played) speak(fallbackText); });
+        else speak(fallbackText);
       }
     }
   }
@@ -285,6 +321,7 @@ export function createQuizAudioManager(options = {}) {
     setEnabled,
     startMusic,
     playAsset,
+    playRemoteVoice,
     speak,
     duckMusic,
     restoreMusic,
@@ -467,6 +504,7 @@ export function createQuizController(options = {}) {
     AudioContext: options.AudioContext,
     Audio: options.Audio,
     useWebAudio: false,
+    fetch: fetchImpl,
     speechSynthesis: options.speechSynthesis,
     SpeechSynthesisUtterance: options.SpeechSynthesisUtterance
   });
@@ -681,6 +719,19 @@ export function createQuizController(options = {}) {
       throw error;
     }
     return body;
+  }
+
+  function dynamicVoiceUrl(snapshot) {
+    const assetId = snapshot?.announcement?.voiceAssetId;
+    const session = state.session;
+    const roomCode = snapshot?.roomCode || session?.roomCode;
+    if (!assetId || !roomCode || !session?.playerId || !session?.capabilityToken) return null;
+    const query = new URLSearchParams({
+      playerId: session.playerId,
+      capabilityToken: session.capabilityToken
+    });
+    if (snapshot?.phase === 'finished') query.set('finished', '1');
+    return `/api/quiz/rooms/${encodeURIComponent(roomCode)}/voice/${encodeURIComponent(assetId)}?${query}`;
   }
 
   function showScreen(name) {
@@ -1251,7 +1302,7 @@ export function createQuizController(options = {}) {
         state.lastResult = { event: payload.event, accepted: payload.result?.accepted === true };
       }
       applyAuthoritativeEffects(ownAnswerAccepted ? payload.event : (['correct', 'incorrect'].includes(payload.event) ? null : payload.event), payload, payload.snapshot);
-      if (state.audioEnabled) audioManager.handleEvent(payload.event, payload.snapshot);
+      if (state.audioEnabled) audioManager.handleEvent(payload.event, payload.snapshot, { voiceUrl: dynamicVoiceUrl(payload.snapshot) });
       if (payload.event === 'finished' || payload.snapshot.phase === 'finished') {
         persistFinishedSnapshot(payload.snapshot);
       }

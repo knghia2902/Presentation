@@ -15,6 +15,10 @@ const HISTORY_LIMIT = 50;
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const STORAGE_KEY = 'quiz-room-state-v1';
+const VOICE_STORAGE_PREFIX = 'quiz-dynamic-voice-v1:';
+const VOICE_ASSET_PATTERN = /^[A-Za-z0-9_-]{1,96}$/u;
+const MAX_VOICE_BYTES = 2 * 1024 * 1024;
+const ELEVENLABS_MODEL_ID = 'eleven_multilingual_v2';
 const PHASES = new Set([
   'lobby',
   'question',
@@ -163,6 +167,10 @@ export class QuizRoom extends DurableObject {
         return await this.allocateRoom(request);
       }
       const roomCode = this.roomCodeFromRequest(url, request);
+      const voiceMatch = url.pathname.match(/\/rooms\/[^/]+\/voice\/([A-Za-z0-9_-]+)$/u);
+      if (voiceMatch && request.method === 'GET') {
+        return await this.readVoice(request, voiceMatch[1]);
+      }
       if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
         return await this.upgradeWebSocket(request, roomCode);
       }
@@ -215,6 +223,60 @@ export class QuizRoom extends DurableObject {
     } catch {
       throw new RoomError('JSON không hợp lệ.', 400, 'invalid_json');
     }
+  }
+
+  async readVoice(request, assetId) {
+    if (!VOICE_ASSET_PATTERN.test(assetId)) {
+      return safeJson({ ok: false, error: 'Audio không hợp lệ.', code: 'invalid_voice_asset' }, 400);
+    }
+    const url = new URL(request.url);
+    const playerId = url.searchParams.get('playerId');
+    const capabilityToken = url.searchParams.get('capabilityToken');
+    if (url.searchParams.get('finished') === '1') {
+      await this.authenticateFinished({ playerId, capabilityToken });
+    } else {
+      await this.authenticate({ playerId, capabilityToken });
+    }
+    const audio = await this.ctx.storage.get(`${VOICE_STORAGE_PREFIX}${assetId}`, 'arrayBuffer');
+    if (!audio) return safeJson({ ok: false, error: 'Audio chưa sẵn sàng.', code: 'voice_not_found' }, 404);
+    return new Response(audio, {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+        'Cache-Control': 'private, max-age=3600'
+      }
+    });
+  }
+
+  async generateDynamicVoice(text, assetId) {
+    const apiKey = String(this.env?.ELEVENLABS_API_KEY || '').trim();
+    const voiceId = String(this.env?.ELEVENLABS_VOICE_ID || '').trim();
+    if (!apiKey || !voiceId || !VOICE_ASSET_PATTERN.test(assetId)) return null;
+    try {
+      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': apiKey,
+          Accept: 'audio/mpeg'
+        },
+        body: JSON.stringify({
+          text: String(text || '').trim(),
+          model_id: String(this.env?.ELEVENLABS_MODEL_ID || ELEVENLABS_MODEL_ID),
+          voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.25, use_speaker_boost: true }
+        })
+      });
+      if (!response.ok) return null;
+      const audio = await response.arrayBuffer();
+      if (!audio.byteLength || audio.byteLength > MAX_VOICE_BYTES) return null;
+      await this.ctx.storage.put(`${VOICE_STORAGE_PREFIX}${assetId}`, audio);
+      return assetId;
+    } catch {
+      return null;
+    }
+  }
+
+  voiceAssetId(kind, version) {
+    return `${kind}-${this.room.roomCode}-${Number(version)}`;
   }
 
   errorResponse(error) {
@@ -594,10 +656,16 @@ export class QuizRoom extends DurableObject {
     this.room.finalizedByCapabilityHash = player.capabilityTokenHash;
     this.room.finishedCapabilityHashes = this.room.players.map(({ capabilityTokenHash }) => capabilityTokenHash);
     this.room.revealUntil = null;
+    const topTen = this.leaderboard().slice(0, 10).map(({ displayName, totalScore, rank }) => ({ displayName, totalScore, rank }));
+    const topTenText = topTen.length
+      ? `Top ${topTen.length} người chiến thắng là ${topTen.map((row, index) => `${index + 1}, ${row.displayName}, ${Number(row.totalScore || 0).toLocaleString('vi-VN')} điểm`).join('; ')}.`
+      : 'Chưa có người chiến thắng.';
+    const voiceAssetId = await this.generateDynamicVoice(topTenText, this.voiceAssetId('final-results', this.room.roomVersion + 1));
     this.room.announcement = {
       kind: 'final_results',
-      text: 'Quiz đã kết thúc.',
-      topFive: this.leaderboard().slice(0, 5).map(({ displayName, totalScore, rank }) => ({ displayName, totalScore, rank }))
+      text: topTenText,
+      topTen,
+      voiceAssetId
     };
     this.revokeAllTokens();
     this.bumpVersion();
@@ -692,10 +760,15 @@ export class QuizRoom extends DurableObject {
       reason,
       fastestCorrectPlayerId: correct?.playerId || null
     };
-    this.room.announcement = correct
-      ? { kind: 'fastest_correct', text: `${this.playerById(correct.playerId).displayName} trả lời đúng và nhanh nhất!`, playerId: correct.playerId }
-      : { kind: 'no_correct_answer', text: 'Chưa có người trả lời đúng câu này.' };
     this.bumpVersion();
+    if (correct) {
+      const fastestName = this.playerById(correct.playerId).displayName;
+      const text = `Chúc mừng ${fastestName} đã trả lời đúng và nhanh nhất!`;
+      const voiceAssetId = await this.generateDynamicVoice(text, this.voiceAssetId('fastest-correct', this.room.roomVersion));
+      this.room.announcement = { kind: 'fastest_correct', text, playerId: correct.playerId, voiceAssetId };
+    } else {
+      this.room.announcement = { kind: 'no_correct_answer', text: 'Chưa có người trả lời đúng câu này.' };
+    }
     await this.save();
     if (this.room.autoAdvance) this.ctx.storage.setAlarm(this.room.revealUntil);
     this.broadcast({ event: 'reveal', snapshot: this.snapshot() });
@@ -840,7 +913,7 @@ export class QuizRoom extends DurableObject {
       })) || [],
       answers: currentAnswer,
       leaderboard: this.room ? this.leaderboard() : [],
-      finalResults: this.room?.phase === 'finished' ? this.leaderboard().slice(0, 5) : null
+      finalResults: this.room?.phase === 'finished' ? this.leaderboard().slice(0, 10) : null
     };
   }
 

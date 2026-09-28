@@ -53,3 +53,12 @@ npm run test:audio
 ```
 
 Audio cố định, nhạc nền và SFX được khai báo trong [`presentation/quiz/audio/LICENSE.md`](presentation/quiz/audio/LICENSE.md).
+
+### Voice động bằng ElevenLabs
+
+Hai câu động được tạo một lần ở Durable Object rồi lưu theo phòng để tất cả người chơi dùng chung audio:
+
+- Khi mở đáp án: `Chúc mừng {tên} đã trả lời đúng và nhanh nhất!`
+- Khi kết thúc: `Top 10 người chiến thắng là ...`
+
+Để bật voice local, sao chép `presentation/workers/.dev.vars.example` thành `presentation/workers/.dev.vars`, rồi điền `ELEVENLABS_API_KEY` và `ELEVENLABS_VOICE_ID`. Không đưa API key vào `app.js`, HTML hoặc Git. Nếu API không cấu hình hoặc lỗi, trình duyệt tự fallback sang giọng đọc hệ thống.
