@@ -1291,8 +1291,12 @@ export function createQuizController(options = {}) {
     action('retry')?.addEventListener('click', () => state.session ? connectSocket() : showScreen('entry'));
     byRole('confirm-dialog')?.addEventListener('click', (event) => { if (event.target === event.currentTarget) closeConfirmation(); });
     windowRef?.addEventListener?.('keydown', onKeydown);
-    windowRef?.addEventListener?.('pointerdown', unlockAudio, { once: true });
-    windowRef?.addEventListener?.('keydown', unlockAudio, { once: true });
+    // Browsers require a real user gesture before allowing audible playback.
+    // Keep retrying on ordinary interactions so a restored room can unlock
+    // audio even when its first pointer event was consumed by the browser.
+    for (const eventName of ['pointerdown', 'touchstart', 'click', 'keydown']) {
+      windowRef?.addEventListener?.(eventName, unlockAudio, { passive: true });
+    }
   }
 
   async function start() {
