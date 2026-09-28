@@ -127,15 +127,20 @@ export function createQuizAudioManager(options = {}) {
     } catch { return null; }
   }
 
-  function playElement(audio) {
+  function playElement(audio, { onStarted, onRejected } = {}) {
     if (!audio?.play) return false;
     try {
       const result = audio.play();
-      result?.catch?.((error) => {
+      if (result?.then) result.then(() => onStarted?.()).catch((error) => {
+        onRejected?.(error);
         try { windowRef.console?.warn?.('[quiz-audio] play() bị từ chối', error?.name || 'unknown', audio.src); } catch { /* diagnostics are optional */ }
       });
+      else onStarted?.();
       return true;
-    } catch { return false; }
+    } catch (error) {
+      onRejected?.(error);
+      return false;
+    }
   }
 
   function startMusic() {
@@ -145,8 +150,9 @@ export function createQuizAudioManager(options = {}) {
     return playElement(music);
   }
 
-  function playAsset(name) {
-    if (!enabled || !hasUserGesture) {
+  function playAsset(name, options = {}) {
+    const allowAutoplayAttempt = options.allowAutoplay === true;
+    if (!enabled || (!hasUserGesture && !allowAutoplayAttempt)) {
       if (enabled && !pendingAssets.includes(name)) pendingAssets.push(name);
       return false;
     }
@@ -162,7 +168,7 @@ export function createQuizAudioManager(options = {}) {
       }, maxDuration);
     }
     if (audio?.addEventListener && !audio.loop) audio.addEventListener('ended', () => audio.remove?.(), { once: true });
-    return playElement(audio);
+    return playElement(audio, options);
   }
 
   function restoreMusic() {
@@ -247,7 +253,10 @@ export function createQuizAudioManager(options = {}) {
   function handleEvent(eventName, snapshot = {}) {
     const announcement = snapshot.announcement || {};
     const questionKey = snapshot.question?.id || snapshot.questionIndex || 'room';
-    if ((eventName === 'snapshot' || eventName === 'lobby') && announcement.kind === 'room_ready') {
+    // Room-ready is a local lifecycle cue: play it only after a successful
+    // create/join action. Do not infer it from restored snapshots, otherwise
+    // a page reload or reconnect would announce the room again.
+    if (eventName === 'room_ready') {
       const key = `room-ready:${snapshot.roomCode || 'room'}`;
       if (!handled.has(key)) { handled.add(key); playAsset('roomReady'); }
     }
@@ -554,12 +563,14 @@ export function createQuizController(options = {}) {
   function queueWelcomeVoice() {
     if (welcomeWasPlayed()) return false;
     state.welcomePending = true;
-    const started = audioManager.playAsset('welcome');
-    if (started) {
-      state.welcomePending = false;
-      markWelcomePlayed();
-    }
-    return started;
+    return audioManager.playAsset('welcome', {
+      allowAutoplay: true,
+      onStarted: () => {
+        state.welcomePending = false;
+        markWelcomePlayed();
+      },
+      onRejected: () => { audioManager.playAsset('welcome'); }
+    });
   }
 
   function finalizeWelcomeVoice() {
@@ -1077,7 +1088,7 @@ export function createQuizController(options = {}) {
       state.snapshot = body.snapshot;
       setRole(role);
       setConnection('connected');
-      audioManager.handleEvent('snapshot', body.snapshot);
+      audioManager.handleEvent('room_ready', body.snapshot);
       render();
       byRole(role === 'host' ? 'host-lobby-heading' : 'player-lobby-heading')?.focus();
       connectSocket();

@@ -88,6 +88,19 @@ describe('hybrid quiz audio contract', () => {
     expect(speech.spoken).toHaveLength(2);
   });
 
+  it('plays room-ready only for an explicit create/join lifecycle event', () => {
+    AudioDouble.instances = [];
+    const { manager } = harness();
+    manager.userGesture();
+    manager.handleEvent('snapshot', { roomCode: 'ABC123', announcement: { kind: 'room_ready' } });
+    expect(AudioDouble.instances.some((audio) => audio.src.includes('room-ready'))).toBe(false);
+    manager.handleEvent('room_ready', { roomCode: 'ABC123' });
+    expect(AudioDouble.instances.some((audio) => audio.src.includes('room-ready'))).toBe(true);
+    const count = AudioDouble.instances.filter((audio) => audio.src.includes('room-ready')).length;
+    manager.handleEvent('room_ready', { roomCode: 'ABC123' });
+    expect(AudioDouble.instances.filter((audio) => audio.src.includes('room-ready')).length).toBe(count);
+  });
+
   it('keeps gameplay usable when speech is unavailable and mute covers every bus', () => {
     const { manager, audioContext } = harness();
     manager.userGesture();
