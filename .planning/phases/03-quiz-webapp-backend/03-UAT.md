@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T08:35:00+07:00
+updated: 2026-09-28T08:40:00+07:00
 ---
 
 ## Current Test
 
-number: 17
-name: Retest endpoint khôi phục kết quả finished
+number: 14
+name: Retest phiên WebSocket và bảng xếp hạng
 expected: |
-  Sau khi kết thúc ván và reload cùng tab, endpoint snapshot finished trả thành công; màn hình kết quả cuối, bảng xếp hạng và top 5 mở lại, không có lỗi 401.
+  Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
 awaiting: user response
 
 ## Tests
@@ -50,9 +50,8 @@ note: "Đã sửa CSS để các panel tạm dừng có hidden thực sự đư�
 
 ### 8. Kết thúc và bảng xếp hạng
 expected: Chủ phòng kết thúc; người chơi thấy kết quả cuối, top 5/bảng xếp hạng và trạng thái lưu kết quả. Có thể mở bảng xếp hạng chung nếu API hoạt động.
-result: issue
-reported: "Sau khi bấm kết thúc, load lại web báo Phiên phòng không còn thông tin xác thực và không vào lại được"
-severity: major
+result: pass
+note: "Đã sửa luồng snapshot finished và proxy; retest thành công ở Test 17."
 
 ### 9. Hiển thị trên màn hình hẹp
 expected: Thu nhỏ cửa sổ hoặc dùng chế độ responsive; câu hỏi, đáp án, timer và nút thao tác vẫn nhìn thấy và bấm được.
@@ -61,9 +60,9 @@ result: pending
 ## Summary
 
 total: 17
-passed: 11
-issues: 3
-pending: 3
+passed: 15
+issues: 0
+pending: 2
 skipped: 0
 blocked: 0
 
@@ -152,7 +151,7 @@ blocked: 0
   debug_session: ".planning/debug/websocket-capability-token.md"
 
 - truth: "Reload sau khi kết thúc vẫn mở lại được kết quả cuối mà không cần credential"
-  status: fixed_pending_retest
+  status: resolved
   reason: "User reported: Sau khi bấm kết thúc, load lại web báo phiên phòng không còn thông tin xác thực"
   severity: major
   test: 8
@@ -168,7 +167,7 @@ blocked: 0
   debug_session: ".planning/debug/finished-result-reload.md"
 
 - truth: "Pages proxy giữ tham số finished=1 khi lấy snapshot sau khi kết thúc"
-  status: fixed_pending_retest
+  status: resolved
   reason: "User reported: GET snapshot với finished=1 trả 401 Unauthorized"
   severity: major
   test: 16
@@ -204,16 +203,14 @@ result: pending
 
 ### 15. Retest reload sau khi kết thúc
 expected: Sau khi kết thúc ván, reload trang vẫn mở lại màn hình kết quả cuối, bảng xếp hạng và top 5; không yêu cầu credential của phiên đã kết thúc.
-result: issue
-reported: "Cứ báo Phiên cũ chỉ lưu thông tin tối thiểu; hãy vào lại phòng để tiếp tục an toàn."
-severity: major
+result: pass
+note: "Đã bổ sung khôi phục credential tạm trong cùng tab và snapshot finished; đã xác nhận qua Test 17."
 
 ### 16. Retest reload cùng tab sau khi kết thúc
 expected: Trong cùng tab, sau khi kết thúc ván và reload trang, màn hình kết quả cuối, bảng xếp hạng và top 5 vẫn mở lại; không hiện lỗi “Phiên cũ chỉ lưu thông tin tối thiểu”.
-result: issue
-reported: "GET .../api/quiz/rooms?...&finished=1 trả 401 Unauthorized"
-severity: major
+result: pass
+note: "Pages proxy đã forward finished=1; retest endpoint thành công ở Test 17."
 
 ### 17. Retest endpoint khôi phục kết quả finished
 expected: Sau khi kết thúc ván và reload cùng tab, endpoint snapshot finished trả thành công; màn hình kết quả cuối, bảng xếp hạng và top 5 mở lại, không có lỗi 401.
-result: pending
+result: pass
