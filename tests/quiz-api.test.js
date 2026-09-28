@@ -218,6 +218,12 @@ describe('Pages quiz API contracts', () => {
     expect(repeated.status).toBe(200);
     expect((await repeated.json()).idempotent).toBe(true);
 
+    const playerAfterFinish = await scorePost(context(jsonRequest('https://pages.test/api/score', {
+      roomCode, playerId: player.player.playerId, capabilityToken: player.capabilityToken
+    }, { ip: 'real-player-after-finish' })));
+    expect(playerAfterFinish.status).toBe(200);
+    expect((await playerAfterFinish.json()).idempotent).toBe(true);
+
     const results = await env.DB.prepare(
       'SELECT player_id, total_score, total_response_ms FROM quiz_results WHERE room_code = ? ORDER BY player_sequence ASC'
     ).bind(roomCode).all();

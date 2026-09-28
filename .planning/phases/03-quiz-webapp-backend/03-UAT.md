@@ -227,6 +227,7 @@ blocked: 0
       issue: "Thiếu regression test player không finalize"
   missing:
     - "Chỉ host gọi /api/score"
+    - "Finalize finished idempotent cho credential hợp lệ của mọi participant để tương thích bundle cũ"
     - "Áp migration D1 local trước khi test bảng xếp hạng"
   debug_session: ".planning/debug/finished-persistence-auth.md"
 

@@ -11,6 +11,7 @@ The host finalizes and persists all room results on the server during `finish`. 
 ## Fix
 
 - Only the host client calls `/api/score`; players use the authoritative final snapshot already broadcast by the room.
+- The finished-room finalize endpoint also accepts any participant's valid finished-session credential idempotently, so an older cached client cannot turn a harmless retry into a 401.
 - Applied local migration `0001_quiz.sql` to `presentation-db`.
 
 ## Verification

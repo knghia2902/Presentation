@@ -603,10 +603,7 @@ export class QuizRoom extends DurableObject {
     const capabilityToken = typeof command?.capabilityToken === 'string' ? command.capabilityToken : '';
     if (this.room?.phase === 'finished') {
       const tokenHash = capabilityToken ? await hashCapability(capabilityToken) : '';
-      if (
-        playerId !== this.room.finalizedByPlayerId ||
-        tokenHash !== this.room.finalizedByCapabilityHash
-      ) {
+      if (!playerId || !(this.room.finishedCapabilityHashes || []).includes(tokenHash)) {
         throw new RoomError('Capability không hợp lệ.', 401, 'invalid_capability');
       }
       return { event: 'finished', idempotent: true, snapshot: this.snapshot() };
