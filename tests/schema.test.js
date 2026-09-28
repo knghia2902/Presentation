@@ -26,12 +26,12 @@ describe('repeatable quiz D1 schema', () => {
     await applyTestMigrations(database);
   });
 
-  it('preserves presentations and creates every quiz table and index', async () => {
+  it('creates every quiz table and index without presentation tables', async () => {
     const tables = await database.prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '_cf_%' ORDER BY name"
     ).all();
     expect(tables.results.map(({ name }) => name).filter((name) => name !== 'sqlite_sequence')).toEqual([
-      'd1_migrations', 'presentations', 'quiz_answers', 'quiz_players', 'quiz_results', 'quiz_rooms'
+      'd1_migrations', 'quiz_answers', 'quiz_players', 'quiz_results', 'quiz_rooms'
     ]);
 
     const indexes = await database.prepare(

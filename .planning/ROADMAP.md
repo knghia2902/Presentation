@@ -1,118 +1,52 @@
-# Roadmap: Bài Thuyết Trình — Quy Luật Phủ Định Của Phủ Định
+# Roadmap: Quiz Triết học
 
 **Created:** 2026-09-22
-**Granularity:** Coarse (3-5 phases)
-**Execution:** Parallel
+**Last updated:** 2026-09-28
+**Scope:** Chỉ quiz realtime; phần slide/trình chiếu đã chuyển sang Prezi và không còn thuộc project này.
 
-## Milestone 1: v1.0 — Bài thuyết trình hoàn chỉnh + Mini Game
+## Milestone 1: v1.0 — Quiz Triết học public
 
-### Phase 1: Web Slide (Prezi-style)
+### Phase 1: Quiz Webapp + Backend
 
-**Goal:** Tạo 12 slide web-based với reveal.js, hiệu ứng giống Prezi, nội dung đúng giáo trình
-**Requirements:** SLIDE-01, SLIDE-02, SLIDE-03, SLIDE-04, SLIDE-05, SLIDE-06
-**Deliverables:**
+**Goal:** Quiz gamified 20 câu với timer, scoring, phòng realtime, âm thanh và leaderboard.
 
-- `presentation/slides/index.html` — 12 slide reveal.js (16.8KB, 283 lines)
-- `presentation/slides/style.css` — Custom dark academia theme (10KB, 524 lines)
-- `presentation/slides/script.js` — Animations + spiral diagram (6.8KB, 195 lines)
+**Status:** ✅ Complete (2026-09-26)
 
-**Status:** ✅ Complete (2026-09-22)
-
----
-
-### Phase 2: Nội dung nói + Phản biện
-
-**Goal:** Tạo script nói đồng nhất với slide và bộ câu phản biện cho Q&A
-**Requirements:** SCRP-01, SCRP-02, SCRP-03, ARGS-01, ARGS-02, ARGS-03
-**Deliverables:**
-
-- `presentation/speaker-notes.md` — Script nói chi tiết cho 12 slide
-- `presentation/counter-arguments.md` — 10-15 câu phản biện + đáp án
-
-**Dependencies:** Phase 1 (cần biết cấu trúc slide)
-**Status:** Not Started
-
----
-
-### Phase 3: Quiz Webapp + Backend
-
-**Goal:** Tạo webapp quiz gamified 20 câu với timer, scoring, leaderboard
-**Requirements:** QUIZ-01~07, BACK-01~04
 **Deliverables:**
 
 - `presentation/quiz/index.html` — Quiz UI
-- `presentation/quiz/style.css` — Gamified styling
-- `presentation/quiz/app.js` — Game logic
-- `presentation/quiz/questions.json` — 20 câu hỏi
-- `presentation/workers/api.js` — Cloudflare Worker
-- `presentation/workers/schema.sql` — D1 schema
+- `presentation/quiz/style.css` — Light responsive UI
+- `presentation/quiz/app.js` — Client game logic, reconnect và audio
+- `presentation/quiz/questions.json` — Question bank
+- `presentation/workers/api.js` — Cloudflare Worker entrypoint
+- `presentation/workers/quiz-room.js` — Durable Object room lifecycle
+- `migrations/0001_quiz.sql` — Quiz D1 schema
 
-**Plans:** 9/9 plans complete
-Plans:
-**Wave 1**
+### Phase 2: Public access
 
-- [x] 03-01-PLAN.md — Test harness and deterministic scoring
+**Goal:** Public hóa quiz bằng Cloudflare Tunnel với hostname ổn định và root route hiển thị quiz.
 
-**Wave 2** *(blocked on Wave 1 completion)*
+**Status:** ✅ Complete (2026-09-28)
 
-- [x] 03-02-PLAN.md — Question bank and D1 schema contracts
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 03-03-PLAN.md — Durable Object room lifecycle
-
-**Wave 4** *(blocked on Wave 3 completion)*
-
-- [x] 03-04-PLAN.md — Pages API and WebSocket proxies
-
-**Wave 5** *(blocked on Wave 4 completion)*
-
-- [x] 03-05-PLAN.md — Mobile host/player quiz UI
-
-**Wave 6** *(blocked on Wave 5 completion)*
-
-- [x] 03-06-PLAN.md — Offline/reconnect and event feedback
-- [x] 03-07-PLAN.md — Licensed music, voice cues, and SFX assets
-
-**Wave 7** *(blocked on Wave 6 completion)*
-
-- [x] 03-08-PLAN.md — Web Audio and hybrid voice integration
-
-**Wave 8** *(blocked on Wave 7 completion)*
-
-- [x] 03-09-PLAN.md — Pages/Worker deployment contract
-
-**Status:** ✅ Complete (2026-09-26; deploy-ready, live publication reserved for Phase 4)
-
----
-
-### Phase 4: Deploy + Tích hợp
-
-**Goal:** Deploy toàn bộ lên Cloudflare Pages, tạo D1, QR code
-**Requirements:** DPLY-01, DPLY-02, DPLY-03
 **Deliverables:**
 
-- Cloudflare Pages live site
-- D1 database cho leaderboard
-- QR code link quiz nhúng vào slide cuối
-- `presentation/wrangler.toml` — Config
-
-**Dependencies:** Phase 1, Phase 3
-**Status:** Not Started
-
----
+- `quiz.natime.vn` — Public quiz hostname
+- Cloudflare Tunnel `quiz-natime` — trỏ tới local Pages server `127.0.0.1:8788`
+- Root route `https://quiz.natime.vn/` — phục vụ trực tiếp giao diện quiz
+- `functions/_middleware.js` — route quiz theo hostname
 
 ## Phase Summary
 
-| Phase | Name | Requirements | Dependencies | Status |
-|-------|------|-------------|-------------|--------|
-| 1 | Web Slide (Prezi-style) | SLIDE-01~06 | None | ✅ Complete |
-| 2 | Nội dung nói + Phản biện | SCRP-01~03, ARGS-01~03 | Phase 1 | Not Started |
-| 3 | Quiz Webapp + Backend | 9/9 | Complete    | 2026-09-26 |
-| 4 | Deploy + Tích hợp | DPLY-01~03 | Phase 1, 3 | Not Started |
+| Phase | Name | Status |
+|-------|------|--------|
+| 1 | Quiz Webapp + Backend | ✅ Complete |
+| 2 | Public access | ✅ Complete |
 
-**Parallel opportunities:** Phase 1 và Phase 3 có thể chạy song song (không phụ thuộc nhau).
+## Removed from scope
 
----
-*Roadmap created: 2026-09-22*
-*Last updated: 2026-09-22 after initial creation*
+- Web slide/editor Prezi-style trong repository.
+- Speaker notes và bộ phản biện trong repository.
+- API lưu presentation và bảng dữ liệu `presentations`.
+- Deploy/tích hợp slide và QR code vào slide.
+
+Slide chính thức được thực hiện và trình chiếu trên Prezi bên ngoài project này.

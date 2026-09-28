@@ -1,4 +1,4 @@
-name = "presentation-vitest"
+name = "quiz-vitest"
 main = "presentation/workers/api.js"
 compatibility_date = "2024-09-22"
 

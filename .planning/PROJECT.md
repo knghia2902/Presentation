@@ -1,80 +1,50 @@
-# Bài Thuyết Trình — Quy Luật Phủ Định Của Phủ Định
+# Quiz Triết học
 
 ## What This Is
 
-Dự án tạo bộ tài liệu thuyết trình hoàn chỉnh về **Quy luật phủ định của phủ định** trong Triết học Mác-Lênin, phục vụ buổi thuyết trình trên lớp. Bao gồm web slide phong cách Prezi, mini game quiz 20 câu hỏi trên webapp, script nói cho từng slide, và câu phản biện cho Q&A. Đối tượng là lớp học tổng hợp nhiều trình độ.
+Webapp quiz realtime bằng tiếng Việt cho bài **Quy luật phủ định của phủ định** trong Triết học Mác–Lênin. Slide và phần trình chiếu được thực hiện trên Prezi bên ngoài; repository này chỉ phụ trách quiz.
 
 ## Core Value
 
-Bài thuyết trình phải truyền tải rõ ràng nội dung quy luật phủ định của phủ định, đồng nhất giữa slide và nội dung nói, đồng thời mini game quiz giúp mọi người tương tác và ghi nhớ kiến thức.
+Giúp lớp ôn và kiểm tra kiến thức nhanh qua phòng chơi realtime, chấm điểm theo độ đúng và tốc độ, có leaderboard rõ ràng.
 
-## Requirements
+## Validated Requirements
 
-### Validated
+- 20 câu trắc nghiệm 4 đáp án.
+- Timer và tối đa 1.000 điểm mỗi câu.
+- Phòng host/player realtime qua WebSocket.
+- Bảng xếp hạng theo phòng.
+- Offline/reconnect và xử lý phiên phòng.
+- Âm thanh, nhạc nền, SFX và voice cue có thể bật tắt.
+- Responsive trên máy tính và điện thoại.
+- Tiếng Việt hoàn toàn.
+- Public hostname `quiz.natime.vn` qua Cloudflare Tunnel.
 
-- Mini game quiz webapp với 20 câu trắc nghiệm 4 đáp án — Validated in Phase 3: Quiz Webapp + Backend
-- Timer đếm ngược, tính điểm, bảng xếp hạng realtime — Validated in Phase 3: Quiz Webapp + Backend
-- Responsive — chạy được trên điện thoại — Validated in Phase 3: Quiz Webapp + Backend
-- Tiếng Việt hoàn toàn — Validated in Phase 3: Quiz Webapp + Backend
+## Out of Scope
 
-### Active
+- Web slide/editor hoặc trình chiếu Prezi-style trong repository.
+- Speaker notes và bộ phản biện.
+- Hệ thống đăng nhập/xác thực tài khoản.
+- Đa ngôn ngữ.
+- Video/audio nhúng trong slide.
+- AI-generated content.
 
-- [ ] Web slide 12 trang phong cách Prezi (reveal.js) với hiệu ứng zoom/pan
-- [ ] Nội dung slide đúng theo giáo trình Triết học Mác-Lênin 2021
-- [ ] Script nói (speaker notes) đồng nhất với từng slide
-- [ ] Deploy trên Cloudflare Pages + D1
-- [ ] Câu phản biện chuẩn bị cho Q&A (10-15 câu)
-- [ ] Tiếng Việt hoàn toàn
+## Technical Context
 
-### Out of Scope
-
-- Ứng dụng mobile native — web responsive là đủ
-- Hệ thống đăng nhập/xác thực — chỉ cần nhập tên
-- Đa ngôn ngữ — chỉ Tiếng Việt
-- Video/audio nhúng trong slide — tập trung vào nội dung text + animation
-- AI-generated content — dùng nội dung từ giáo trình chính thống
-
-## Context
-
-- **Nguồn tài liệu**: Giáo trình Triết học Mác-Lênin 2021 (không chuyên), phần §748-761
-- **Nội dung đã trích xuất**: Phủ định biện chứng, tính khách quan, tính kế thừa, kế thừa biện chứng, đường xoáy ốc, quá trình phủ định của phủ định, 4 ý nghĩa phương pháp luận
-- **Tài liệu bổ sung**: File PDF "Tài liệu triết Mac-leni" (scan, chưa đọc được text)
-- **NotebookLM**: Đã tạo thử nội dung nhưng không đồng nhất giữa slide và script nói
-- **Phong cách tham khảo**: Prezi.com — slide phi tuyến, zoom, pan
-
-## Constraints
-
-- **Tech stack**: HTML/CSS/JS (reveal.js), Cloudflare Workers + D1
-- **Ngôn ngữ**: Tiếng Việt hoàn toàn
-- **Nội dung**: Phải bám sát giáo trình Triết học Mác-Lênin 2021
-- **Thiết bị**: Phải responsive cho mobile (quiz trên điện thoại)
-- **Deploy**: Cloudflare Pages + D1 (user đã chọn)
+- **Frontend:** HTML/CSS/JavaScript tại `presentation/quiz/`.
+- **Backend:** Cloudflare Pages Functions, Durable Object và D1.
+- **Local:** Pages server `127.0.0.1:8788` và Worker local `127.0.0.1:8787`.
+- **Public:** `https://quiz.natime.vn/` qua tunnel `quiz-natime`.
+- **Nội dung:** Giáo trình Triết học Mác–Lênin 2021, phần §748–761.
 
 ## Key Decisions
 
-| Decision | Rationale | Outcome |
-|----------|-----------|---------|
-| Dùng reveal.js cho slide | Thư viện JS tạo slide giống Prezi, miễn phí, mạnh mẽ | — Pending |
-| Quiz offline-first (localStorage) + D1 backend | Đảm bảo hoạt động ngay cả khi chưa setup D1 | — Pending |
-| Trắc nghiệm 4 đáp án | Phù hợp lớp tổng hợp nhiều trình độ | — Pending |
-| Coarse granularity (3-5 phases) | Dự án nhỏ, không cần chia quá nhỏ | — Pending |
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd-transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+| Decision | Rationale |
+|----------|-----------|
+| Quiz là sản phẩm duy nhất của repository | Slide đã chuyển sang Prezi và không cần duy trì editor riêng |
+| Dùng phòng realtime | Phù hợp hình thức host bắt đầu quiz và người chơi join bằng mã |
+| Chấm điểm theo đúng + nhanh | Tạo động lực trả lời nhanh nhưng vẫn ưu tiên tính chính xác |
+| Cloudflare Tunnel cho public access | Có hostname `quiz.natime.vn` mà không cần đổi kiến trúc local hiện tại |
 
 ---
-*Last updated: 2026-09-28 after Phase 3 completion*
+*Last updated: 2026-09-28 after switching project scope to quiz-only.*

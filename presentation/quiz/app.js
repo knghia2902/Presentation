@@ -1167,7 +1167,7 @@ export function createQuizController(options = {}) {
 
   async function shareRoom() {
     const code = state.snapshot?.roomCode || state.session?.roomCode || '';
-    try { if (windowRef.navigator?.share) await windowRef.navigator.share({ title: 'Phòng chơi Triết học', text: `Tham gia phòng ${code}` }); else await copyRoomCode(); } catch { /* user cancellation is not an error */ }
+    try { if (windowRef.navigator?.share) await windowRef.navigator.share({ title: 'Quiz Triết học', text: `Tham gia phòng ${code}` }); else await copyRoomCode(); } catch { /* user cancellation is not an error */ }
   }
 
   function onKeydown(event) {

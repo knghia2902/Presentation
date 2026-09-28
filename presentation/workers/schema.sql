@@ -2,14 +2,6 @@
 -- Keep this structurally aligned with migrations/0001_quiz.sql; request handlers
 -- must not execute DDL and should use the versioned migration instead.
 
-CREATE TABLE IF NOT EXISTS presentations (
-  id TEXT PRIMARY KEY,
-  content TEXT,
-  cards_layout TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS quiz_rooms (
   room_code TEXT PRIMARY KEY,
   host_player_id TEXT,

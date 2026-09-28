@@ -1,14 +1,4 @@
 -- Versioned D1 schema for quiz rooms and durable quiz results.
--- The presentations table is intentionally preserved for the existing slide API.
-
-CREATE TABLE IF NOT EXISTS presentations (
-  id TEXT PRIMARY KEY,
-  content TEXT,
-  cards_layout TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS quiz_rooms (
   room_code TEXT PRIMARY KEY,
   host_player_id TEXT,

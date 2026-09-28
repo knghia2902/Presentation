@@ -1,91 +1,53 @@
-# Requirements: Bài Thuyết Trình — Quy Luật Phủ Định Của Phủ Định
+# Requirements: Quiz Triết học
 
 **Defined:** 2026-09-22
-**Core Value:** Bài thuyết trình rõ ràng, đồng nhất giữa slide và nội dung nói, mini game quiz giúp tương tác và ghi nhớ
+**Last updated:** 2026-09-28
+**Core Value:** Tạo một quiz realtime rõ ràng, nhanh và vui để lớp ôn kiến thức Triết học.
 
 ## v1 Requirements
 
-### Slide (SLIDE)
-
-- [ ] **SLIDE-01**: 12 slide web-based sử dụng reveal.js với hiệu ứng zoom/pan giống Prezi
-- [ ] **SLIDE-02**: Nội dung bám sát giáo trình Triết học Mác-Lênin 2021 (§748-761)
-- [ ] **SLIDE-03**: Theme tối (dark academia), typography tiếng Việt đẹp
-- [ ] **SLIDE-04**: Overview mode (xem toàn cảnh) và navigation trực quan
-- [ ] **SLIDE-05**: Responsive — hiển thị tốt trên desktop và mobile
-- [ ] **SLIDE-06**: Animation đường xoáy ốc minh họa quy luật
-
-### Script nói (SCRP)
-
-- [ ] **SCRP-01**: Script nói chi tiết cho từng slide, đồng nhất với nội dung trên slide
-- [ ] **SCRP-02**: Thời lượng dự kiến cho mỗi slide (~20 phút tổng)
-- [ ] **SCRP-03**: Ghi chú về ngữ điệu, nhấn mạnh, và thời điểm chuyển slide
-
 ### Quiz Webapp (QUIZ)
 
-- [x] **QUIZ-01**: 20 câu trắc nghiệm 4 đáp án (A/B/C/D) về nội dung quy luật
-- [x] **QUIZ-02**: Timer đếm ngược 30 giây cho mỗi câu
-- [x] **QUIZ-03**: Tính điểm: +10đ mỗi câu đúng, bonus thời gian
-- [x] **QUIZ-04**: Màn hình nhập tên → Quiz → Kết quả → Bảng xếp hạng
-- [x] **QUIZ-05**: Hiệu ứng confetti khi đúng, shake khi sai
-- [x] **QUIZ-06**: Responsive — chơi được trên điện thoại
-- [x] **QUIZ-07**: Giải thích đáp án sau mỗi câu
+- [x] **QUIZ-01**: 20 câu trắc nghiệm 4 đáp án A/B/C/D
+- [x] **QUIZ-02**: Timer cho mỗi câu
+- [x] **QUIZ-03**: Tối đa 1.000 điểm mỗi câu; đúng và nhanh được xếp cao hơn
+- [x] **QUIZ-04**: Host tạo phòng, player join bằng mã, host bắt đầu và kết thúc ván
+- [x] **QUIZ-05**: Bảng xếp hạng theo phòng realtime
+- [x] **QUIZ-06**: Responsive trên máy tính và điện thoại
+- [x] **QUIZ-07**: Hiển thị đáp án đúng, giải thích và trạng thái trả lời
+- [x] **QUIZ-08**: Offline/reconnect không làm mất phiên hợp lệ
+- [x] **QUIZ-09**: Nhạc nền, SFX và voice cue có thể bật tắt
 
 ### Backend (BACK)
 
-- [x] **BACK-01**: Cloudflare Worker API lưu điểm (POST /api/score)
-- [x] **BACK-02**: API bảng xếp hạng top 20 (GET /api/leaderboard)
-- [x] **BACK-03**: Cloudflare D1 database lưu scores
-- [x] **BACK-04**: LocalStorage fallback khi offline
+- [x] **BACK-01**: Pages Functions cho create/join/snapshot/score/leaderboard
+- [x] **BACK-02**: Durable Object giữ trạng thái phòng và WebSocket realtime
+- [x] **BACK-03**: D1 lưu phòng, người chơi, câu trả lời và kết quả
+- [x] **BACK-04**: Server-authoritative scoring và token xác thực phiên
 
-### Phản biện (ARGS)
+### Public access (PUBLIC)
 
-- [ ] **ARGS-01**: 10-15 câu hỏi phản biện thường gặp với đáp án chi tiết
-- [ ] **ARGS-02**: Trích dẫn giáo trình trong mỗi câu trả lời
-- [ ] **ARGS-03**: Chiến lược trả lời cho từng dạng câu hỏi
-
-### Deploy (DPLY)
-
-- [ ] **DPLY-01**: Deploy slide + quiz lên Cloudflare Pages
-- [ ] **DPLY-02**: Tạo Cloudflare D1 database cho leaderboard
-- [ ] **DPLY-03**: URL có thể chia sẻ (QR code cho quiz)
-
-## v2 Requirements
-
-### Nâng cao
-
-- **ADV-01**: Multiplayer realtime quiz (WebSocket)
-- **ADV-02**: Thêm dạng câu hỏi Đúng/Sai, Điền từ
-- **ADV-03**: Export slide sang PDF
-- **ADV-04**: Dark/Light mode toggle
-- **ADV-05**: Analytics — thống kê câu trả lời đúng/sai
+- [x] **PUBLIC-01**: Hostname `quiz.natime.vn` qua Cloudflare Tunnel
+- [x] **PUBLIC-02**: Root `https://quiz.natime.vn/` hiển thị trực tiếp quiz
+- [x] **PUBLIC-03**: Local development có thể chạy bằng Wrangler ở port 8788
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
+| Web slide/editor hoặc trình chiếu Prezi-style | Đã chuyển sang Prezi bên ngoài repository |
+| Speaker notes và bộ phản biện | Không thuộc sản phẩm quiz |
 | Ứng dụng mobile native | Web responsive đủ cho use case |
-| Hệ thống đăng nhập | Quá phức tạp, chỉ cần nhập tên |
+| Hệ thống đăng nhập | Chỉ cần nhập tên và mã phòng |
 | Đa ngôn ngữ | Chỉ phục vụ lớp Việt |
-| Video/audio nhúng | Focus nội dung text + animation |
-| AI-generated content | Phải bám sát giáo trình chính thống |
+| AI-generated content | Nội dung bám giáo trình chính thống |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SLIDE-01~06 | Phase 1 | Pending |
-| SCRP-01~03 | Phase 2 | Pending |
-| QUIZ-01~07 | Phase 3 | Complete |
-| BACK-01~04 | Phase 3 | Complete |
-| ARGS-01~03 | Phase 2 | Pending |
-| DPLY-01~03 | Phase 4 | Pending |
+| QUIZ-01~09 | Phase 1 | Complete |
+| BACK-01~04 | Phase 1 | Complete |
+| PUBLIC-01~03 | Phase 2 | Complete |
 
-**Coverage:**
-
-- v1 requirements: 22 total
-- Mapped to phases: 22
-- Unmapped: 0 ✓
-
----
-*Requirements defined: 2026-09-22*
-*Last updated: 2026-09-22 after initial definition*
+**Coverage:** 15/15 requirements complete.

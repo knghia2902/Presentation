@@ -1,7 +1,7 @@
 export async function onRequest(context) {
   const url = new URL(context.request.url);
 
-  if (url.hostname === 'quiz.natime.vn' && url.pathname === '/') {
+  if (url.pathname === '/') {
     const quizUrl = new URL('/presentation/quiz/', url);
     const quizResponse = await context.env.ASSETS.fetch(new Request(quizUrl, context.request));
     if (!quizResponse.ok) return quizResponse;
