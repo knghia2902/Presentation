@@ -51,6 +51,7 @@ export function createQuizAudioManager(options = {}) {
   const windowRef = options.windowRef || globalThis;
   const AudioContextCtor = options.AudioContext || windowRef.AudioContext || windowRef.webkitAudioContext;
   const AudioCtor = options.Audio || windowRef.Audio;
+  const documentRef = options.documentRef || windowRef.document;
   const speech = options.speechSynthesis || windowRef.speechSynthesis;
   const UtteranceCtor = options.SpeechSynthesisUtterance || windowRef.SpeechSynthesisUtterance;
   let context = options.audioContext || null;
@@ -99,10 +100,13 @@ export function createQuizAudioManager(options = {}) {
   }
 
   function makeAudio(asset, bus, loop = false) {
-    if (typeof AudioCtor !== 'function') return null;
     try {
-      const audio = new AudioCtor(asset);
+      const audio = typeof AudioCtor === 'function'
+        ? new AudioCtor(asset)
+        : documentRef?.createElement?.('audio');
+      if (!audio) return null;
       audio.preload = 'auto';
+      audio.setAttribute?.('playsinline', '');
       audio.loop = loop;
       audio.src = asset;
       if (!useWebAudio) {
@@ -119,7 +123,9 @@ export function createQuizAudioManager(options = {}) {
     if (!audio?.play) return false;
     try {
       const result = audio.play();
-      result?.catch?.(() => {});
+      result?.catch?.((error) => {
+        try { windowRef.console?.warn?.('[quiz-audio] play() bị từ chối', error?.name || 'unknown', audio.src); } catch { /* diagnostics are optional */ }
+      });
       return true;
     } catch { return false; }
   }
@@ -439,6 +445,7 @@ export function createQuizController(options = {}) {
   state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
   const audioManager = options.audioManager || createQuizAudioManager({
     windowRef,
+    documentRef,
     enabled: state.audioEnabled,
     AudioContext: options.AudioContext,
     Audio: options.Audio,
