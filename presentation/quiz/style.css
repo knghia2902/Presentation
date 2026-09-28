@@ -206,7 +206,7 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 .host-rail { display: grid; gap: 12px; padding: 18px; color: var(--ink); border-color: #d8b990; border-left: 5px solid var(--accent); background: var(--surface-warm); box-shadow: var(--shadow-soft); }
 .host-rail .room-code-block { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .host-rail .room-code-block .label { color: var(--accent-dark); }
-.host-rail .room-code { color: var(--accent-dark); font-size: 40px; }
+.host-rail .room-code { color: var(--accent-dark); font-size: 30px; letter-spacing: .04em; }
 .host-rail .room-code-actions { margin-top: 12px; }
 .host-rail .room-code-actions .small-button { color: var(--ink-soft); border-color: var(--line-strong); background: var(--surface); }
 .host-rail .room-code-actions .small-button:hover, .host-rail .room-code-actions .small-button:focus-visible { border-color: var(--accent); background: var(--surface-warm); }
