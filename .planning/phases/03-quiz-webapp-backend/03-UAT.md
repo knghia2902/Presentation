@@ -3,15 +3,15 @@ status: testing
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T08:20:00+07:00
+updated: 2026-09-28T08:25:00+07:00
 ---
 
 ## Current Test
 
-number: 14
-name: Retest phiên WebSocket và bảng xếp hạng
+number: 15
+name: Retest reload sau khi kết thúc
 expected: |
-  Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
+  Sau khi kết thúc ván, reload trang vẫn mở lại màn hình kết quả cuối, bảng xếp hạng và top 5; không yêu cầu credential của phiên đã kết thúc.
 awaiting: user response
 
 ## Tests
@@ -51,7 +51,7 @@ note: "Đã sửa CSS để các panel tạm dừng có hidden thực sự đư�
 ### 8. Kết thúc và bảng xếp hạng
 expected: Chủ phòng kết thúc; người chơi thấy kết quả cuối, top 5/bảng xếp hạng và trạng thái lưu kết quả. Có thể mở bảng xếp hạng chung nếu API hoạt động.
 result: issue
-reported: "WebSocket connection failed: HTTP Authentication failed; capabilityToken=undefined"
+reported: "Sau khi bấm kết thúc, load lại web báo Phiên phòng không còn thông tin xác thực và không vào lại được"
 severity: major
 
 ### 9. Hiển thị trên màn hình hẹp
@@ -60,10 +60,10 @@ result: pending
 
 ## Summary
 
-total: 14
+total: 15
 passed: 11
 issues: 1
-pending: 2
+pending: 3
 skipped: 0
 blocked: 0
 
@@ -151,6 +151,22 @@ blocked: 0
     - "Dừng retry và yêu cầu vào lại phòng khi credential hết hạn/không hợp lệ"
   debug_session: ".planning/debug/websocket-capability-token.md"
 
+- truth: "Reload sau khi kết thúc vẫn mở lại được kết quả cuối mà không cần credential"
+  status: fixed_pending_retest
+  reason: "User reported: Sau khi bấm kết thúc, load lại web báo phiên phòng không còn thông tin xác thực"
+  severity: major
+  test: 8
+  root_cause: "Credential bị thu hồi sau khi finish và không được lưu trong localStorage; reload không có cách gọi lại snapshot finished, nên rơi vào màn hình yêu cầu vào lại phòng."
+  artifacts:
+    - path: "presentation/quiz/app.js"
+      issue: "Chưa lưu/khôi phục snapshot finished cục bộ"
+    - path: "tests/offline.test.js"
+      issue: "Thiếu regression test reload kết quả finished không dùng credential"
+  missing:
+    - "Lưu snapshot kết quả cuối theo room/player"
+    - "Khôi phục màn hình finished trước khi thử kết nối"
+  debug_session: ".planning/debug/finished-result-reload.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -169,4 +185,8 @@ result: pass
 
 ### 14. Retest phiên WebSocket và bảng xếp hạng
 expected: Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
+result: pending
+
+### 15. Retest reload sau khi kết thúc
+expected: Sau khi kết thúc ván, reload trang vẫn mở lại màn hình kết quả cuối, bảng xếp hạng và top 5; không yêu cầu credential của phiên đã kết thúc.
 result: pending

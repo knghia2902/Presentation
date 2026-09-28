@@ -6,6 +6,7 @@ const SAVE_COPY = {
   fallback: 'Chưa lưu được — kết quả phòng vẫn còn'
 };
 export const QUIZ_SESSION_STORAGE_KEY = 'quiz_room_session';
+export const QUIZ_RESULT_STORAGE_PREFIX = 'quiz_room_result:';
 export const QUIZ_SESSION_FIELDS = Object.freeze([
   'roomCode',
   'role',
@@ -332,6 +333,24 @@ export function readSessionMetadata(source = globalThis) {
   }
 }
 
+function finishedResultStorageKey(session) {
+  if (!session?.roomCode || !session?.playerId) return null;
+  return `${QUIZ_RESULT_STORAGE_PREFIX}${session.roomCode}:${session.playerId}`;
+}
+
+function readFinishedSnapshot(source, session) {
+  const store = source?.getItem ? source : source?.localStorage;
+  const key = finishedResultStorageKey(session);
+  if (!store || !key) return null;
+  try {
+    const saved = JSON.parse(store.getItem(key) || 'null');
+    const snapshot = saved?.snapshot;
+    return snapshot?.phase === 'finished' && snapshot.roomCode === session.roomCode ? snapshot : null;
+  } catch {
+    return null;
+  }
+}
+
 function text(node, value) {
   if (node) node.textContent = value == null ? '' : String(value);
 }
@@ -430,6 +449,23 @@ export function createQuizController(options = {}) {
 
   function clearPersistedSession() {
     try { storage()?.removeItem(QUIZ_SESSION_STORAGE_KEY); } catch { /* localStorage is optional */ }
+  }
+
+  function persistFinishedSnapshot(snapshot = state.snapshot) {
+    const store = storage();
+    const key = finishedResultStorageKey(state.session);
+    if (!store || !key || snapshot?.phase !== 'finished') return false;
+    try {
+      store.setItem(key, JSON.stringify({ snapshot, savedAt: now() }));
+      return true;
+    } catch { return false; }
+  }
+
+  function clearFinishedSnapshot(session = state.session) {
+    const store = storage();
+    const key = finishedResultStorageKey(session);
+    if (!store || !key) return false;
+    try { store.removeItem(key); return true; } catch { return false; }
   }
 
   function rotateReconnectToken(token, snapshot) {
@@ -965,6 +1001,7 @@ export function createQuizController(options = {}) {
 
   async function persistFinalResult() {
     if (state.finalizing || !state.session || state.snapshot?.phase !== 'finished') return;
+    persistFinishedSnapshot();
     state.finalizing = true;
     state.saveState = 'saving';
     render();
@@ -1036,6 +1073,7 @@ export function createQuizController(options = {}) {
       if (state.audioEnabled) audioManager.handleEvent(payload.event, payload.snapshot);
       if (payload.event === 'finished' || payload.snapshot.phase === 'finished') {
         state.saveState = 'saving';
+        persistFinishedSnapshot(payload.snapshot);
       }
       render();
       if (payload.event === 'finished' || payload.snapshot.phase === 'finished') persistFinalResult();
@@ -1118,6 +1156,7 @@ export function createQuizController(options = {}) {
     action('share-room')?.addEventListener('click', shareRoom);
     action('load-global')?.addEventListener('click', loadGlobalLeaderboard);
     action('new-room')?.addEventListener('click', () => {
+      clearFinishedSnapshot();
       clearPersistedSession();
       state.session = null;
       state.snapshot = null;
@@ -1152,6 +1191,13 @@ export function createQuizController(options = {}) {
         state.session = saved;
         state.audioEnabled = saved.audioEnabled === true;
         setRole(saved.role);
+        const finishedSnapshot = readFinishedSnapshot(windowRef, saved);
+        if (finishedSnapshot) {
+          state.snapshot = finishedSnapshot;
+          setConnection('offline', 'Đã khôi phục kết quả đã lưu');
+          render();
+          return;
+        }
         setConnection('offline', 'Đã tìm thấy phiên cũ. Vui lòng vào lại phòng để cấp quyền kết nối.');
         text(byRole('error-message'), 'Phiên cũ chỉ lưu thông tin tối thiểu; hãy vào lại phòng để tiếp tục an toàn.');
         showScreen('error');
@@ -1188,6 +1234,7 @@ export function createQuizController(options = {}) {
     submitAnswer,
     loadGlobalLeaderboard,
     persistFinalResult,
+    persistFinishedSnapshot,
     copyRoomCode,
     persistSession,
     clearPersistedSession,

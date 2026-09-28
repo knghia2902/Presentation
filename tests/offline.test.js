@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   QUIZ_SESSION_FIELDS,
   QUIZ_SESSION_STORAGE_KEY,
+  QUIZ_RESULT_STORAGE_PREFIX,
   createQuizController,
   readSessionMetadata,
   sessionMetadata
@@ -154,6 +155,23 @@ describe('metadata-only quiz offline persistence', () => {
     expect(webSocketFactory).not.toHaveBeenCalled();
     expect(controller.state.transport).toBe('offline');
     expect(controller.state.reconnectRejected).toBe(true);
+  });
+
+  it('restores a locally cached finished result after reload without storing credentials', async () => {
+    const storage = new MemoryStorage();
+    const saved = { roomCode: 'ABC123', role: 'player', playerId: 'player-1', audioEnabled: false };
+    storage.setItem(QUIZ_SESSION_STORAGE_KEY, JSON.stringify(saved));
+    storage.setItem(`${QUIZ_RESULT_STORAGE_PREFIX}ABC123:player-1`, JSON.stringify({
+      snapshot: snapshot({ phase: 'finished', finalResults: [{ playerId: 'player-1', totalScore: 1000, rank: 1 }] })
+    }));
+    const webSocketFactory = vi.fn();
+    const controller = createQuizController({ windowRef: windowRef(storage), webSocketFactory });
+
+    await controller.start();
+
+    expect(controller.state.snapshot.phase).toBe('finished');
+    expect(controller.state.connection).toBe('offline');
+    expect(webSocketFactory).not.toHaveBeenCalled();
   });
 
   it('rotates the stored token before the next reconnect and never replays a disconnected answer', async () => {
