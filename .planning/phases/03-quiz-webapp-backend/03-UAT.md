@@ -1,18 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 03-quiz-webapp-backend
 source: 03-01-SUMMARY.md, 03-02-SUMMARY.md, 03-03-SUMMARY.md, 03-04-SUMMARY.md, 03-05-SUMMARY.md, 03-06-SUMMARY.md, 03-07-SUMMARY.md, 03-08-SUMMARY.md, 03-09-SUMMARY.md
 started: 2026-09-26T18:30:00+07:00
-updated: 2026-09-28T09:08:00+07:00
+updated: 2026-09-28T09:55:00+07:00
 ---
 
 ## Current Test
 
-number: 18
-name: Retest quyền điều khiển và kết thúc ván
-expected: |
-  Người chơi không thấy/không thể dùng điều khiển chủ phòng; chủ phòng thấy nút kết thúc, kết thúc ván thành công và người chơi thấy kết quả cuối cùng cùng bảng xếp hạng.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -55,14 +51,15 @@ note: "Đã sửa luồng snapshot finished và proxy; retest thành công ở T
 
 ### 9. Hiển thị trên màn hình hẹp
 expected: Thu nhỏ cửa sổ hoặc dùng chế độ responsive; câu hỏi, đáp án, timer và nút thao tác vẫn nhìn thấy và bấm được.
-result: pending
+result: pass
+note: "Đã xác nhận giao diện responsive hoạt động."
 
 ## Summary
 
-total: 19
-passed: 17
-issues: 1
-pending: 1
+total: 20
+passed: 19
+issues: 0
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -182,7 +179,7 @@ blocked: 0
   debug_session: ".planning/debug/finished-snapshot-proxy.md"
 
 - truth: "Điều khiển chủ phòng chỉ hiển thị cho chủ phòng"
-  status: fixed_pending_retest
+  status: resolved
   reason: "User reported: Người chơi vẫn thấy bảng điều khiển chủ phòng"
   severity: major
   test: 14
@@ -249,9 +246,8 @@ result: pass
 
 ### 14. Retest phiên WebSocket và bảng xếp hạng
 expected: Phiên hợp lệ kết nối WebSocket không lỗi; chủ phòng kết thúc và người chơi thấy kết quả cuối, top 5/bảng xếp hạng cùng trạng thái lưu kết quả.
-result: issue
-reported: "Người chơi vẫn thấy bảng điều khiển chủ phòng; bấm kết thúc chỉ còn ở bảng kết quả câu hỏi."
-severity: major
+result: pass
+note: "Lần kiểm tra đầu phát hiện lỗi quyền hiển thị; đã sửa và xác nhận lại thành công ở Test 18."
 
 ### 15. Retest reload sau khi kết thúc
 expected: Sau khi kết thúc ván, reload trang vẫn mở lại màn hình kết quả cuối, bảng xếp hạng và top 5; không yêu cầu credential của phiên đã kết thúc.
@@ -276,3 +272,8 @@ note: "Đã kiểm thử live với hai phiên khác origin: host bấm kết th
 expected: Player không gọi `/api/score` với credential đã bị thu hồi; bảng xếp hạng không còn lỗi 503 khi D1 local đã có migration.
 result: pass
 note: "Player bỏ qua /api/score; local migration 0001_quiz.sql đã áp dụng; leaderboard trả HTTP 200."
+
+### 20. Retest chỉ hiển thị bảng xếp hạng phòng
+expected: Giao diện chỉ hiển thị “Bảng xếp hạng phòng”; không còn “Bảng xếp hạng chung” hoặc nút xem bảng chung, và client không tự gọi API bảng xếp hạng chung.
+result: pass
+note: "Đã xác nhận giao diện chỉ còn bảng xếp hạng phòng; test suite 65/65 pass."
