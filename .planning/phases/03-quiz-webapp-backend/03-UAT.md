@@ -59,8 +59,8 @@ result: pending
 
 ## Summary
 
-total: 18
-passed: 16
+total: 19
+passed: 17
 issues: 1
 pending: 1
 skipped: 0
@@ -212,6 +212,24 @@ blocked: 0
     - "Có đường khôi phục khi WebSocket bỏ lỡ event finished"
   debug_session: ".planning/debug/finished-event-order.md"
 
+- truth: "Sau khi kết thúc, player không gọi API chốt kết quả bằng credential đã bị thu hồi"
+  status: resolved
+  reason: "User reported: /api/score trả 401 và /api/leaderboard trả 503 sau khi kết thúc"
+  severity: major
+  test: 19
+  root_cause: "Mọi client đều gọi /api/score dù máy chủ đã chốt kết quả và endpoint chỉ cho host finalize; D1 local cũng chưa áp migration nên leaderboard query thất bại."
+  artifacts:
+    - path: "presentation/quiz/app.js"
+      issue: "persistFinalResult() gọi /api/score không phân biệt host/player"
+    - path: "migrations/0001_quiz.sql"
+      issue: "Migration chưa được áp vào D1 local"
+    - path: "tests/client-integration.test.js"
+      issue: "Thiếu regression test player không finalize"
+  missing:
+    - "Chỉ host gọi /api/score"
+    - "Áp migration D1 local trước khi test bảng xếp hạng"
+  debug_session: ".planning/debug/finished-persistence-auth.md"
+
 ### 10. Retest bộ đáp án sau khi sửa
 expected: Tải lại trang hoặc tạo phòng mới, bắt đầu câu hỏi và màn hình chỉ còn đúng một bộ 4 đáp án A/B/C/D.
 result: pass
@@ -251,4 +269,9 @@ result: pass
 ### 18. Retest quyền điều khiển và kết thúc ván
 expected: Người chơi không thấy/không thể dùng điều khiển chủ phòng; chủ phòng thấy nút kết thúc, kết thúc ván thành công và người chơi thấy kết quả cuối cùng cùng bảng xếp hạng.
 result: pass
-note: "Đã kiểm thử live với hai phiên khác origin: host bấm kết thúc và cả host/player đều chuyển sang Kết quả ván chơi; test suite 64/64 pass."
+note: "Đã kiểm thử live với hai phiên khác origin: host bấm kết thúc và cả host/player đều chuyển sang Kết quả ván chơi; test suite 65/65 pass."
+
+### 19. Retest quyền lưu kết quả sau khi kết thúc
+expected: Player không gọi `/api/score` với credential đã bị thu hồi; bảng xếp hạng không còn lỗi 503 khi D1 local đã có migration.
+result: pass
+note: "Player bỏ qua /api/score; local migration 0001_quiz.sql đã áp dụng; leaderboard trả HTTP 200."

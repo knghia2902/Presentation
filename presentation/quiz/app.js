@@ -1082,17 +1082,19 @@ export function createQuizController(options = {}) {
     state.saveState = 'saving';
     render();
     let scoreSaved = true;
-    try {
-      const resultId = state.snapshot.resultId || `${state.session.roomCode}:${state.session.playerId}`;
-      await request('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
-        roomCode: state.session.roomCode,
-        playerId: state.session.playerId,
-        capabilityToken: state.session.capabilityToken,
-        resultId
-      }) });
-    } catch {
-      scoreSaved = false;
-      state.saveState = 'fallback';
+    if (state.role === 'host') {
+      try {
+        const resultId = state.snapshot.resultId || `${state.session.roomCode}:${state.session.playerId}`;
+        await request('/api/score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+          roomCode: state.session.roomCode,
+          playerId: state.session.playerId,
+          capabilityToken: state.session.capabilityToken,
+          resultId
+        }) });
+      } catch {
+        scoreSaved = false;
+        state.saveState = 'fallback';
+      }
     }
     await loadGlobalLeaderboard();
     if (!scoreSaved) state.saveState = 'fallback';
