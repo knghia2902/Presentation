@@ -81,6 +81,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .icon-text-button:hover, .icon-text-button:focus-visible, .text-button:hover, .text-button:focus-visible, .small-button:hover, .small-button:focus-visible { color: var(--accent-dark); }
 
 .status-band { display: none; }
+.pause-banner { display: none !important; }
 .status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--muted-light); box-shadow: 0 0 0 4px rgba(138, 146, 143, .12); }
 .status-band[data-state="connected"] .status-dot { background: var(--success); box-shadow: 0 0 0 4px rgba(45, 118, 93, .12); }
 .status-band[data-state="reconnecting"] .status-dot { background: var(--accent); box-shadow: 0 0 0 4px rgba(184, 117, 47, .14); }
