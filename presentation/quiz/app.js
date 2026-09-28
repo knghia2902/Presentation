@@ -107,8 +107,11 @@ export function createQuizAudioManager(options = {}) {
       if (!audio) return null;
       audio.preload = 'auto';
       audio.setAttribute?.('playsinline', '');
+      audio.setAttribute?.('aria-hidden', 'true');
+      if (audio.dataset) audio.dataset.quizAudio = bus;
       audio.loop = loop;
       audio.src = asset;
+      if (documentRef?.body?.appendChild && !audio.parentNode) documentRef.body.appendChild(audio);
       if (!useWebAudio) {
         const volume = bus === 'music' ? QUIZ_AUDIO_GAIN.music : bus === 'sfxGain' ? QUIZ_AUDIO_GAIN.sfx : QUIZ_AUDIO_GAIN.voice;
         try { audio.volume = volume; } catch { /* media doubles may omit volume */ }
@@ -153,6 +156,7 @@ export function createQuizAudioManager(options = {}) {
         try { audio.currentTime = 0; } catch { /* read-only media doubles are fine */ }
       }, maxDuration);
     }
+    if (audio?.addEventListener && !audio.loop) audio.addEventListener('ended', () => audio.remove?.(), { once: true });
     return playElement(audio);
   }
 
