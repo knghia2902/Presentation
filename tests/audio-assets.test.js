@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import roomReady from '../presentation/quiz/audio/room-ready.mp3?url';
-import quizStart from '../presentation/quiz/audio/quiz-start.mp3?url';
-import timeUp from '../presentation/quiz/audio/time-up.mp3?url';
 import finalResults from '../presentation/quiz/audio/final-results.mp3?url';
 import welcome from '../presentation/quiz/audio/welcome.mp3?url';
 import backgroundMusic from '../presentation/quiz/audio/background-music.mp3?url';
@@ -12,8 +10,6 @@ import license from '../presentation/quiz/audio/LICENSE.md?raw';
 
 const assets = {
   'room-ready.mp3': roomReady,
-  'quiz-start.mp3': quizStart,
-  'time-up.mp3': timeUp,
   'final-results.mp3': finalResults,
   'welcome.mp3': welcome,
   'background-music.mp3': backgroundMusic,

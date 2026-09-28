@@ -19,8 +19,6 @@ const EFFECT_DURATION_MS = Object.freeze({ confetti: 700, shake: 400 });
 
 export const QUIZ_AUDIO_ASSETS = Object.freeze({
   roomReady: '/presentation/quiz/audio/room-ready.mp3',
-  quizStart: '/presentation/quiz/audio/quiz-start.mp3',
-  timeUp: '/presentation/quiz/audio/time-up.mp3',
   finalResults: '/presentation/quiz/audio/final-results.mp3',
   welcome: '/presentation/quiz/audio/welcome.mp3',
   backgroundMusic: '/presentation/quiz/audio/background-music.mp3',
@@ -252,10 +250,6 @@ export function createQuizAudioManager(options = {}) {
     if ((eventName === 'snapshot' || eventName === 'lobby') && announcement.kind === 'room_ready') {
       const key = `room-ready:${snapshot.roomCode || 'room'}`;
       if (!handled.has(key)) { handled.add(key); playAsset('roomReady'); }
-    }
-    if ((eventName === 'question' || announcement.kind === 'quiz_started') && announcement.kind === 'quiz_started') {
-      const key = `quiz-start:${snapshot.roomCode || 'room'}`;
-      if (!handled.has(key)) { handled.add(key); playAsset('quizStart'); }
     }
     if (eventName === 'reveal' && !handled.has(`reveal:${questionKey}`)) {
       handled.add(`reveal:${questionKey}`);

@@ -4,7 +4,7 @@ Generated/downloaded: 2026-09-26. Scope: temporary classroom web app and GitHub 
 
 ## Fixed voice cues
 
-`room-ready.mp3`, `quiz-start.mp3`, `time-up.mp3`, and `final-results.mp3` were generated with the Vietnamese `vi-VN-NamMinhNeural` voice using the [`edge-tts` client](https://github.com/rany2/edge-tts). These files are temporary classroom-use outputs; no runtime or model is bundled. Attribution: generated with `edge-tts`. Re-review the provider voice terms before any public redistribution.
+`room-ready.mp3` and `final-results.mp3` were generated with the Vietnamese `vi-VN-NamMinhNeural` voice using the [`edge-tts` client](https://github.com/rany2/edge-tts). These files are temporary classroom-use outputs; no runtime or model is bundled. Attribution: generated with `edge-tts`. Re-review the provider voice terms before any public redistribution.
 
 ## Music and SFX
 
