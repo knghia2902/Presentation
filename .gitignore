@@ -4,6 +4,7 @@ scratch/
 *.log
 .DS_Store
 Thumbs.db
+**/.dev.vars
 crop_assets.py
 extract_assets.ps1
 extract_card_crops.py

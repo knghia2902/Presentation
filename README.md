@@ -61,4 +61,4 @@ Hai câu động được tạo một lần ở Durable Object rồi lưu theo p
 - Khi mở đáp án: `Chúc mừng {tên} đã trả lời đúng và nhanh nhất!`
 - Khi kết thúc: `Top 10 người chiến thắng là ...`
 
-Để bật voice local, sao chép `presentation/workers/.dev.vars.example` thành `presentation/workers/.dev.vars`, rồi điền `ELEVENLABS_API_KEY` và `ELEVENLABS_VOICE_ID`. Không đưa API key vào `app.js`, HTML hoặc Git. Nếu API không cấu hình hoặc lỗi, trình duyệt tự fallback sang giọng đọc hệ thống.
+Để bật voice local, sao chép `presentation/workers/.dev.vars.example` thành `presentation/workers/.dev.vars`, rồi điền `ELEVENLABS_API_KEY` và `ELEVENLABS_VOICE_ID`. Mặc định dùng model `eleven_v3`, ngôn ngữ `vi`. Không đưa API key vào `app.js`, HTML hoặc Git. Nếu API không cấu hình hoặc lỗi, trình duyệt tự fallback sang giọng đọc hệ thống.

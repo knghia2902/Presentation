@@ -18,7 +18,8 @@ const STORAGE_KEY = 'quiz-room-state-v1';
 const VOICE_STORAGE_PREFIX = 'quiz-dynamic-voice-v1:';
 const VOICE_ASSET_PATTERN = /^[A-Za-z0-9_-]{1,96}$/u;
 const MAX_VOICE_BYTES = 2 * 1024 * 1024;
-const ELEVENLABS_MODEL_ID = 'eleven_multilingual_v2';
+const ELEVENLABS_MODEL_ID = 'eleven_v3';
+const ELEVENLABS_TIMEOUT_MS = 12_000;
 const PHASES = new Set([
   'lobby',
   'question',
@@ -251,6 +252,8 @@ export class QuizRoom extends DurableObject {
     const apiKey = String(this.env?.ELEVENLABS_API_KEY || '').trim();
     const voiceId = String(this.env?.ELEVENLABS_VOICE_ID || '').trim();
     if (!apiKey || !voiceId || !VOICE_ASSET_PATTERN.test(assetId)) return null;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ELEVENLABS_TIMEOUT_MS);
     try {
       const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
         method: 'POST',
@@ -259,9 +262,11 @@ export class QuizRoom extends DurableObject {
           'xi-api-key': apiKey,
           Accept: 'audio/mpeg'
         },
+        signal: controller.signal,
         body: JSON.stringify({
           text: String(text || '').trim(),
           model_id: String(this.env?.ELEVENLABS_MODEL_ID || ELEVENLABS_MODEL_ID),
+          language_code: String(this.env?.ELEVENLABS_LANGUAGE_CODE || 'vi'),
           voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.25, use_speaker_boost: true }
         })
       });
@@ -272,6 +277,8 @@ export class QuizRoom extends DurableObject {
       return assetId;
     } catch {
       return null;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
