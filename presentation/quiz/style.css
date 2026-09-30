@@ -333,7 +333,10 @@ h2 { margin-bottom: 16px; font-size: 26px; }
   .entry-actions > * { width: 100%; }
   .history-panel { padding: 20px; }
   .room-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  .room-layout > .side-rail { order: 1; }
+  .room-layout > .side-rail { display: contents; }
+  .room-layout > .side-rail > .host-rail { order: 1; }
+  .room-layout > .room-stage { order: 2; }
+  .room-layout > .side-rail > .leaderboard-panel { order: 3; }
   .room-heading-row { margin-bottom: 20px; }
   .room-heading-row h1 { max-width: none; font-size: clamp(42px, 12vw, 58px); }
   .side-rail { height: auto; gap: 16px; }
