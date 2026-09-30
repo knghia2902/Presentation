@@ -143,7 +143,7 @@ code { padding: 2px 5px; border-radius: 5px; background: #f0eadf; font-family: "
 .question-editor-card label { gap: 6px; }
 .question-editor-card textarea { min-height: 0; }
 .question-options-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.question-editor-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: start; }
+.question-editor-footer { display: grid; grid-template-columns: minmax(130px, .35fr) minmax(0, 1fr); gap: 10px; align-items: start; }
 .question-set-editor-status { min-height: 20px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .question-set-editor-status[data-state="ok"] { color: #2b745d; }
 .question-set-editor-status[data-state="error"] { color: #aa3c31; }
@@ -156,3 +156,4 @@ code { padding: 2px 5px; border-radius: 5px; background: #f0eadf; font-family: "
 .question-set-editor-form > label, .question-editor-card label { gap: 3px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .question-set-editor-form > label input, .question-editor-card input, .question-editor-card select { min-height: 36px; padding: 7px 10px; font-size: 13px; }
 .question-set-editor-form > label textarea, .question-editor-card textarea { padding: 7px 10px; font-size: 13px; line-height: 1.35; }
+.question-editor-footer textarea { height: 36px; min-height: 36px; resize: vertical; }
