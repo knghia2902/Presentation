@@ -11,8 +11,8 @@ export async function onRequestPost(context) {
 
   const username = String(body?.username || context.env.QUIZ_ADMIN_USER || '').trim();
   const newPassword = String(body?.newPassword || '');
-  if (newPassword.length < 8) {
-    return Response.json({ ok: false, error: 'weak_password', message: 'Mật khẩu mới phải có ít nhất 8 ký tự.' }, { status: 400 });
+  if (!newPassword.trim()) {
+    return Response.json({ ok: false, error: 'invalid_password', message: 'Mật khẩu mới không được để trống.' }, { status: 400 });
   }
 
   const localResponse = await proxyTts(context, '/admin-change-password', {

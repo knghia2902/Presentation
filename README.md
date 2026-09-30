@@ -47,7 +47,7 @@ Trang `/admin` yêu cầu đăng nhập. Ở lần chạy đầu tiên, tài kho
 - Tên đăng nhập: `admin`
 - Mật khẩu: `admin`
 
-Sau lần đăng nhập đầu tiên, hệ thống bắt buộc đặt mật khẩu mới (tối thiểu 8 ký tự). Thông tin đăng nhập được lưu local trong `.admin-credentials.json`, file này nằm trong `.gitignore` và không được đẩy lên GitHub. Launcher sẽ in user/password hiện tại ở terminal khi khởi động.
+Sau lần đăng nhập đầu tiên, hệ thống bắt buộc đặt mật khẩu mới. Mật khẩu không được để trống. Thông tin đăng nhập được lưu local trong `.admin-credentials.json`, file này nằm trong `.gitignore` và không được đẩy lên GitHub. Launcher sẽ in user/password hiện tại ở terminal khi khởi động.
 
 ## Dữ liệu và API
 

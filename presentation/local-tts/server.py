@@ -190,8 +190,8 @@ def admin_change_password(username: str, new_password: str) -> dict:
     credentials = read_admin_credentials()
     if str(username) != credentials["username"]:
         return {"ok": False, "error": "invalid_credentials", "message": "Tài khoản quản trị không hợp lệ."}
-    if len(str(new_password)) < 8:
-        return {"ok": False, "error": "weak_password", "message": "Mật khẩu mới phải có ít nhất 8 ký tự."}
+    if not str(new_password).strip():
+        return {"ok": False, "error": "invalid_password", "message": "Mật khẩu mới không được để trống."}
     credentials["password"] = str(new_password)
     credentials["must_change"] = False
     save_admin_credentials(credentials)
