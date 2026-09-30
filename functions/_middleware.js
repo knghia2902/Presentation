@@ -14,7 +14,10 @@ async function loginPage(context) {
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
-  const isAdminPage = url.pathname === '/admin' || url.pathname === '/admin/' || url.pathname === '/presentation/admin/index.html';
+  const isAdminPage = url.pathname === '/admin'
+    || url.pathname === '/admin/'
+    || url.pathname === '/presentation/admin/'
+    || url.pathname === '/presentation/admin/index.html';
   const isAdminApi = url.pathname.startsWith('/api/admin/');
   const isAuthApi = ADMIN_AUTH_PATHS.has(url.pathname);
   const session = await getAdminSession(context.request, context.env);
