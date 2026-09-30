@@ -152,3 +152,7 @@ code { padding: 2px 5px; border-radius: 5px; background: #f0eadf; font-family: "
 .question-set-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 .question-set-count { color: var(--muted); font: 600 12px/1 "IBM Plex Mono", monospace; }
 @media (max-width: 760px) { .question-set-actions, .question-set-import-row, .question-set-dialog-header, .question-set-dialog-footer { align-items: stretch; flex-direction: column; } .question-set-actions .form-actions, .question-set-import-row .form-actions, .question-set-dialog-footer .form-actions { display: grid; grid-template-columns: 1fr; } .question-set-modal { padding: 8px; } .question-set-dialog { max-height: calc(100dvh - 16px); border-radius: 14px; } .question-set-dialog-header, .question-set-editor-form { padding-left: 18px; padding-right: 18px; } .question-options-grid, .question-editor-footer { grid-template-columns: 1fr; } }
+.question-set-selection select { min-height: 38px; padding: 8px 12px; font-size: 13px; }
+.question-set-editor-form > label, .question-editor-card label { gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.question-set-editor-form > label input, .question-editor-card input, .question-editor-card select { min-height: 36px; padding: 7px 10px; font-size: 13px; }
+.question-set-editor-form > label textarea, .question-editor-card textarea { padding: 7px 10px; font-size: 13px; line-height: 1.35; }
