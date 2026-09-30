@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/presentation/admin/style.css?v=admin-mobile-header-20260930-1">
-    <script type="module" src="/presentation/admin/app.js?v=admin-mobile-header-20260930-1"></script>
+    <link rel="stylesheet" href="/presentation/admin/style.css?v=admin-engine-menu-20260930-1">
+    <script type="module" src="/presentation/admin/app.js?v=admin-engine-menu-20260930-1"></script>
   </head>
   <body>
     <main class="admin-shell">
@@ -28,7 +28,15 @@
         <form id="settings-form" class="settings-card" data-role="settings-form">
           <div class="card-heading"><div><h2>Cấu hình clone giọng</h2></div></div>
           <div class="field-grid">
-            <select name="engine" aria-label="Bộ máy voice"><option value="vietvoice">VietVoice</option><option value="omnivoice">OmniVoice</option><option value="elevenlabs">ElevenLabs</option></select>
+            <div class="engine-select" data-role="engine-select">
+              <select class="engine-native-select" name="engine" aria-hidden="true" tabindex="-1"><option value="vietvoice">VietVoice</option><option value="omnivoice">OmniVoice</option><option value="elevenlabs">ElevenLabs</option></select>
+              <button class="engine-select-trigger" type="button" data-role="engine-select-trigger" aria-label="Bộ máy voice" aria-haspopup="listbox" aria-expanded="false" aria-controls="engine-select-menu">ElevenLabs</button>
+              <div class="engine-select-menu" id="engine-select-menu" data-role="engine-select-menu" role="listbox" aria-label="Bộ máy voice" hidden>
+                <button class="engine-select-option" type="button" role="option" data-engine-option="vietvoice" aria-selected="false">VietVoice</button>
+                <button class="engine-select-option" type="button" role="option" data-engine-option="omnivoice" aria-selected="false">OmniVoice</button>
+                <button class="engine-select-option" type="button" role="option" data-engine-option="elevenlabs" aria-selected="false">ElevenLabs</button>
+              </div>
+            </div>
           </div>
           <fieldset class="engine-options" data-engine-settings="clone">
             <legend>Clone local</legend>

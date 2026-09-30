@@ -43,6 +43,14 @@ input[type="range"]:focus { box-shadow: 0 0 0 3px rgba(166,99,36,.14); }
 .card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 26px; }
 .service-pill { padding: 5px 8px; border: 1px solid #c8dfd2; border-radius: 999px; color: #2b745d; background: #edf8f1; font-size: 11px; font-weight: 700; letter-spacing: .1em; }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+.engine-select { position: relative; min-width: 0; }
+.engine-native-select { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; opacity: 0; pointer-events: none; }
+.engine-select-trigger { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; color: var(--ink); border: 1px solid #cfc6b8; border-radius: 10px; background: #fff; text-align: left; overflow: hidden; }
+.engine-select-trigger::after { content: ""; width: 7px; height: 7px; flex: 0 0 auto; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translateY(-2px); }
+.engine-select-trigger[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(166,99,36,.14); }
+.engine-select-menu { position: absolute; z-index: 10; top: calc(100% + 6px); right: 0; left: 0; display: grid; gap: 2px; padding: 5px; border: 1px solid #cfc6b8; border-radius: 10px; background: #fffdfa; box-shadow: 0 12px 26px rgba(47, 38, 27, .15); }
+.engine-select-option { width: 100%; min-height: 40px; padding: 9px 10px; color: var(--ink); border-radius: 7px; background: transparent; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.engine-select-option:hover, .engine-select-option:focus-visible, .engine-select-option[aria-selected="true"] { color: var(--accent); background: #f3e1cc; }
 .engine-options[data-engine-settings="elevenlabs"] .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .settings-card > label { margin-bottom: 4px; }
 .engine-options { margin: 22px 0 0; padding: 18px; border: 1px solid #e6c79f; border-radius: 14px; background: rgba(243,225,204,.34); }

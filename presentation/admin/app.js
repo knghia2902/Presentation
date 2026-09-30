@@ -10,6 +10,10 @@ const quizSettingsForm = $('[data-role="quiz-settings-form"]');
 const elevenLabsStatusCard = $('[data-role="elevenlabs-status-card"]');
 const elevenLabsAccountList = $('[data-role="elevenlabs-account-list"]');
 const engineSettings = [...root.querySelectorAll('[data-engine-settings]')];
+const engineSelect = settingsForm?.elements.namedItem('engine');
+const engineSelectTrigger = $('[data-role="engine-select-trigger"]');
+const engineSelectMenu = $('[data-role="engine-select-menu"]');
+const engineSelectOptions = [...root.querySelectorAll('[data-engine-option]')];
 
 let previewUrl = null;
 const VOLUME_KEYS = ['master', 'music', 'correct', 'incorrect', 'welcome', 'roomReady', 'finalResults', 'dynamicVoice'];
@@ -63,10 +67,41 @@ function fillSettings(values) {
 }
 
 function updateEngineSettings(engine) {
+  syncEngineSelector(engine);
   for (const panel of engineSettings) {
     panel.hidden = panel.dataset.engineSettings === 'elevenlabs' ? engine !== 'elevenlabs' : engine === 'elevenlabs';
   }
 }
+
+function syncEngineSelector(value) {
+  if (!engineSelect || !engineSelectTrigger) return;
+  const option = [...engineSelect.options].find((item) => item.value === value) || engineSelect.options[0];
+  if (!option) return;
+  engineSelect.value = option.value;
+  engineSelectTrigger.textContent = option.textContent;
+  for (const item of engineSelectOptions) item.setAttribute('aria-selected', String(item.dataset.engineOption === option.value));
+}
+
+function closeEngineMenu() {
+  if (!engineSelectMenu || !engineSelectTrigger) return;
+  engineSelectMenu.hidden = true;
+  engineSelectTrigger.setAttribute('aria-expanded', 'false');
+}
+
+engineSelectTrigger?.addEventListener('click', () => {
+  const isOpen = !engineSelectMenu.hidden;
+  engineSelectMenu.hidden = isOpen;
+  engineSelectTrigger.setAttribute('aria-expanded', String(!isOpen));
+});
+engineSelectOptions.forEach((option) => option.addEventListener('click', () => {
+  if (!engineSelect) return;
+  engineSelect.value = option.dataset.engineOption;
+  engineSelect.dispatchEvent(new Event('change', { bubbles: true }));
+  closeEngineMenu();
+}));
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('[data-role="engine-select"]')) closeEngineMenu();
+});
 
 async function loadSettings() {
   setStatus('Đang đọc cấu hình service…');
