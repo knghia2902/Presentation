@@ -109,6 +109,12 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
     expect(answer.body.result.accepted).toBe(true);
     expect(answer.body.result.score).toBe(833);
     expect(answer.body.result.responseTimeMs).toBe(5_000);
+    const pendingVoice = await runInDurableObject(roomStub(), async (instance) => ({
+      questionIndex: instance.room.pendingFastestVoice?.questionIndex,
+      playerId: instance.room.pendingFastestVoice?.playerId,
+      ready: instance.room.pendingFastestVoice?.ready
+    }));
+    expect(pendingVoice).toMatchObject({ questionIndex: 0, playerId: player.player.playerId, ready: false });
 
     const duplicate = await callRoom(withCapability(player, 'answer', { option: 'B' }));
     expect(duplicate.status).toBe(409);
@@ -132,6 +138,7 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
     expect(finished.body.snapshot.finalResults[0].displayName).toBe('Minh');
     expect(finished.body.snapshot.finalResults).toHaveLength(2);
     expect(finished.body.snapshot.announcement.kind).toBe('final_results');
+    expect(finished.body.snapshot.announcement.text).toBe('Minh, 833 điểm; Minh #2, 0 điểm');
 
     const revoked = await callRoom(withCapability(host, 'snapshot'));
     expect(revoked.status).toBe(401);
@@ -141,6 +148,23 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
       instance.ctx.storage.get('quiz-final-results-v1')
     ));
     expect(persisted.leaderboard.map(({ displayName }) => displayName)).toEqual(['Minh', 'Minh #2']);
+  });
+
+  it('keeps the configured question duration in the room snapshot and deadline', async () => {
+    vi.useFakeTimers({ now: BASE_TIME, toFake: ['Date'] });
+    const created = await callRoom({
+      type: 'create',
+      nickname: 'Custom timer',
+      questionDurationSec: 45
+    }, 'DEF456');
+    expect(created.status).toBe(200);
+    const started = await callRoom({
+      type: 'start',
+      playerId: created.body.player.playerId,
+      capabilityToken: created.body.capabilityToken
+    }, 'DEF456');
+    expect(started.body.snapshot.questionDurationSec).toBe(45);
+    expect(started.body.snapshot.deadlineAt - started.body.snapshot.questionStartedAt).toBe(45_000);
   });
 
   it('accepts answers only before the single server deadline and rejects forged, late, and duplicate submissions', async () => {

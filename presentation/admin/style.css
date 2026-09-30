@@ -1,0 +1,100 @@
+:root { color-scheme: light; --ink: #202b38; --muted: #6f7b85; --paper: #f7f4ee; --panel: #fffdfa; --line: #ddd6ca; --accent: #a66324; --accent-soft: #f3e1cc; --shadow: 0 18px 45px rgba(47, 38, 27, .08); }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; min-height: 100vh; color: var(--ink); background: radial-gradient(circle at 8% 5%, #fffdf8 0, transparent 32%), var(--paper); font-family: "Be Vietnam Pro", system-ui, sans-serif; }
+button, input, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+.admin-shell { width: min(1120px, calc(100% - 48px)); margin: 0 auto; padding: 52px 0 64px; }
+.admin-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
+.eyebrow { margin: 0 0 10px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .12em; }
+h1, h2, p { margin-top: 0; }
+h1 { margin-bottom: 12px; font-size: clamp(38px, 6vw, 68px); line-height: .98; letter-spacing: -.06em; }
+h2 { margin-bottom: 10px; font-size: 25px; letter-spacing: -.04em; }
+.lede, .muted { color: var(--muted); line-height: 1.65; }
+.back-link { color: var(--accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.admin-header-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 16px; }
+.text-button { padding: 0; border: 0; color: var(--muted); background: transparent; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.text-button:hover, .text-button:focus-visible { color: var(--accent); }
+.auth-card, .settings-card, .preview-card, .info-grid { background: rgba(255,253,250,.88); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+.auth-card { display: grid; grid-template-columns: 1fr minmax(320px, 440px); gap: 32px; margin-top: 34px; padding: 26px; }
+.auth-card h2 { margin-bottom: 6px; }
+.auth-form label, .settings-card label, .preview-card label { display: grid; gap: 8px; color: var(--muted); font-size: 13px; font-weight: 700; }
+.input-row { display: flex; gap: 10px; }
+input, textarea, select { width: 100%; border: 1px solid #cfc6b8; border-radius: 10px; padding: 12px 14px; color: var(--ink); background: #fff; outline: none; transition: border-color .18s, box-shadow .18s; }
+textarea { resize: vertical; line-height: 1.5; }
+input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(166,99,36,.14); }
+input[type="range"] { width: 100%; height: 5px; padding: 0; accent-color: #9b5b20; border: 0; border-radius: 999px; background: #cfc2b2; box-shadow: none; cursor: pointer; }
+input[type="range"]:focus { box-shadow: 0 0 0 3px rgba(166,99,36,.14); }
+.primary-button, .secondary-button { border-radius: 10px; padding: 11px 16px; font-weight: 700; cursor: pointer; }
+.primary-button { border: 1px solid var(--accent); color: #fff; background: var(--accent); }
+.secondary-button { border: 1px solid #cfc6b8; color: var(--ink); background: transparent; }
+.primary-button:hover, .secondary-button:hover { transform: translateY(-1px); }
+.status-line { min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 14px; }
+.status-line[data-state="error"] { color: #aa3c31; }
+.status-line[data-state="ok"] { color: #2b745d; }
+.quiz-settings-card { display: grid; grid-template-columns: 1fr; gap: 14px; align-items: start; margin: 0; padding: 18px; }
+.quiz-settings-card h2 { margin-bottom: 4px; font-size: 21px; }
+.quiz-settings-card .muted { margin-bottom: 0; font-size: 12px; line-height: 1.45; }
+.quiz-settings-card form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.settings-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 20px; }
+.admin-side-stack { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: 16px; align-content: stretch; min-height: 100%; }
+.settings-card, .preview-card { padding: 26px; }
+.admin-side-stack .quiz-settings-card { padding: 18px; }
+.card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 26px; }
+.service-pill { padding: 5px 8px; border: 1px solid #c8dfd2; border-radius: 999px; color: #2b745d; background: #edf8f1; font-size: 11px; font-weight: 700; letter-spacing: .1em; }
+.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+.engine-options[data-engine-settings="elevenlabs"] .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.settings-card > label { margin-bottom: 4px; }
+.engine-options { margin: 22px 0 0; padding: 18px; border: 1px solid #e6c79f; border-radius: 14px; background: rgba(243,225,204,.34); }
+.engine-options legend { padding: 0 8px; color: var(--accent); font-size: 15px; font-weight: 700; }
+.engine-options .hint { margin: 0 0 16px; }
+.elevenlabs-status-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; margin: 20px 0 4px; padding: 18px 0 0; border-top: 1px solid #e6c79f; }
+.elevenlabs-status-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 0; }
+.elevenlabs-status-heading, .elevenlabs-account-list { grid-column: 1 / -1; }
+.elevenlabs-status-meta { grid-column: 1; }
+.elevenlabs-status-heading h2 { margin: 0; font-size: 18px; line-height: 1.15; }
+.elevenlabs-status-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.elevenlabs-status-meta { min-width: 0; }
+.elevenlabs-status-meta .muted { margin: 0; font-size: 13px; line-height: 1.45; }
+.elevenlabs-status-meta .elevenlabs-account-error { margin-top: 5px; }
+.elevenlabs-credit-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; }
+.elevenlabs-account-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; max-height: 190px; overflow-y: auto; margin: 0; padding: 0 4px 0 0; list-style: none; }
+.elevenlabs-account-row { display: grid; align-content: space-between; gap: 12px; min-width: 0; min-height: 76px; padding: 11px 12px; border: 1px solid #ead9c3; border-radius: 9px; background: rgba(255,253,250,.56); }
+.elevenlabs-account-row .elevenlabs-account-actions { justify-content: space-between; }
+.elevenlabs-account-details { display: grid; min-width: 0; gap: 2px; }
+.elevenlabs-account-details strong { overflow: hidden; color: var(--ink); text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.elevenlabs-account-details span { color: var(--muted); font: 500 11px/1.35 "IBM Plex Mono", monospace; }
+.elevenlabs-account-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; }
+.account-status { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.account-status[data-state="ok"] { color: #2b745d; }
+.account-status[data-state="error"] { color: #aa3c31; }
+.account-delete-button { padding: 5px 8px; color: #aa3c31; border: 1px solid #e8b8ae; border-radius: 7px; background: #fbe9e5; font-size: 11px; font-weight: 700; cursor: pointer; }
+.account-delete-button:hover, .account-delete-button:focus-visible { border-color: #aa3c31; background: #f4d8d3; }
+.service-pill[data-state="ok"] { color: #2b745d; border-color: #c8dfd2; background: #edf8f1; }
+.service-pill[data-state="error"] { color: #aa3c31; border-color: #e8b8ae; background: #fbe9e5; }
+.elevenlabs-account-error { margin: 0; color: #aa3c31; font-size: 12px; line-height: 1.45; }
+.hint { margin: 9px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.settings-card > .form-actions { gap: 16px; margin-top: 18px; }
+.admin-side-stack > .preview-card { min-height: 0; }
+.preview-card textarea { flex: 1; min-height: 180px; }
+.volume-settings { margin: 24px 0 20px; padding: 18px; border: 1px solid #cfc6b8; border-radius: 14px; background: #fffdfa; }
+.settings-layout > .volume-settings { grid-column: 1 / -1; width: 100%; margin: 0; }
+.volume-settings legend { padding: 0 8px; color: var(--ink); font-size: 15px; font-weight: 700; }
+.volume-settings .hint { margin: 0 0 16px; }
+.volume-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 22px; }
+.volume-grid label { gap: 9px; }
+.volume-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #28323d; font-size: 13px; font-weight: 700; }
+.volume-label output { min-width: 42px; color: #8b4f1d; font: 600 12px/1 "IBM Plex Mono", monospace; text-align: right; }
+.form-actions { display: flex; gap: 10px; }
+.preview-card { display: flex; flex-direction: column; align-items: stretch; }
+.preview-card h2 { margin-bottom: 4px; }
+.preview-card .muted { font-size: 13px; }
+.full-button { width: 100%; margin-top: 14px; }
+audio { width: 100%; margin-top: 18px; }
+.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 20px; padding: 20px 24px; }
+.info-grid div { display: grid; gap: 5px; }
+.info-label { color: var(--muted); font-size: 12px; }
+.info-grid strong { font-family: "IBM Plex Mono", monospace; font-size: 14px; }
+code { padding: 2px 5px; border-radius: 5px; background: #f0eadf; font-family: "IBM Plex Mono", monospace; font-size: .9em; }
+@media (max-width: 900px) { .engine-options[data-engine-settings="elevenlabs"] .field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .admin-shell { width: min(100% - 28px, 560px); padding-top: 30px; } .admin-header, .auth-card { display: block; } .back-link { display: inline-block; margin-top: 20px; } .auth-card { padding: 20px; } .auth-form { margin-top: 22px; } .input-row { display: grid; } .quiz-settings-card, .settings-layout, .field-grid, .volume-grid, .info-grid, .engine-options[data-engine-settings="elevenlabs"] .field-grid, .elevenlabs-account-list { grid-template-columns: 1fr; } .quiz-settings-card form { grid-template-columns: 1fr; } .settings-card, .preview-card { padding: 20px; } .elevenlabs-status-card { grid-template-columns: 1fr; padding-top: 14px; } .elevenlabs-status-heading { align-items: flex-start; flex-direction: column; } .elevenlabs-status-actions { justify-content: flex-start; } .elevenlabs-account-row { align-items: flex-start; flex-direction: column; gap: 8px; } }

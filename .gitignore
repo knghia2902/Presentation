@@ -5,6 +5,13 @@ scratch/
 .DS_Store
 Thumbs.db
 **/.dev.vars
+presentation/local-tts/settings.json
+presentation/local-tts/data/
+presentation/local-tts/elevenlabs_proxy/data/
+**/__pycache__/
+*.pyc
+.admin-credentials.json
+.runtime-logs/
 crop_assets.py
 extract_assets.ps1
 extract_card_crops.py

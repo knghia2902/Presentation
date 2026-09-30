@@ -5,7 +5,6 @@ import welcome from '../presentation/quiz/audio/welcome.mp3?url';
 import backgroundMusic from '../presentation/quiz/audio/background-music.mp3?url';
 import sfxCorrect from '../presentation/quiz/audio/sfx-correct.mp3?url';
 import sfxIncorrect from '../presentation/quiz/audio/sfx-incorrect.mp3?url';
-import sfxTimeout from '../presentation/quiz/audio/sfx-timeout.mp3?url';
 import license from '../presentation/quiz/audio/LICENSE.md?raw';
 
 const assets = {
@@ -15,7 +14,6 @@ const assets = {
   'background-music.mp3': backgroundMusic,
   'sfx-correct.mp3': sfxCorrect,
   'sfx-incorrect.mp3': sfxIncorrect,
-  'sfx-timeout.mp3': sfxTimeout,
 };
 
 describe('quiz audio asset contract', () => {
@@ -29,7 +27,6 @@ describe('quiz audio asset contract', () => {
   it('keeps source/license attribution for every shipped asset', () => {
     for (const asset of Object.keys(assets)) expect(license).toContain(asset);
     expect(license).toContain('edge-tts');
-    expect(license).toContain('CC0 1.0');
     expect(license).toContain('replaced/re-reviewed');
   });
 });

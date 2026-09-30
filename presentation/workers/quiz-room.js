@@ -10,6 +10,10 @@ export const MAX_MESSAGE_BYTES = 8 * 1024;
 export const MAX_PLAYERS = 100;
 export const ROOM_ALLOCATOR_ID = '__quiz_room_allocator__';
 export const HISTORY_STORAGE_KEY = 'quiz-history-v1';
+export const QUIZ_SETTINGS_STORAGE_KEY = 'quiz-settings-v1';
+export const DEFAULT_QUESTION_DURATION_SEC = QUESTION_MS / 1000;
+export const MIN_QUESTION_DURATION_SEC = 5;
+export const MAX_QUESTION_DURATION_SEC = 300;
 const HISTORY_LIMIT = 50;
 
 const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -18,8 +22,8 @@ const STORAGE_KEY = 'quiz-room-state-v1';
 const VOICE_STORAGE_PREFIX = 'quiz-dynamic-voice-v1:';
 const VOICE_ASSET_PATTERN = /^[A-Za-z0-9_-]{1,96}$/u;
 const MAX_VOICE_BYTES = 2 * 1024 * 1024;
-const ELEVENLABS_MODEL_ID = 'eleven_v3';
-const ELEVENLABS_TIMEOUT_MS = 12_000;
+const LOCAL_TTS_URL = 'http://127.0.0.1:8786/tts';
+const LOCAL_TTS_TIMEOUT_MS = 60_000;
 const PHASES = new Set([
   'lobby',
   'question',
@@ -29,6 +33,15 @@ const PHASES = new Set([
 ]);
 const ROLES = new Set(['host', 'player']);
 const OPTIONS = new Set(['A', 'B', 'C', 'D']);
+
+export function normalizeQuestionDurationSec(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds)) return DEFAULT_QUESTION_DURATION_SEC;
+  return Math.min(
+    MAX_QUESTION_DURATION_SEC,
+    Math.max(MIN_QUESTION_DURATION_SEC, Math.round(seconds))
+  );
+}
 
 function currentTime() {
   return Date.now();
@@ -140,6 +153,7 @@ export class QuizRoom extends DurableObject {
     this.ctx = ctx;
     this.env = env;
     this.sessions = new Map();
+    this.voiceGenerationKeys = new Set();
     this.room = null;
     this.ready = this.ctx.blockConcurrencyWhile(async () => {
       this.room = await this.ctx.storage.get(STORAGE_KEY) || null;
@@ -161,6 +175,13 @@ export class QuizRoom extends DurableObject {
         if (request.method === 'GET') return await this.readHistory();
         if (request.method === 'POST' && request.headers.get('X-Quiz-Internal') === 'history-writer') {
           return await this.recordHistory(request);
+        }
+        return safeJson({ ok: false, error: 'Phương thức không được hỗ trợ.', code: 'method_not_allowed' }, 405);
+      }
+      if (url.pathname.endsWith('/settings')) {
+        if (request.method === 'GET') return await this.readQuizSettings();
+        if (request.method === 'PUT' && request.headers.get('X-Quiz-Internal') === 'admin-settings') {
+          return await this.writeQuizSettings(request);
         }
         return safeJson({ ok: false, error: 'Phương thức không được hỗ trợ.', code: 'method_not_allowed' }, 405);
       }
@@ -238,7 +259,9 @@ export class QuizRoom extends DurableObject {
     } else {
       await this.authenticate({ playerId, capabilityToken });
     }
-    const audio = await this.ctx.storage.get(`${VOICE_STORAGE_PREFIX}${assetId}`, 'arrayBuffer');
+    // Durable Object Storage preserves the ArrayBuffer type that was written;
+    // passing the old KV-style type string makes the current runtime throw.
+    const audio = await this.ctx.storage.get(`${VOICE_STORAGE_PREFIX}${assetId}`);
     if (!audio) return safeJson({ ok: false, error: 'Audio chưa sẵn sàng.', code: 'voice_not_found' }, 404);
     return new Response(audio, {
       headers: {
@@ -249,37 +272,105 @@ export class QuizRoom extends DurableObject {
   }
 
   async generateDynamicVoice(text, assetId) {
-    const apiKey = String(this.env?.ELEVENLABS_API_KEY || '').trim();
-    const voiceId = String(this.env?.ELEVENLABS_VOICE_ID || '').trim();
-    if (!apiKey || !voiceId || !VOICE_ASSET_PATTERN.test(assetId)) return null;
+    const startedAt = Date.now();
+    if (!VOICE_ASSET_PATTERN.test(assetId)) return null;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ELEVENLABS_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), LOCAL_TTS_TIMEOUT_MS);
     try {
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+      const response = await fetch(String(this.env?.LOCAL_TTS_URL || LOCAL_TTS_URL), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
           Accept: 'audio/mpeg'
         },
         signal: controller.signal,
-        body: JSON.stringify({
-          text: String(text || '').trim(),
-          model_id: String(this.env?.ELEVENLABS_MODEL_ID || ELEVENLABS_MODEL_ID),
-          language_code: String(this.env?.ELEVENLABS_LANGUAGE_CODE || 'vi'),
-          voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.25, use_speaker_boost: true }
-        })
+        body: JSON.stringify({ text: String(text || '').trim() })
       });
       if (!response.ok) return null;
       const audio = await response.arrayBuffer();
       if (!audio.byteLength || audio.byteLength > MAX_VOICE_BYTES) return null;
       await this.ctx.storage.put(`${VOICE_STORAGE_PREFIX}${assetId}`, audio);
+      console.log(`[quiz-tts] generated ${assetId} in ${Date.now() - startedAt}ms (${audio.byteLength} bytes)`);
       return assetId;
     } catch {
+      console.warn(`[quiz-tts] generation failed for ${assetId} after ${Date.now() - startedAt}ms`);
       return null;
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  queueDynamicVoice({ text, assetId, expectedPhase, expectedQuestionIndex = null, expectedKind, expectedPlayerId = null, pendingFastestVoice = false, preparedFinalVoice = false }) {
+    if (this.voiceGenerationKeys.has(assetId)) return;
+    this.voiceGenerationKeys.add(assetId);
+    const publish = async () => {
+      try {
+        const readyAssetId = await this.generateDynamicVoice(text, assetId);
+        if (!readyAssetId) return;
+        if (preparedFinalVoice) {
+          const prepared = this.room?.finalVoice;
+          if (!prepared || prepared.assetId !== assetId || prepared.text !== text) return;
+          prepared.ready = true;
+          const announcement = this.room.announcement;
+          const canPublish = this.room.phase === 'finished' && announcement?.kind === 'final_results';
+          if (canPublish) {
+            this.room.announcement = { ...announcement, voiceAssetId: readyAssetId };
+            this.bumpVersion();
+          }
+          await this.save();
+          if (canPublish) this.broadcast({ event: 'voice_ready', snapshot: this.snapshot() });
+          return;
+        }
+        if (pendingFastestVoice) {
+          const pending = this.room?.pendingFastestVoice;
+          if (!pending || pending.assetId !== assetId || pending.questionIndex !== expectedQuestionIndex || pending.playerId !== expectedPlayerId) return;
+          pending.voiceAssetId = readyAssetId;
+          pending.ready = true;
+          const announcement = this.room.announcement;
+          const canPublish = this.room.phase === 'reveal' && this.room.questionIndex === expectedQuestionIndex && announcement?.kind === 'fastest_correct' && announcement.playerId === expectedPlayerId;
+          if (canPublish) {
+            this.room.announcement = { ...announcement, voiceAssetId: readyAssetId };
+            this.bumpVersion();
+          }
+          await this.save();
+          if (canPublish) this.broadcast({ event: 'voice_ready', snapshot: this.snapshot() });
+          return;
+        }
+        const announcement = this.room?.announcement;
+        if (!this.room || this.room.phase !== expectedPhase || this.room.questionIndex !== expectedQuestionIndex || announcement?.kind !== expectedKind || (expectedPlayerId && announcement.playerId !== expectedPlayerId)) return;
+        this.room.announcement = { ...announcement, voiceAssetId: readyAssetId };
+        this.bumpVersion();
+        await this.save();
+        this.broadcast({ event: 'voice_ready', snapshot: this.snapshot() });
+      } finally {
+        this.voiceGenerationKeys.delete(assetId);
+      }
+    };
+    const task = publish().catch((error) => {
+      console.warn(`[quiz-tts] publish failed for ${assetId}: ${error?.message || error}`);
+    });
+    if (typeof this.ctx.waitUntil === 'function') this.ctx.waitUntil(task);
+  }
+
+  finalResultsAnnouncement() {
+    const topTen = this.leaderboard().slice(0, 10).map(({ displayName, totalScore, rank }) => ({ displayName, totalScore, rank }));
+    const text = topTen.length
+      ? topTen.map((row) => `${row.displayName}, ${Number(row.totalScore || 0).toLocaleString('vi-VN')} điểm`).join('; ')
+      : 'Chưa có người chiến thắng.';
+    return { topTen, text };
+  }
+
+  async prepareFinalResultsVoice() {
+    if (!this.room || this.room.phase === 'finished') return;
+    const { text } = this.finalResultsAnnouncement();
+    const current = this.room.finalVoice;
+    if (current?.text === text && (current.ready || this.voiceGenerationKeys.has(current.assetId))) return current;
+
+    const assetId = current?.assetId || this.voiceAssetId('final-results', this.room.roomVersion + 1);
+    this.room.finalVoice = { assetId, text, ready: false };
+    await this.save();
+    this.queueDynamicVoice({ text, assetId, preparedFinalVoice: true });
+    return this.room.finalVoice;
   }
 
   voiceAssetId(kind, version) {
@@ -312,7 +403,7 @@ export class QuizRoom extends DurableObject {
     }
 
     await this.expireIfNeeded();
-    if (type === 'create') return this.createRoom(context.roomCode || command.roomCode, command.nickname);
+    if (type === 'create') return this.createRoom(context.roomCode || command.roomCode, command.nickname, command.questionDurationSec);
     if (type === 'join') return this.joinRoom(context.roomCode || command.roomCode, command.nickname);
     if (type === 'snapshot') {
       await this.authenticate(command);
@@ -338,7 +429,7 @@ export class QuizRoom extends DurableObject {
     }
   }
 
-  async createRoom(roomCodeValue, nicknameValue) {
+  async createRoom(roomCodeValue, nicknameValue, questionDurationSecValue = DEFAULT_QUESTION_DURATION_SEC) {
     const roomCode = normalizeRoomCode(roomCodeValue);
     if (this.room) {
       throw new RoomError('Phòng đã tồn tại.', 409, 'room_exists');
@@ -366,11 +457,14 @@ export class QuizRoom extends DurableObject {
       phase: 'lobby',
       roomStatus: 'active',
       roomVersion: 1,
+      questionDurationSec: normalizeQuestionDurationSec(questionDurationSecValue),
       questionIndex: -1,
       questionStartedAt: null,
       deadlineAt: null,
       pausedFromPhase: null,
       pausedRemainingMs: null,
+      pendingFastestVoice: null,
+      finalVoice: null,
       revealUntil: null,
       reveal: null,
       announcement: { kind: 'room_ready', text: 'Phòng chơi đã sẵn sàng.' },
@@ -550,7 +644,8 @@ export class QuizRoom extends DurableObject {
       isCorrect: option === question.correctOption,
       questionStartedAt: this.room.questionStartedAt,
       deadlineAt: this.room.deadlineAt,
-      receivedAt: now
+      receivedAt: now,
+      questionDurationMs: this.questionDurationMs()
     });
     this.room.answers[answerKey] = {
       answerId: crypto.randomUUID(),
@@ -563,12 +658,36 @@ export class QuizRoom extends DurableObject {
       responseTimeMs: result.responseTimeMs,
       receivedAt: now
     };
+    let queuedFastestVoice = null;
+    if (result.score > 0 && !this.room.pendingFastestVoice) {
+      const text = `Chúc mừng ${player.displayName} đã trả lời đúng và nhanh nhất!`;
+      const assetId = this.voiceAssetId('fastest-correct', this.room.questionIndex + 1);
+      this.room.pendingFastestVoice = {
+        questionIndex: this.room.questionIndex,
+        playerId: player.playerId,
+        text,
+        assetId,
+        voiceAssetId: null,
+        ready: false
+      };
+      queuedFastestVoice = this.room.pendingFastestVoice;
+    }
     player.totalScore += result.score;
     player.totalResponseMs += result.responseTimeMs;
     this.bumpVersion();
     await this.save();
     const event = result.score > 0 ? 'correct' : 'incorrect';
     this.broadcast({ event, snapshot: this.snapshot(), result: { ...result, accepted: true } });
+    if (queuedFastestVoice) {
+      this.queueDynamicVoice({
+        text: queuedFastestVoice.text,
+        assetId: queuedFastestVoice.assetId,
+        expectedPhase: 'question',
+        expectedQuestionIndex: queuedFastestVoice.questionIndex,
+        expectedPlayerId: queuedFastestVoice.playerId,
+        pendingFastestVoice: true
+      });
+    }
     // The direct command response may reveal the correct option to the player
     // who just answered. The broadcast above intentionally remains generic so
     // other players can continue answering without seeing the key early.
@@ -655,7 +774,7 @@ export class QuizRoom extends DurableObject {
     if (!['lobby', 'question', 'reveal', 'paused_host_disconnect'].includes(this.room.phase)) {
       throw new RoomError('Quiz đã kết thúc.', 409, 'invalid_phase');
     }
-    if (this.room.phase === 'question') await this.enterReveal('finish');
+    if (this.room.phase === 'question') await this.enterReveal('finish', { queueVoice: false });
     this.room.phase = 'finished';
     this.room.roomStatus = reason === 'expired' ? 'expired' : 'finished';
     this.room.finishedAt = currentTime();
@@ -663,22 +782,25 @@ export class QuizRoom extends DurableObject {
     this.room.finalizedByCapabilityHash = player.capabilityTokenHash;
     this.room.finishedCapabilityHashes = this.room.players.map(({ capabilityTokenHash }) => capabilityTokenHash);
     this.room.revealUntil = null;
-    const topTen = this.leaderboard().slice(0, 10).map(({ displayName, totalScore, rank }) => ({ displayName, totalScore, rank }));
-    const topTenText = topTen.length
-      ? `Top ${topTen.length} người chiến thắng là ${topTen.map((row, index) => `${index + 1}, ${row.displayName}, ${Number(row.totalScore || 0).toLocaleString('vi-VN')} điểm`).join('; ')}.`
-      : 'Chưa có người chiến thắng.';
-    const voiceAssetId = await this.generateDynamicVoice(topTenText, this.voiceAssetId('final-results', this.room.roomVersion + 1));
+    const { topTen, text: topTenText } = this.finalResultsAnnouncement();
+    const prepared = this.room.finalVoice?.text === topTenText ? this.room.finalVoice : null;
+    const voiceAssetId = prepared?.assetId || this.voiceAssetId('final-results', this.room.roomVersion + 1);
     this.room.announcement = {
       kind: 'final_results',
       text: topTenText,
       topTen,
-      voiceAssetId
+      ...(prepared?.ready ? { voiceAssetId } : {})
     };
     this.revokeAllTokens();
     this.bumpVersion();
     await this.save();
     await this.persistFinalResults();
     this.broadcast({ event: 'finished', snapshot: this.snapshot() });
+    if (!prepared?.ready) {
+      this.room.finalVoice = { assetId: voiceAssetId, text: topTenText, ready: false };
+      await this.save();
+      this.queueDynamicVoice({ text: topTenText, assetId: voiceAssetId, preparedFinalVoice: true });
+    }
     return { event: 'finished', snapshot: this.snapshot() };
   }
 
@@ -719,8 +841,9 @@ export class QuizRoom extends DurableObject {
     this.room.pausedFromPhase = null;
     this.room.pausedRemainingMs = null;
     this.room.questionIndex = index;
+    this.room.pendingFastestVoice = null;
     this.room.questionStartedAt = now;
-    this.room.deadlineAt = now + QUESTION_MS;
+    this.room.deadlineAt = now + this.questionDurationMs();
     this.room.reveal = null;
     this.room.revealUntil = null;
     this.room.announcement = announcement;
@@ -740,7 +863,7 @@ export class QuizRoom extends DurableObject {
     }
   }
 
-  async enterReveal(reason) {
+  async enterReveal(reason, { queueVoice = true } = {}) {
     if (this.room.phase !== 'question') return;
     const now = currentTime();
     const question = questions[this.room.questionIndex];
@@ -751,7 +874,7 @@ export class QuizRoom extends DurableObject {
       const answer = this.room.answers[this.answerKey(player.playerId, this.room.questionIndex)];
       if (!answer) {
         player.missedQuestions += 1;
-        player.totalResponseMs += QUESTION_MS;
+        player.totalResponseMs += this.questionDurationMs();
       }
     }
     const correct = answers
@@ -771,14 +894,40 @@ export class QuizRoom extends DurableObject {
     if (correct) {
       const fastestName = this.playerById(correct.playerId).displayName;
       const text = `Chúc mừng ${fastestName} đã trả lời đúng và nhanh nhất!`;
-      const voiceAssetId = await this.generateDynamicVoice(text, this.voiceAssetId('fastest-correct', this.room.roomVersion));
-      this.room.announcement = { kind: 'fastest_correct', text, playerId: correct.playerId, voiceAssetId };
+      const pending = this.room.pendingFastestVoice;
+      const voiceAssetId = pending?.questionIndex === this.room.questionIndex && pending.playerId === correct.playerId && pending.ready
+        ? pending.voiceAssetId
+        : null;
+      this.room.announcement = {
+        kind: 'fastest_correct',
+        text,
+        playerId: correct.playerId,
+        ...(voiceAssetId ? { voiceAssetId } : {})
+      };
     } else {
       this.room.announcement = { kind: 'no_correct_answer', text: 'Chưa có người trả lời đúng câu này.' };
     }
     await this.save();
     if (this.room.autoAdvance) this.ctx.storage.setAlarm(this.room.revealUntil);
     this.broadcast({ event: 'reveal', snapshot: this.snapshot() });
+    if (this.room.questionIndex === questions.length - 1) {
+      const task = this.prepareFinalResultsVoice().catch((error) => {
+        console.warn(`[quiz-tts] final results prewarm failed: ${error?.message || error}`);
+      });
+      if (typeof this.ctx.waitUntil === 'function') this.ctx.waitUntil(task);
+    }
+    const pending = this.room.pendingFastestVoice;
+    if (correct && pending?.questionIndex === this.room.questionIndex && pending.playerId === correct.playerId && !pending.ready) {
+      this.queueDynamicVoice({
+        text: pending.text,
+        assetId: pending.assetId,
+        expectedPhase: 'reveal',
+        expectedQuestionIndex: pending.questionIndex,
+        expectedKind: 'fastest_correct',
+        expectedPlayerId: pending.playerId,
+        pendingFastestVoice: true
+      });
+    }
   }
 
   async advanceQuestion() {
@@ -817,7 +966,7 @@ export class QuizRoom extends DurableObject {
     if (previousPhase === 'question') {
       const remainingMs = Math.max(0, this.room.pausedRemainingMs || 0);
       const now = currentTime();
-      this.room.questionStartedAt = now - (QUESTION_MS - remainingMs);
+      this.room.questionStartedAt = now - (this.questionDurationMs() - remainingMs);
       this.room.deadlineAt = now + remainingMs;
       if (remainingMs === 0) await this.enterReveal('timeout');
       else this.ctx.storage.setAlarm(this.room.deadlineAt);
@@ -904,6 +1053,7 @@ export class QuizRoom extends DurableObject {
       questionIndex: this.room?.questionIndex ?? -1,
       questionStartedAt: this.room?.questionStartedAt || null,
       deadlineAt: this.room?.deadlineAt || null,
+      questionDurationSec: this.room?.questionDurationSec || DEFAULT_QUESTION_DURATION_SEC,
       serverNow: now,
       remainingMs: this.room?.phase === 'question' && this.room.deadlineAt
         ? Math.max(0, this.room.deadlineAt - now)
@@ -926,6 +1076,30 @@ export class QuizRoom extends DurableObject {
 
   async save() {
     await this.ctx.storage.put(STORAGE_KEY, this.room);
+  }
+
+  questionDurationMs() {
+    return normalizeQuestionDurationSec(this.room?.questionDurationSec) * 1000;
+  }
+
+  async quizSettings() {
+    const stored = await this.ctx.storage.get(QUIZ_SETTINGS_STORAGE_KEY);
+    return {
+      questionDurationSec: normalizeQuestionDurationSec(stored?.questionDurationSec)
+    };
+  }
+
+  async readQuizSettings() {
+    return safeJson({ ok: true, settings: await this.quizSettings() });
+  }
+
+  async writeQuizSettings(request) {
+    const body = await this.readJson(request);
+    const settings = {
+      questionDurationSec: normalizeQuestionDurationSec(body?.questionDurationSec)
+    };
+    await this.ctx.storage.put(QUIZ_SETTINGS_STORAGE_KEY, settings);
+    return safeJson({ ok: true, settings });
   }
 
   async persistFinalResults() {
@@ -1144,6 +1318,7 @@ export class QuizRoom extends DurableObject {
     if (body?.type !== 'create') {
       return safeJson({ ok: false, error: 'Thao tác phòng chơi không hợp lệ.', code: 'invalid_room_action' }, 400);
     }
+    const settings = await this.quizSettings();
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const roomCode = createRoomCode();
       const id = this.env.QUIZ_ROOM.idFromName(roomCode);
@@ -1153,7 +1328,7 @@ export class QuizRoom extends DurableObject {
       const response = await stub.fetch(new Request(target, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ type: 'create', nickname: body.nickname })
+        body: JSON.stringify({ type: 'create', nickname: body.nickname, questionDurationSec: settings.questionDurationSec })
       }));
       if (response.status !== 409) return response;
     }

@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <link rel="preload" href="/presentation/quiz/audio/welcome.mp3" as="audio" type="audio/mpeg">
+    <link rel="icon" href="/presentation/quiz/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css">
-    <script type="module" src="app.js?v=audio-20260928-3"></script>
+    <script type="module" src="app.js?v=audio-volume-20260929-5"></script>
   </head>
   <body>
     <div class="quiz-shell" data-role="quiz-shell" data-state="entry">
@@ -41,11 +41,11 @@
             <div class="visual-number">20</div>
             <div class="visual-label">câu hỏi để mở khóa mạch tư duy</div>
             <div class="visual-rule"></div>
-            <div class="visual-bottomline"><span>30 GIÂY / CÂU</span><span>1000 ĐIỂM</span></div>
+            <div class="visual-bottomline"><span data-role="entry-duration-label">30 GIÂY / CÂU</span><span>1000 ĐIỂM</span></div>
           </div>
           <div class="entry-stats" aria-label="Thông tin ván chơi">
             <div><strong>20</strong><span>câu hỏi</span></div>
-            <div><strong>30s</strong><span>mỗi câu</span></div>
+            <div><strong data-role="entry-duration-value">30s</strong><span>mỗi câu</span></div>
             <div><strong>1K</strong><span>điểm tối đa</span></div>
           </div>
           <div class="entry-actions" aria-label="Chọn vai trò">
@@ -145,7 +145,12 @@
               <section class="finished-panel room-panel" data-role="finished-panel" aria-labelledby="finished-heading" hidden>
                 <p class="eyebrow">Đã hoàn thành</p><h2 id="finished-heading">Kết quả ván chơi</h2>
                 <div class="final-score"><span>Điểm của bạn</span><strong data-role="final-score">0</strong><span data-role="final-rank"></span></div>
-                <p class="announcement" data-role="final-announcement" aria-live="polite"></p>
+                <section class="final-leaderboard-block" aria-labelledby="final-top10-heading">
+                  <div class="panel-title-row"><h3 id="final-top10-heading">Top 10 người chiến thắng</h3><span data-role="final-top10-count"></span></div>
+                  <ol class="leaderboard-list" data-role="final-top10-list"></ol>
+                  <p class="empty-state" data-role="final-top10-empty">Chưa có kết quả.</p>
+                </section>
+                <p class="announcement" data-role="final-announcement" aria-live="polite" hidden></p>
                 <button class="primary-button" type="button" data-action="new-room">Tạo phòng mới</button>
               </section>
             </div>
@@ -203,6 +208,17 @@
         <p data-role="confirm-copy">Kết thúc ván chơi? Người chơi sẽ không thể trả lời các câu còn lại.</p>
         <div class="dialog-actions"><button class="secondary-button" type="button" data-action="cancel-confirm">Tiếp tục chơi</button><button class="danger-button" type="button" data-action="confirm-finish">Kết thúc ván chơi</button></div>
       </form>
+    </dialog>
+    <dialog class="history-dialog" data-role="history-dialog" aria-labelledby="history-dialog-heading">
+      <div class="dialog-card">
+        <div class="panel-title-row history-dialog-heading-row">
+          <div><p class="eyebrow">Bảng xếp hạng đã lưu</p><h2 id="history-dialog-heading" data-role="history-dialog-heading">Lịch sử ván chơi</h2></div>
+          <button class="text-button" type="button" data-action="close-history">Đóng</button>
+        </div>
+        <p class="history-dialog-meta" data-role="history-dialog-meta"></p>
+        <ol class="leaderboard-list history-dialog-list" data-role="history-dialog-list"></ol>
+        <p class="empty-state" data-role="history-dialog-empty" hidden>Chưa có bảng xếp hạng.</p>
+      </div>
     </dialog>
   </body>
 </html>

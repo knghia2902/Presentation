@@ -5,13 +5,19 @@ function isFiniteTimestamp(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function clampResponseTime(questionStartedAt, receivedAt) {
+function normalizeQuestionDurationMs(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : QUESTION_MS;
+}
+
+function clampResponseTime(questionStartedAt, receivedAt, questionDurationMs) {
   if (!isFiniteTimestamp(questionStartedAt) || !isFiniteTimestamp(receivedAt)) {
-    return QUESTION_MS;
+    return questionDurationMs;
   }
 
   return Math.min(
-    QUESTION_MS,
+    questionDurationMs,
     Math.max(0, receivedAt - questionStartedAt)
   );
 }
@@ -24,11 +30,13 @@ export function calculateScore({
   isCorrect,
   questionStartedAt,
   deadlineAt,
-  receivedAt
+  receivedAt,
+  questionDurationMs = QUESTION_MS
 } = {}) {
+  questionDurationMs = normalizeQuestionDurationMs(questionDurationMs);
   const responseTimeMs = receivedAt === null || receivedAt === undefined
-    ? QUESTION_MS
-    : clampResponseTime(questionStartedAt, receivedAt);
+    ? questionDurationMs
+    : clampResponseTime(questionStartedAt, receivedAt, questionDurationMs);
 
   if (
     isCorrect !== true ||
@@ -43,7 +51,7 @@ export function calculateScore({
 
   const serverDeadlineAt = Math.min(
     deadlineAt,
-    questionStartedAt + QUESTION_MS
+    questionStartedAt + questionDurationMs
   );
 
   if (receivedAt > serverDeadlineAt) {
@@ -51,7 +59,7 @@ export function calculateScore({
   }
 
   const score = Math.floor(
-    MAX_SCORE * (QUESTION_MS - responseTimeMs) / QUESTION_MS
+    MAX_SCORE * (questionDurationMs - responseTimeMs) / questionDurationMs
   );
 
   return {

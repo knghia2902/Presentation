@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f4ee">
+    <title>Quizzzzzzzz · Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/presentation/admin/style.css?v=admin-elevenlabs-20260929-14">
+    <script type="module" src="/presentation/admin/app.js?v=admin-elevenlabs-20260930-19"></script>
+  </head>
+  <body>
+    <main class="admin-shell">
+      <header class="admin-header">
+        <div>
+          <p class="eyebrow">QUIZZZZZZZZ</p>
+          <h1>Quản trị voice</h1>
+          <p class="lede">Chọn và thử từng model clone giọng đang chạy trên máy chủ local.</p>
+        </div>
+        <div class="admin-header-actions"><a class="back-link" href="/">← Về Quiz</a><button class="text-button" type="button" data-action="logout">Đăng xuất</button></div>
+      </header>
+
+      <section class="settings-layout" data-role="settings" hidden>
+        <form id="settings-form" class="settings-card" data-role="settings-form">
+          <div class="card-heading"><div><h2>Cấu hình clone giọng</h2></div></div>
+          <div class="field-grid">
+            <select name="engine" aria-label="Bộ máy voice"><option value="vietvoice">VietVoice-TTS</option><option value="omnivoice">OmniVoice Vietnamese</option><option value="elevenlabs">ElevenLabs Web API tool</option></select>
+          </div>
+          <fieldset class="engine-options" data-engine-settings="clone">
+            <legend>Clone local</legend>
+            <div class="field-grid">
+              <label>Speed<input name="clone_speed" type="number" min="0.8" max="1.5" step="0.05"></label>
+              <label>NFE step<input name="nfe_step" type="number" min="8" max="64" step="1"></label>
+              <label>Max chunk duration (giây)<input name="max_chunk_duration" type="number" min="5" max="30" step="0.5"></label>
+              <label>File mẫu clone<input name="reference_audio" type="text"></label>
+            </div>
+            <label>Nội dung đúng với file mẫu<input name="reference_text" type="text" maxlength="500"></label>
+            <p class="hint">Dùng cho VietVoice-TTS và OmniVoice Vietnamese.</p>
+          </fieldset>
+          <fieldset class="engine-options" data-engine-settings="elevenlabs" hidden>
+            <legend>ElevenLabs Web API tool</legend>
+            <p class="hint">ElevenLabs Web API Proxy đã tích hợp trực tiếp vào service Quiz. Nút quét chỉ đọc session Chrome/Edge trên máy đang chạy Quiz.</p>
+            <div class="field-grid">
+              <label>Speed<input name="speed" type="number" min="0.8" max="1.5" step="0.05"></label>
+              <label>Voice ID<input name="elevenlabs_voice_id" type="text" maxlength="128" placeholder="6adFm46eyy74snVn6YrT"></label>
+              <label>Model ID<input name="elevenlabs_model_id" type="text" maxlength="96" placeholder="eleven_v3"></label>
+              <label>Stability<input name="elevenlabs_stability" type="number" min="0" max="1" step="0.05"></label>
+              <label>Similarity boost<input name="elevenlabs_similarity_boost" type="number" min="0" max="1" step="0.05"></label>
+            </div>
+            <section class="elevenlabs-status-card" data-role="elevenlabs-status-card" hidden>
+              <div class="elevenlabs-status-heading">
+                <h2>Trạng thái tài khoản</h2>
+                <div class="elevenlabs-status-actions">
+                  <button class="secondary-button" type="button" data-action="add-elevenlabs">Thêm tài khoản</button>
+                  <button class="secondary-button" type="button" data-action="refresh-elevenlabs" title="Quét session ElevenLabs trên máy đang chạy Quiz">Quét máy này</button>
+                </div>
+                <span class="service-pill" data-role="elevenlabs-status-pill" hidden>ĐANG KIỂM TRA</span>
+              </div>
+              <div class="elevenlabs-status-meta">
+                <div class="elevenlabs-credit-line">
+                  <p class="muted" data-role="elevenlabs-status-message">Đang kiểm tra session và credit…</p>
+                </div>
+                <p class="elevenlabs-account-error" data-role="elevenlabs-account-error" hidden></p>
+              </div>
+              <ul class="elevenlabs-account-list" data-role="elevenlabs-account-list"></ul>
+            </section>
+          </fieldset>
+          <div class="form-actions"><button class="primary-button" type="submit">Lưu cấu hình</button><button class="secondary-button" type="button" data-action="reload">Tải lại</button></div>
+        </form>
+
+        <div class="admin-side-stack">
+          <form class="preview-card" data-role="preview-form">
+            <h2>Nghe thử voice</h2>
+            <p class="muted">Dùng để kiểm tra speed và file mẫu trước khi đưa câu động vào ván chơi.</p>
+            <textarea id="preview-text" name="text" aria-label="Văn bản voice" rows="5">Chúc mừng Nguyễn An đã trả lời đúng và nhanh nhất!</textarea>
+            <button class="secondary-button full-button" type="submit">Tạo audio thử</button>
+            <audio data-role="preview-audio" controls preload="none" hidden></audio>
+          </form>
+          <section class="quiz-settings-card settings-card" data-role="quiz-settings" hidden>
+            <div>
+              <h2>Thời lượng mỗi câu</h2>
+              <p class="muted">Cấu hình thời gian người chơi được phép trả lời.</p>
+            </div>
+            <form data-role="quiz-settings-form">
+              <label>Thời lượng (giây)<input name="questionDurationSec" type="number" min="5" max="300" step="1" required></label>
+              <button class="primary-button" type="submit">Lưu thời lượng</button>
+            </form>
+          </section>
+        </div>
+        <fieldset class="volume-settings">
+          <legend>Âm lượng phát</legend>
+          <p class="hint">Chỉnh theo phần trăm. Thay đổi được áp dụng ngay cho phòng mở mới và lần phát tiếp theo.</p>
+          <div class="volume-grid">
+            <label><span class="volume-label"><span>Tổng âm lượng</span><output data-volume-output="master">100%</output></span><input form="settings-form" data-volume-input="master" name="audio_master" type="range" min="0" max="100" step="1" value="100"></label>
+            <label><span class="volume-label"><span>Nhạc nền</span><output data-volume-output="music">16%</output></span><input form="settings-form" data-volume-input="music" name="audio_music" type="range" min="0" max="100" step="1" value="16"></label>
+            <label><span class="volume-label"><span>Trả lời đúng</span><output data-volume-output="correct">45%</output></span><input form="settings-form" data-volume-input="correct" name="audio_correct" type="range" min="0" max="100" step="1" value="45"></label>
+            <label><span class="volume-label"><span>Trả lời sai</span><output data-volume-output="incorrect">45%</output></span><input form="settings-form" data-volume-input="incorrect" name="audio_incorrect" type="range" min="0" max="100" step="1" value="45"></label>
+            <label><span class="volume-label"><span>Chào mừng</span><output data-volume-output="welcome">80%</output></span><input form="settings-form" data-volume-input="welcome" name="audio_welcome" type="range" min="0" max="100" step="1" value="80"></label>
+            <label><span class="volume-label"><span>Phòng sẵn sàng</span><output data-volume-output="roomReady">80%</output></span><input form="settings-form" data-volume-input="roomReady" name="audio_roomReady" type="range" min="0" max="100" step="1" value="80"></label>
+            <label><span class="volume-label"><span>Kết quả cuối</span><output data-volume-output="finalResults">80%</output></span><input form="settings-form" data-volume-input="finalResults" name="audio_finalResults" type="range" min="0" max="100" step="1" value="80"></label>
+            <label><span class="volume-label"><span>Voice động</span><output data-volume-output="dynamicVoice">80%</output></span><input form="settings-form" data-volume-input="dynamicVoice" name="audio_dynamicVoice" type="range" min="0" max="100" step="1" value="80"></label>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="info-grid">
+        <div><span class="info-label">Reference</span><strong data-role="reference-state">—</strong></div>
+        <div><span class="info-label">Endpoint</span><strong data-role="endpoint">127.0.0.1:8786</strong></div>
+      </section>
+    </main>
+  </body>
+</html>

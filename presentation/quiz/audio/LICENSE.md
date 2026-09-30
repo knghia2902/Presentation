@@ -18,6 +18,5 @@ Confirm permission before redistributing the app outside the intended classroom.
 | `background-music.mp3` | `Tài liệu/nhac_nen_ai_la_trieu_phu.mp3` | User-supplied | Project owner |
 | `sfx-correct.mp3` | `Tài liệu/tra_loi_dung.mp3` | User-supplied | Project owner |
 | `sfx-incorrect.mp3` | `Tài liệu/tra_loi_sai.mp3` | User-supplied | Project owner |
-| `sfx-timeout.mp3` | [Setting Electronic Timer Multiple Beeps by Rudmer_Rotteveel](https://freesound.org/people/Rudmer_Rotteveel/sounds/536421/) | CC0 1.0 | Rudmer_Rotteveel, Freesound |
 
 Only final audio files are shipped; source downloads, model weights, and TTS caches are excluded.

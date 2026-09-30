@@ -24,7 +24,7 @@ class UtteranceDouble {
   constructor(text) { this.text = text; }
 }
 
-function harness() {
+function harness(options = {}) {
   const speech = {
     spoken: [],
     cancelled: 0,
@@ -40,7 +40,8 @@ function harness() {
     Audio: AudioDouble,
     speechSynthesis: speech,
     SpeechSynthesisUtterance: UtteranceDouble,
-    enabled: true
+    enabled: true,
+    audioSettings: options.audioSettings
   });
   return { manager, audioContext, speech, timers };
 }
@@ -67,6 +68,32 @@ describe('hybrid quiz audio contract', () => {
     speech.spoken[0].onend();
     expect(musicGain.gain.value).toBe(0.16);
     expect(voiceGain.gain.value).toBeGreaterThan(sfxGain.gain.value);
+  });
+
+  it('applies saved master, music, SFX, and voice volumes independently', () => {
+    AudioDouble.instances = [];
+    const { manager, audioContext } = harness({
+      audioSettings: {
+        master: 62,
+        music: 28,
+        correct: 70,
+        incorrect: 20,
+        timeout: 10,
+        welcome: 55,
+        roomReady: 55,
+        finalResults: 55,
+        dynamicVoice: 55
+      }
+    });
+    manager.userGesture();
+    const [musicGain, sfxGain, voiceGain, masterGain] = audioContext.gains;
+    expect(musicGain.gain.value).toBeCloseTo(0.28);
+    expect(sfxGain.gain.value).toBeCloseTo(0.70);
+    expect(voiceGain.gain.value).toBeCloseTo(0.55);
+    expect(masterGain.gain.value).toBeCloseTo(0.62);
+    manager.playAsset('incorrect');
+    const incorrect = AudioDouble.instances.find((audio) => audio.src.includes('sfx-incorrect'));
+    expect(incorrect.volume).toBeCloseTo(20 / 70);
   });
 
   it('speaks reveal and final top five, but not ordinary question transitions', () => {
@@ -110,16 +137,4 @@ describe('hybrid quiz audio contract', () => {
     expect(manager.playAsset('incorrect')).toBe(false);
   });
 
-  it('cuts the timeout sting short so the end-of-question sound stays brief', () => {
-    AudioDouble.instances = [];
-    const { manager, timers } = harness();
-    manager.userGesture();
-    expect(manager.playAsset('timeout')).toBe(true);
-    const timeoutAudio = AudioDouble.instances.find((audio) => audio.src.includes('sfx-timeout'));
-    const timeoutTimer = timers.at(-1);
-    expect(timeoutTimer.delay).toBe(900);
-    timeoutTimer.callback();
-    expect(timeoutAudio.paused).toBe(1);
-    expect(timeoutAudio.currentTime).toBe(0);
-  });
 });

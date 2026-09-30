@@ -31,6 +31,17 @@ describe('server-authoritative quiz scoring', () => {
     })).toEqual({ score, responseTimeMs: receivedAt - QUESTION_STARTED_AT });
   });
 
+  it('uses the room-specific question duration for scoring', () => {
+    const durationMs = 45_000;
+    expect(calculateScore({
+      isCorrect: true,
+      questionStartedAt: QUESTION_STARTED_AT,
+      deadlineAt: QUESTION_STARTED_AT + durationMs,
+      receivedAt: QUESTION_STARTED_AT + 15_000,
+      questionDurationMs: durationMs
+    })).toEqual({ score: 666, responseTimeMs: 15_000 });
+  });
+
   it.each([
     ['incorrect', { isCorrect: false, receivedAt: QUESTION_STARTED_AT }],
     ['unanswered', { isCorrect: false, receivedAt: null }],
