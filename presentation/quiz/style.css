@@ -309,13 +309,27 @@ h2 { margin-bottom: 16px; font-size: 26px; }
 @media (max-width: 767px) {
   .quiz-shell { padding-inline: 16px; }
   .site-header { min-height: 68px; }
-  .entry-screen { gap: 28px; }
+  .page-main { padding-block: 32px 48px; }
+  .entry-screen {
+    width: 100%;
+    max-width: 560px;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 24px;
+  }
+  .hero-copy, .entry-visual, .entry-stats, .entry-actions, .history-panel { grid-column: 1; }
+  .hero-copy { max-width: none; }
+  .hero-copy h1 { max-width: none; margin-bottom: 14px; font-size: clamp(44px, 13vw, 64px); }
+  .lede { max-width: 34ch; font-size: 17px; }
   .entry-visual { min-height: 230px; }
   .visual-number { font-size: 112px; }
   .entry-stats div { padding-block: 14px; }
   .entry-stats div:not(:first-child) { padding-left: 12px; }
   .entry-stats strong { font-size: 18px; }
   .entry-stats span { font-size: 11px; }
+  .entry-actions { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 0; }
+  .entry-actions > * { width: 100%; }
+  .history-panel { padding: 20px; }
   .host-actions { flex-direction: column; align-items: stretch; }
   .host-actions .primary-button { flex-basis: auto; }
 }
