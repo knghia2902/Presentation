@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/presentation/admin/style.css?v=admin-engine-menu-20260930-1">
-    <script type="module" src="/presentation/admin/app.js?v=admin-engine-menu-20260930-1"></script>
+    <link rel="stylesheet" href="/presentation/admin/style.css?v=admin-question-sets-20260930-1">
+    <script type="module" src="/presentation/admin/app.js?v=admin-question-sets-20260930-1"></script>
   </head>
   <body>
     <main class="admin-shell">
@@ -113,6 +113,23 @@
             <label><span class="volume-label"><span>Voice động</span><output data-volume-output="dynamicVoice">80%</output></span><input form="settings-form" data-volume-input="dynamicVoice" name="audio_dynamicVoice" type="range" min="0" max="100" step="1" value="80"></label>
           </div>
         </fieldset>
+      </section>
+
+      <section class="question-set-manager settings-card" data-role="question-sets" hidden>
+        <div class="card-heading">
+          <div><h2>Bộ câu hỏi</h2><p class="muted">Mỗi ván sẽ lấy ngẫu nhiên 20 câu từ bộ đang được chọn.</p></div>
+        </div>
+        <div class="question-set-selection">
+          <label>Bộ đang dùng<select data-role="active-question-set" aria-label="Bộ câu hỏi đang dùng"></select></label>
+          <button class="secondary-button" type="button" data-action="save-question-set-selection">Lưu bộ đang dùng</button>
+        </div>
+        <form class="question-set-form" data-role="question-set-form">
+          <label>Tên bộ câu hỏi mới<input name="questionSetName" maxlength="80" placeholder="Ví dụ: Ôn tập chương 2" required></label>
+          <label>20 câu hỏi (JSON)<textarea name="questionSetJson" rows="10" spellcheck="false" required></textarea></label>
+          <p class="hint">Mỗi câu cần có <code>id</code>, <code>prompt</code>, <code>options</code> A–D, <code>correctOption</code> và <code>explanation</code>.</p>
+          <div class="form-actions"><button class="primary-button" type="submit">Tạo bộ câu hỏi mới</button><button class="secondary-button" type="button" data-action="load-question-set-editor">Nạp bộ đang chọn</button></div>
+        </form>
+        <ul class="question-set-list" data-role="question-set-list"></ul>
       </section>
 
       <section class="info-grid">

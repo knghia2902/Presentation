@@ -1,12 +1,18 @@
 import { DurableObject } from 'cloudflare:workers';
 import { questions } from './questions.js';
 import { QUESTION_MS, calculateScore, compareLeaderboard } from './scoring.js';
+import {
+  QuestionSetError,
+  normalizeQuestionSet,
+  normalizeQuestionSettings
+} from './question-sets.js';
 
 export const ROOM_CODE_PATTERN = /^[A-Z0-9]{6}$/;
 export const CAPABILITY_TTL_MS = 2 * 60 * 60 * 1000;
 export const RECONNECT_TTL_MS = 15 * 60 * 1000;
 export const REVEAL_MS = 2_500;
-export const MAX_MESSAGE_BYTES = 8 * 1024;
+export const MAX_MESSAGE_BYTES = 64 * 1024;
+export const MAX_SETTINGS_BODY_BYTES = 256 * 1024;
 export const MAX_PLAYERS = 100;
 export const ROOM_ALLOCATOR_ID = '__quiz_room_allocator__';
 export const HISTORY_STORAGE_KEY = 'quiz-history-v1';
@@ -51,6 +57,17 @@ function createRoomCode() {
   const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (value) => ROOM_CODE_ALPHABET[value % ROOM_CODE_ALPHABET.length]).join('');
+}
+
+function shuffleQuestionIds(questionSet) {
+  const ids = questionSet.questions.map(({ id }) => id);
+  for (let index = ids.length - 1; index > 0; index -= 1) {
+    const bytes = new Uint32Array(1);
+    crypto.getRandomValues(bytes);
+    const swapIndex = bytes[0] % (index + 1);
+    [ids[index], ids[swapIndex]] = [ids[swapIndex], ids[index]];
+  }
+  return ids;
 }
 
 export function normalizeRoomCode(value) {
@@ -227,13 +244,13 @@ export class QuizRoom extends DurableObject {
     return value ? normalizeRoomCode(value) : null;
   }
 
-  async readJson(request) {
+  async readJson(request, maxBytes = MAX_MESSAGE_BYTES) {
     const contentLength = Number(request.headers.get('Content-Length') || 0);
-    if (contentLength > MAX_MESSAGE_BYTES) {
+    if (contentLength > maxBytes) {
       throw new RoomError('Thông điệp quá lớn.', 413, 'message_too_large');
     }
     const text = await request.text();
-    if (new TextEncoder().encode(text).byteLength > MAX_MESSAGE_BYTES) {
+    if (new TextEncoder().encode(text).byteLength > maxBytes) {
       throw new RoomError('Thông điệp quá lớn.', 413, 'message_too_large');
     }
     try {
@@ -403,7 +420,7 @@ export class QuizRoom extends DurableObject {
     }
 
     await this.expireIfNeeded();
-    if (type === 'create') return this.createRoom(context.roomCode || command.roomCode, command.nickname, command.questionDurationSec);
+    if (type === 'create') return this.createRoom(context.roomCode || command.roomCode, command.nickname, command.questionDurationSec, command.questionSet);
     if (type === 'join') return this.joinRoom(context.roomCode || command.roomCode, command.nickname);
     if (type === 'snapshot') {
       await this.authenticate(command);
@@ -429,10 +446,17 @@ export class QuizRoom extends DurableObject {
     }
   }
 
-  async createRoom(roomCodeValue, nicknameValue, questionDurationSecValue = DEFAULT_QUESTION_DURATION_SEC) {
+  async createRoom(roomCodeValue, nicknameValue, questionDurationSecValue = DEFAULT_QUESTION_DURATION_SEC, questionSetValue = null) {
     const roomCode = normalizeRoomCode(roomCodeValue);
     if (this.room) {
       throw new RoomError('Phòng đã tồn tại.', 409, 'room_exists');
+    }
+    let questionSet;
+    try {
+      questionSet = questionSetValue ? normalizeQuestionSet(questionSetValue, { allowDefault: true }) : normalizeQuestionSettings().questionSets[0];
+    } catch (error) {
+      if (error instanceof QuestionSetError) throw new RoomError(error.message, 400, 'invalid_question_set');
+      throw error;
     }
 
     const now = currentTime();
@@ -458,6 +482,10 @@ export class QuizRoom extends DurableObject {
       roomStatus: 'active',
       roomVersion: 1,
       questionDurationSec: normalizeQuestionDurationSec(questionDurationSecValue),
+      questionSetId: questionSet.id,
+      questionSetName: questionSet.name,
+      questions: questionSet.questions,
+      questionOrder: shuffleQuestionIds(questionSet),
       questionIndex: -1,
       questionStartedAt: null,
       deadlineAt: null,
@@ -547,6 +575,24 @@ export class QuizRoom extends DurableObject {
       playerSequence: player.playerSequence,
       status: player.status
     };
+  }
+
+  questionBank() {
+    return Array.isArray(this.room?.questions) && this.room.questions.length
+      ? this.room.questions
+      : questions;
+  }
+
+  questionCount() {
+    return Array.isArray(this.room?.questionOrder) && this.room.questionOrder.length
+      ? this.room.questionOrder.length
+      : this.questionBank().length;
+  }
+
+  questionAt(index) {
+    const bank = this.questionBank();
+    const questionId = this.room?.questionOrder?.[index];
+    return (questionId ? bank.find((question) => question.id === questionId) : bank[index]) || null;
   }
 
   async authenticate(command) {
@@ -639,7 +685,7 @@ export class QuizRoom extends DurableObject {
     if (now >= this.room.deadlineAt) {
       throw new RoomError('Đã hết giờ trả lời.', 409, 'late_answer');
     }
-    const question = questions[this.room.questionIndex];
+    const question = this.questionAt(this.room.questionIndex);
     const result = calculateScore({
       isCorrect: option === question.correctOption,
       questionStartedAt: this.room.questionStartedAt,
@@ -866,7 +912,7 @@ export class QuizRoom extends DurableObject {
   async enterReveal(reason, { queueVoice = true } = {}) {
     if (this.room.phase !== 'question') return;
     const now = currentTime();
-    const question = questions[this.room.questionIndex];
+    const question = this.questionAt(this.room.questionIndex);
     const answers = Object.values(this.room.answers)
       .filter((answer) => answer.questionIndex === this.room.questionIndex);
     for (const player of this.room.players) {
@@ -910,7 +956,7 @@ export class QuizRoom extends DurableObject {
     await this.save();
     if (this.room.autoAdvance) this.ctx.storage.setAlarm(this.room.revealUntil);
     this.broadcast({ event: 'reveal', snapshot: this.snapshot() });
-    if (this.room.questionIndex === questions.length - 1) {
+    if (this.room.questionIndex === this.questionCount() - 1) {
       const task = this.prepareFinalResultsVoice().catch((error) => {
         console.warn(`[quiz-tts] final results prewarm failed: ${error?.message || error}`);
       });
@@ -931,7 +977,7 @@ export class QuizRoom extends DurableObject {
   }
 
   async advanceQuestion() {
-    if (this.room.questionIndex >= questions.length - 1) {
+    if (this.room.questionIndex >= this.questionCount() - 1) {
       const host = this.room.players.find((player) => player.role === 'host');
       if (host) return await this.finishQuiz(host, 'host');
       this.room.phase = 'finished';
@@ -1040,7 +1086,7 @@ export class QuizRoom extends DurableObject {
 
   snapshot() {
     const now = currentTime();
-    const question = this.room && this.room.questionIndex >= 0 ? questions[this.room.questionIndex] : null;
+    const question = this.room && this.room.questionIndex >= 0 ? this.questionAt(this.room.questionIndex) : null;
     const currentAnswer = question ? Object.fromEntries(this.room.players.map((player) => [
       player.playerId,
       this.publicAnswerForPlayer(player) ? { accepted: true } : null
@@ -1084,8 +1130,11 @@ export class QuizRoom extends DurableObject {
 
   async quizSettings() {
     const stored = await this.ctx.storage.get(QUIZ_SETTINGS_STORAGE_KEY);
+    const questionSettings = normalizeQuestionSettings(stored);
     return {
-      questionDurationSec: normalizeQuestionDurationSec(stored?.questionDurationSec)
+      questionDurationSec: normalizeQuestionDurationSec(stored?.questionDurationSec),
+      activeQuestionSetId: questionSettings.activeQuestionSetId,
+      questionSets: questionSettings.questionSets
     };
   }
 
@@ -1094,9 +1143,18 @@ export class QuizRoom extends DurableObject {
   }
 
   async writeQuizSettings(request) {
-    const body = await this.readJson(request);
+    const body = await this.readJson(request, MAX_SETTINGS_BODY_BYTES);
+    let questionSettings;
+    try {
+      questionSettings = normalizeQuestionSettings(body);
+    } catch (error) {
+      if (error instanceof QuestionSetError) throw new RoomError(error.message, 400, 'invalid_question_set');
+      throw error;
+    }
     const settings = {
-      questionDurationSec: normalizeQuestionDurationSec(body?.questionDurationSec)
+      questionDurationSec: normalizeQuestionDurationSec(body?.questionDurationSec),
+      activeQuestionSetId: questionSettings.activeQuestionSetId,
+      questionSets: questionSettings.questionSets
     };
     await this.ctx.storage.put(QUIZ_SETTINGS_STORAGE_KEY, settings);
     return safeJson({ ok: true, settings });
@@ -1108,7 +1166,7 @@ export class QuizRoom extends DurableObject {
       roomCode: this.room.roomCode,
       finishedAt: this.room.finishedAt || currentTime(),
       createdAt: this.room.createdAt,
-      questionCount: questions.length,
+      questionCount: this.questionCount(),
       playerCount: this.room.players.filter(({ role, status }) => role === 'player' && status !== 'left').length,
       leaderboard: this.leaderboard()
     };
@@ -1319,6 +1377,7 @@ export class QuizRoom extends DurableObject {
       return safeJson({ ok: false, error: 'Thao tác phòng chơi không hợp lệ.', code: 'invalid_room_action' }, 400);
     }
     const settings = await this.quizSettings();
+    const activeQuestionSet = settings.questionSets.find((item) => item.id === settings.activeQuestionSetId) || settings.questionSets[0];
     for (let attempt = 0; attempt < 8; attempt += 1) {
       const roomCode = createRoomCode();
       const id = this.env.QUIZ_ROOM.idFromName(roomCode);
@@ -1328,7 +1387,7 @@ export class QuizRoom extends DurableObject {
       const response = await stub.fetch(new Request(target, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ type: 'create', nickname: body.nickname, questionDurationSec: settings.questionDurationSec })
+        body: JSON.stringify({ type: 'create', nickname: body.nickname, questionDurationSec: settings.questionDurationSec, questionSet: activeQuestionSet })
       }));
       if (response.status !== 409) return response;
     }

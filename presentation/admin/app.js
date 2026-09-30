@@ -7,6 +7,10 @@ const previewForm = $('[data-role="preview-form"]');
 const previewAudio = $('[data-role="preview-audio"]');
 const quizSettingsPanel = $('[data-role="quiz-settings"]');
 const quizSettingsForm = $('[data-role="quiz-settings-form"]');
+const questionSetsPanel = $('[data-role="question-sets"]');
+const questionSetForm = $('[data-role="question-set-form"]');
+const activeQuestionSetSelect = $('[data-role="active-question-set"]');
+const questionSetList = $('[data-role="question-set-list"]');
 const elevenLabsStatusCard = $('[data-role="elevenlabs-status-card"]');
 const elevenLabsAccountList = $('[data-role="elevenlabs-account-list"]');
 const engineSettings = [...root.querySelectorAll('[data-engine-settings]')];
@@ -16,6 +20,7 @@ const engineSelectMenu = $('[data-role="engine-select-menu"]');
 const engineSelectOptions = [...root.querySelectorAll('[data-engine-option]')];
 
 let previewUrl = null;
+let questionSets = [];
 const VOLUME_KEYS = ['master', 'music', 'correct', 'incorrect', 'welcome', 'roomReady', 'finalResults', 'dynamicVoice'];
 
 function setStatus(message, state = '') {
@@ -120,6 +125,113 @@ async function loadSettings() {
 function fillQuizSettings(values) {
   const input = quizSettingsForm?.elements.namedItem('questionDurationSec');
   if (input) input.value = values.questionDurationSec;
+  questionSets = Array.isArray(values.questionSets) ? values.questionSets : [];
+  renderQuestionSets(values.activeQuestionSetId);
+}
+
+function renderQuestionSets(activeId = activeQuestionSetSelect?.value) {
+  if (!activeQuestionSetSelect) return;
+  activeQuestionSetSelect.replaceChildren();
+  for (const set of questionSets) {
+    const option = document.createElement('option');
+    option.value = set.id;
+    option.textContent = set.name;
+    activeQuestionSetSelect.append(option);
+  }
+  if (questionSets.some((set) => set.id === activeId)) activeQuestionSetSelect.value = activeId;
+  else if (questionSets[0]) activeQuestionSetSelect.value = questionSets[0].id;
+
+  if (questionSetList) {
+    questionSetList.replaceChildren();
+    for (const set of questionSets) {
+      const item = document.createElement('li');
+      item.className = 'question-set-item';
+      const title = document.createElement('strong');
+      title.textContent = set.name;
+      const meta = document.createElement('span');
+      meta.className = 'question-set-item-meta';
+      meta.textContent = `${Array.isArray(set.questions) ? set.questions.length : 0} câu hỏi`;
+      const actions = document.createElement('div');
+      actions.className = 'question-set-item-actions';
+      if (set.id === activeQuestionSetSelect.value) {
+        const active = document.createElement('span');
+        active.className = 'question-set-active';
+        active.textContent = 'Đang dùng';
+        actions.append(active);
+      } else {
+        const use = document.createElement('button');
+        use.type = 'button';
+        use.className = 'secondary-button';
+        use.dataset.questionSetId = set.id;
+        use.textContent = 'Dùng bộ này';
+        actions.append(use);
+      }
+      item.append(title, meta, actions);
+      questionSetList.append(item);
+    }
+  }
+  loadQuestionSetEditor();
+}
+
+function selectedQuestionSet() {
+  return questionSets.find((set) => set.id === activeQuestionSetSelect?.value) || questionSets[0] || null;
+}
+
+function loadQuestionSetEditor() {
+  const selected = selectedQuestionSet();
+  const name = questionSetForm?.elements.namedItem('questionSetName');
+  const json = questionSetForm?.elements.namedItem('questionSetJson');
+  if (!selected || !name || !json) return;
+  name.value = '';
+  json.value = JSON.stringify(selected.questions, null, 2);
+}
+
+function parseQuestionSetDraft(nameValue, jsonValue) {
+  const name = String(nameValue || '').trim();
+  if (!name) throw new Error('Hãy nhập tên bộ câu hỏi.');
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonValue);
+  } catch {
+    throw new Error('JSON bộ câu hỏi không hợp lệ.');
+  }
+  const questions = Array.isArray(parsed) ? parsed : parsed?.questions;
+  if (!Array.isArray(questions) || questions.length !== 20) throw new Error('Bộ câu hỏi phải có đúng 20 câu.');
+  for (const [index, question] of questions.entries()) {
+    if (!question?.prompt || !question?.explanation || !/^[ABCD]$/u.test(String(question.correctOption || '').toUpperCase())) {
+      throw new Error(`Câu ${index + 1} thiếu nội dung, đáp án đúng hoặc giải thích.`);
+    }
+    for (const answer of ['A', 'B', 'C', 'D']) {
+      if (!question.options?.[answer]) throw new Error(`Câu ${index + 1} thiếu đáp án ${answer}.`);
+    }
+  }
+  const id = `set-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  return {
+    id,
+    name,
+    questions: questions.map((question, index) => ({
+      id: String(question.id || `q${String(index + 1).padStart(2, '0')}`),
+      prompt: String(question.prompt).trim(),
+      options: Object.fromEntries(['A', 'B', 'C', 'D'].map((answer) => [answer, String(question.options[answer]).trim()])),
+      correctOption: String(question.correctOption).trim().toUpperCase(),
+      explanation: String(question.explanation).trim()
+    }))
+  };
+}
+
+async function persistQuizSettings(successMessage) {
+  const questionDurationSec = Number(new FormData(quizSettingsForm).get('questionDurationSec'));
+  if (!Number.isFinite(questionDurationSec) || questionDurationSec < 5 || questionDurationSec > 300) {
+    throw new Error('Thời lượng phải từ 5 đến 300 giây.');
+  }
+  const result = await api('/api/admin/quiz-settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ questionDurationSec, activeQuestionSetId: activeQuestionSetSelect?.value, questionSets })
+  });
+  fillQuizSettings(result.settings);
+  setStatus(successMessage, 'ok');
+  return result;
 }
 
 async function loadQuizSettings() {
@@ -127,8 +239,10 @@ async function loadQuizSettings() {
     const result = await api('/api/admin/quiz-settings');
     fillQuizSettings(result.settings);
     quizSettingsPanel.hidden = false;
+    if (questionSetsPanel) questionSetsPanel.hidden = false;
   } catch (error) {
     quizSettingsPanel.hidden = true;
+    if (questionSetsPanel) questionSetsPanel.hidden = true;
     setStatus(error.message || 'Không đọc được cấu hình quiz.', 'error');
   }
 }
@@ -312,22 +426,26 @@ async function saveSettings(event) {
 
 async function saveQuizSettings(event) {
   event.preventDefault();
-  const questionDurationSec = Number(new FormData(quizSettingsForm).get('questionDurationSec'));
-  if (!Number.isFinite(questionDurationSec) || questionDurationSec < 5 || questionDurationSec > 300) {
-    setStatus('Thời lượng phải từ 5 đến 300 giây.', 'error');
-    return;
-  }
-  setStatus('Đang lưu thời lượng câu hỏi…');
+  setStatus('Đang lưu cài đặt quiz…');
   try {
-    const result = await api('/api/admin/quiz-settings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ questionDurationSec })
-    });
-    fillQuizSettings(result.settings);
-    setStatus(`Đã lưu ${result.settings.questionDurationSec} giây/câu. Áp dụng cho phòng tạo mới.`, 'ok');
+    const result = await persistQuizSettings('Đã lưu cài đặt quiz. Áp dụng cho phòng tạo mới.');
+    setStatus(`Đã lưu ${result.settings.questionDurationSec} giây/câu và bộ câu hỏi đang dùng.`, 'ok');
+  } catch (error) { setStatus(error.message || 'Không lưu được cài đặt quiz.', 'error'); }
+}
+
+async function createQuestionSet(event) {
+  event.preventDefault();
+  try {
+    const draft = parseQuestionSetDraft(
+      new FormData(questionSetForm).get('questionSetName'),
+      new FormData(questionSetForm).get('questionSetJson')
+    );
+    questionSets = [...questionSets, draft];
+    activeQuestionSetSelect.value = draft.id;
+    setStatus('Đang lưu bộ câu hỏi mới…');
+    await persistQuizSettings(`Đã tạo và chọn bộ “${draft.name}”.`);
   } catch (error) {
-    setStatus(error.message || 'Không lưu được thời lượng câu hỏi.', 'error');
+    setStatus(error.message || 'Không tạo được bộ câu hỏi.', 'error');
   }
 }
 
@@ -361,6 +479,23 @@ settingsForm?.elements.namedItem('engine')?.addEventListener('change', (event) =
   updateEngineSettings(event.target.value);
 });
 quizSettingsForm?.addEventListener('submit', saveQuizSettings);
+questionSetForm?.addEventListener('submit', createQuestionSet);
+activeQuestionSetSelect?.addEventListener('change', () => renderQuestionSets(activeQuestionSetSelect.value));
+questionSetList?.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-question-set-id]');
+  if (!button) return;
+  activeQuestionSetSelect.value = button.dataset.questionSetId;
+  renderQuestionSets(activeQuestionSetSelect.value);
+  setStatus('Đang lưu bộ câu hỏi đang dùng…');
+  try { await persistQuizSettings('Đã đổi bộ câu hỏi. Áp dụng cho phòng tạo mới.'); }
+  catch (error) { setStatus(error.message || 'Không đổi được bộ câu hỏi.', 'error'); }
+});
+$('[data-action="save-question-set-selection"]')?.addEventListener('click', async () => {
+  setStatus('Đang lưu bộ câu hỏi đang dùng…');
+  try { await persistQuizSettings('Đã lưu bộ câu hỏi đang dùng. Áp dụng cho phòng tạo mới.'); }
+  catch (error) { setStatus(error.message || 'Không lưu được bộ câu hỏi.', 'error'); }
+});
+$('[data-action="load-question-set-editor"]')?.addEventListener('click', loadQuestionSetEditor);
 previewForm?.addEventListener('submit', preview);
 for (const input of root.querySelectorAll('[data-volume-input]')) {
   input.addEventListener('input', () => {

@@ -11,6 +11,7 @@ import {
   RECONNECT_TTL_MS,
   REVEAL_MS
 } from '../presentation/workers/quiz-room.js';
+import { questions as defaultQuestions } from '../presentation/workers/questions.js';
 import { QUESTION_MS } from '../presentation/workers/scoring.js';
 
 const ROOM_CODE = 'ABC123';
@@ -96,15 +97,18 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
     expect(started.body.snapshot.deadlineAt - started.body.snapshot.questionStartedAt).toBe(QUESTION_MS);
     expect(started.body.snapshot.announcement.kind).toBe('quiz_started');
     expect(started.body.snapshot.roomVersion).toBeGreaterThan(host.snapshot.roomVersion);
+    const currentQuestion = await runInDurableObject(roomStub(), async (instance) => instance.questionAt(0));
+    const correctOption = currentQuestion.correctOption;
+    const incorrectOption = ['A', 'B', 'C', 'D'].find((option) => option !== correctOption);
 
     vi.setSystemTime(BASE_TIME + 2_000);
-    const incorrect = await callRoom(withCapability(duplicateName, 'answer', { option: 'B' }));
+    const incorrect = await callRoom(withCapability(duplicateName, 'answer', { option: incorrectOption }));
     expect(incorrect.status).toBe(200);
     expect(incorrect.body.result).toMatchObject({ accepted: true, score: 0, responseTimeMs: 2_000 });
-    expect(incorrect.body.result.correctOption).toBe('A');
+    expect(incorrect.body.result.correctOption).toBe(correctOption);
 
     vi.setSystemTime(BASE_TIME + 5_000);
-    const answer = await callRoom(withCapability(player, 'answer', { option: 'A', score: 1, receivedAt: 0 }));
+    const answer = await callRoom(withCapability(player, 'answer', { option: correctOption, score: 1, receivedAt: 0 }));
     expect(answer.status).toBe(200);
     expect(answer.body.result.accepted).toBe(true);
     expect(answer.body.result.score).toBe(833);
@@ -123,8 +127,8 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
     const reveal = await callRoom(withCapability(host, 'next'));
     expect(reveal.status).toBe(200);
     expect(reveal.body.snapshot.phase).toBe('reveal');
-    expect(reveal.body.snapshot.reveal.correctOption).toBe('A');
-    expect(reveal.body.snapshot.reveal.explanation).toMatch(/Phủ định/u);
+    expect(reveal.body.snapshot.reveal.correctOption).toBe(correctOption);
+    expect(reveal.body.snapshot.reveal.explanation).toBe(currentQuestion.explanation);
     expect(reveal.body.snapshot.announcement.kind).toBe('fastest_correct');
     expect(reveal.body.snapshot.leaderboard[0]).toMatchObject({ displayName: 'Minh', totalScore: 833 });
 
@@ -165,6 +169,34 @@ describe('authoritative QuizRoom Durable Object protocol', () => {
     }, 'DEF456');
     expect(started.body.snapshot.questionDurationSec).toBe(45);
     expect(started.body.snapshot.deadlineAt - started.body.snapshot.questionStartedAt).toBe(45_000);
+  });
+
+  it('stores a separate shuffled order for each room question set', async () => {
+    const questionSet = {
+      id: 'review-set',
+      name: 'Ôn tập chương 2',
+      questions: defaultQuestions.map((question, index) => ({
+        ...question,
+        id: `review-${String(index + 1).padStart(2, '0')}`,
+        options: { ...question.options },
+        prompt: `Ôn tập: ${question.prompt}`
+      }))
+    };
+    const created = await callRoom({ type: 'create', nickname: 'Chủ phòng', questionSet }, 'SET789');
+    expect(created.status).toBe(200);
+    const stored = await runInDurableObject(roomStub('SET789'), async (instance) => ({
+      questionSetId: instance.room.questionSetId,
+      questionSetName: instance.room.questionSetName,
+      questionOrder: instance.room.questionOrder,
+      firstQuestion: instance.questionAt(0)
+    }));
+
+    expect(stored.questionSetId).toBe('review-set');
+    expect(stored.questionSetName).toBe('Ôn tập chương 2');
+    expect(stored.questionOrder).toHaveLength(20);
+    expect(new Set(stored.questionOrder).size).toBe(20);
+    expect(stored.questionOrder).toEqual(expect.arrayContaining(questionSet.questions.map(({ id }) => id)));
+    expect(stored.firstQuestion.prompt).toMatch(/^Ôn tập: /u);
   });
 
   it('accepts answers only before the single server deadline and rejects forged, late, and duplicate submissions', async () => {
