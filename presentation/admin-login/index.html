@@ -8,7 +8,7 @@
     <style>
       :root { color: #202b36; background: #f7f4ee; font-family: "Segoe UI", system-ui, sans-serif; }
       * { box-sizing: border-box; }
-      body { min-height: 100vh; display: grid; place-items: center; margin: 0; padding: 24px; background: radial-gradient(circle at 15% 10%, #fffdf8 0, transparent 34%), #f7f4ee; }
+      body { min-height: 100dvh; display: grid; place-items: center; margin: 0; padding: 24px; background: radial-gradient(circle at 15% 10%, #fffdf8 0, transparent 34%), #f7f4ee; }
       main { width: min(100%, 430px); padding: 32px; border: 1px solid #ddd2c4; border-radius: 18px; background: rgba(255,253,250,.94); box-shadow: 0 18px 50px rgba(58, 47, 35, .12); }
       .eyebrow { margin: 0 0 10px; color: #a66324; font-size: 12px; font-weight: 700; letter-spacing: .12em; }
       h1 { margin: 0 0 10px; font-size: 30px; letter-spacing: -.04em; }
@@ -16,12 +16,22 @@
       form { display: grid; gap: 14px; margin-top: 24px; }
       form[hidden] { display: none; }
       label { display: grid; gap: 7px; color: #53616c; font-size: 13px; font-weight: 700; }
-      input { width: 100%; padding: 12px 13px; border: 1px solid #cfc6b8; border-radius: 10px; color: #202b36; background: #fff; font: inherit; outline: none; }
+      input { width: 100%; min-height: 48px; padding: 12px 13px; border: 1px solid #cfc6b8; border-radius: 10px; color: #202b36; background: #fff; font: inherit; outline: none; }
       input:focus { border-color: #a66324; box-shadow: 0 0 0 3px rgba(166,99,36,.14); }
-      button { margin-top: 4px; padding: 12px 16px; border: 1px solid #a66324; border-radius: 10px; color: white; background: #a66324; font: inherit; font-weight: 700; cursor: pointer; }
+      button { width: 100%; min-height: 48px; margin-top: 4px; padding: 12px 16px; border: 1px solid #a66324; border-radius: 10px; color: white; background: #a66324; font: inherit; font-weight: 700; cursor: pointer; transition: transform .18s ease, background-color .18s ease; }
+      button:active { transform: translateY(1px); background: #93591f; }
       button:disabled { cursor: wait; opacity: .65; }
       [data-status] { min-height: 22px; margin: 2px 0 0; font-size: 13px; }
       [data-status][data-state="error"] { color: #aa3c31; }
+      @media (max-width: 520px) {
+        body { place-items: start center; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+        main { width: 100%; margin: 24px 0; padding: 24px 20px; border-radius: 16px; }
+        h1 { font-size: clamp(26px, 8vw, 30px); line-height: 1.08; }
+        form { gap: 12px; margin-top: 20px; }
+        label { gap: 6px; }
+        input, button { font-size: 16px; }
+        p { margin-top: 10px; }
+      }
     </style>
   </head>
   <body>
