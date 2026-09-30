@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/presentation/admin/style.css?v=question-set-editor-20260930-8">
-    <script type="module" src="/presentation/admin/app.js?v=question-set-editor-20260930-1"></script>
+    <link rel="stylesheet" href="/presentation/admin/style.css?v=question-set-name-20260930-1">
+    <script type="module" src="/presentation/admin/app.js?v=question-set-name-20260930-1"></script>
   </head>
   <body>
     <main class="admin-shell">
@@ -130,11 +130,10 @@
         <div class="question-set-modal-backdrop" data-action="close-question-set-editor"></div>
         <section class="question-set-dialog" role="dialog" aria-modal="true" aria-labelledby="question-set-dialog-title">
           <header class="question-set-dialog-header">
-            <div><p class="eyebrow">QUESTION SET</p><h2 id="question-set-dialog-title">Tạo bộ câu hỏi mới</h2><p class="muted">Mỗi bộ cần đúng 20 câu. Bạn có thể nhập từng câu hoặc nạp file Excel.</p></div>
+            <div><p class="eyebrow">QUESTION SET</p><input id="question-set-dialog-title" class="question-set-title-input" name="questionSetName" form="question-set-editor-form" maxlength="80" placeholder="Tạo bộ câu hỏi mới" aria-label="Tên bộ câu hỏi" required><p class="muted">Mỗi bộ cần đúng 20 câu. Bạn có thể nhập từng câu hoặc nạp file Excel.</p></div>
             <button class="secondary-button" type="button" data-action="close-question-set-editor">Đóng</button>
           </header>
-          <form class="question-set-editor-form" data-role="question-set-editor-form">
-            <label>Tên bộ câu hỏi<input name="questionSetName" maxlength="80" placeholder="Ví dụ: Ôn tập chương 2" required></label>
+          <form id="question-set-editor-form" class="question-set-editor-form" data-role="question-set-editor-form">
             <div class="question-set-import-row">
               <div><strong>Nhập từ Excel</strong><p class="hint">Cột cần có: Câu hỏi, A, B, C, D, Đáp án đúng, Giải thích. Có thể thêm cột ID.</p></div>
               <div class="form-actions"><input data-role="question-set-file" type="file" accept=".xlsx,.csv,.tsv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values" hidden><button class="secondary-button" type="button" data-action="import-question-set">Chọn file Excel</button><button class="secondary-button" type="button" data-action="add-question">Thêm câu mới</button></div>

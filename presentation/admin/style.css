@@ -128,7 +128,9 @@ code { padding: 2px 5px; border-radius: 5px; background: #f0eadf; font-family: "
 .question-set-dialog { position: relative; display: flex; flex-direction: column; width: min(920px, 100%); max-height: min(900px, calc(100dvh - 48px)); overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--panel); box-shadow: 0 24px 70px rgba(47,38,27,.24); }
 .question-set-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 18px 22px 14px; border-bottom: 1px solid var(--line); }
 .question-set-dialog-header .eyebrow { margin-bottom: 7px; }
-.question-set-dialog-header h2 { margin-bottom: 6px; }
+.question-set-title-input { display: block; width: min(100%, 620px); min-height: 0; margin: 0 0 6px; padding: 0 0 3px; border: 0; border-bottom: 1px solid transparent; border-radius: 0; color: var(--ink); background: transparent; font-size: 25px; font-weight: 700; letter-spacing: -.04em; line-height: 1.15; }
+.question-set-title-input::placeholder { color: var(--ink); opacity: 1; }
+.question-set-title-input:focus { border-color: var(--accent); box-shadow: none; }
 .question-set-dialog-header .muted { margin-bottom: 0; font-size: 13px; }
 .question-set-dialog-header .secondary-button { min-height: 38px; padding: 7px 12px; font-size: 13px; }
 .question-set-editor-form { display: grid; gap: 12px; min-height: 0; padding: 16px 22px 18px; overflow-y: auto; }

@@ -294,8 +294,8 @@ function openQuestionSetEditor(mode = 'create', set = null) {
     correctOption: question.correctOption || 'A',
     explanation: question.explanation || ''
   }));
-  const title = $('[data-role="question-set-modal"] h2');
-  if (title) title.textContent = mode === 'edit' ? 'Chỉnh bộ câu hỏi' : 'Tạo bộ câu hỏi mới';
+  const title = questionSetEditorForm.elements.namedItem('questionSetName');
+  if (title) title.placeholder = mode === 'edit' ? 'Tên bộ câu hỏi' : 'Tạo bộ câu hỏi mới';
   renderQuestionEditor();
   setEditorStatus('');
   questionSetModal.hidden = false;
