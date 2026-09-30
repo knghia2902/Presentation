@@ -8,9 +8,14 @@ const previewAudio = $('[data-role="preview-audio"]');
 const quizSettingsPanel = $('[data-role="quiz-settings"]');
 const quizSettingsForm = $('[data-role="quiz-settings-form"]');
 const questionSetsPanel = $('[data-role="question-sets"]');
-const questionSetForm = $('[data-role="question-set-form"]');
 const activeQuestionSetSelect = $('[data-role="active-question-set"]');
 const questionSetList = $('[data-role="question-set-list"]');
+const questionSetModal = $('[data-role="question-set-modal"]');
+const questionSetEditorForm = $('[data-role="question-set-editor-form"]');
+const questionSetFile = $('[data-role="question-set-file"]');
+const questionEditorList = $('[data-role="question-editor-list"]');
+const questionSetEditorStatus = $('[data-role="question-set-editor-status"]');
+const questionSetCount = $('[data-role="question-set-count"]');
 const elevenLabsStatusCard = $('[data-role="elevenlabs-status-card"]');
 const elevenLabsAccountList = $('[data-role="elevenlabs-account-list"]');
 const engineSettings = [...root.querySelectorAll('[data-engine-settings]')];
@@ -21,6 +26,9 @@ const engineSelectOptions = [...root.querySelectorAll('[data-engine-option]')];
 
 let previewUrl = null;
 let questionSets = [];
+let editorQuestions = [];
+let editorMode = 'create';
+let editorSetId = null;
 const VOLUME_KEYS = ['master', 'music', 'correct', 'incorrect', 'welcome', 'roomReady', 'finalResults', 'dynamicVoice'];
 
 function setStatus(message, state = '') {
@@ -170,42 +178,153 @@ function renderQuestionSets(activeId = activeQuestionSetSelect?.value) {
       questionSetList.append(item);
     }
   }
-  loadQuestionSetEditor();
 }
 
 function selectedQuestionSet() {
   return questionSets.find((set) => set.id === activeQuestionSetSelect?.value) || questionSets[0] || null;
 }
 
-function loadQuestionSetEditor() {
-  const selected = selectedQuestionSet();
-  const name = questionSetForm?.elements.namedItem('questionSetName');
-  const json = questionSetForm?.elements.namedItem('questionSetJson');
-  if (!selected || !name || !json) return;
-  name.value = '';
-  json.value = JSON.stringify(selected.questions, null, 2);
+function blankQuestion(index = editorQuestions.length) {
+  return {
+    id: `q${String(index + 1).padStart(2, '0')}`,
+    prompt: '',
+    options: { A: '', B: '', C: '', D: '' },
+    correctOption: 'A',
+    explanation: ''
+  };
 }
 
-function parseQuestionSetDraft(nameValue, jsonValue) {
+function setEditorStatus(message, state = '') {
+  if (!questionSetEditorStatus) return;
+  questionSetEditorStatus.textContent = message;
+  questionSetEditorStatus.dataset.state = state;
+}
+
+function renderQuestionEditor() {
+  if (!questionEditorList) return;
+  questionEditorList.replaceChildren();
+  editorQuestions.forEach((question, index) => {
+    const card = document.createElement('article');
+    card.className = 'question-editor-card';
+    card.dataset.questionIndex = String(index);
+
+    const heading = document.createElement('header');
+    const title = document.createElement('h3');
+    title.textContent = `Câu ${index + 1}`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'text-button question-remove-button';
+    remove.dataset.action = 'remove-question';
+    remove.dataset.questionIndex = String(index);
+    remove.textContent = 'Xóa câu';
+    remove.disabled = editorQuestions.length <= 1;
+    heading.append(title, remove);
+
+    const prompt = document.createElement('label');
+    prompt.textContent = 'Nội dung câu hỏi';
+    const promptInput = document.createElement('textarea');
+    promptInput.rows = 2;
+    promptInput.required = true;
+    promptInput.dataset.field = 'prompt';
+    promptInput.value = question.prompt || '';
+    prompt.append(promptInput);
+
+    const options = document.createElement('div');
+    options.className = 'question-options-grid';
+    for (const answer of ['A', 'B', 'C', 'D']) {
+      const optionLabel = document.createElement('label');
+      optionLabel.textContent = `Đáp án ${answer}`;
+      const optionInput = document.createElement('input');
+      optionInput.type = 'text';
+      optionInput.required = true;
+      optionInput.dataset.field = `option-${answer}`;
+      optionInput.value = question.options?.[answer] || '';
+      optionLabel.append(optionInput);
+      options.append(optionLabel);
+    }
+
+    const footer = document.createElement('div');
+    footer.className = 'question-editor-footer';
+    const correctLabel = document.createElement('label');
+    correctLabel.textContent = 'Đáp án đúng';
+    const correctInput = document.createElement('select');
+    correctInput.dataset.field = 'correctOption';
+    for (const answer of ['A', 'B', 'C', 'D']) {
+      const option = document.createElement('option');
+      option.value = answer;
+      option.textContent = answer;
+      option.selected = answer === question.correctOption;
+      correctInput.append(option);
+    }
+    correctLabel.append(correctInput);
+    const explanationLabel = document.createElement('label');
+    explanationLabel.textContent = 'Giải thích';
+    const explanationInput = document.createElement('textarea');
+    explanationInput.rows = 2;
+    explanationInput.required = true;
+    explanationInput.dataset.field = 'explanation';
+    explanationInput.value = question.explanation || '';
+    explanationLabel.append(explanationInput);
+    footer.append(correctLabel, explanationLabel);
+    card.append(heading, prompt, options, footer);
+    questionEditorList.append(card);
+  });
+  if (questionSetCount) questionSetCount.textContent = `${editorQuestions.length}/20 câu`;
+}
+
+function collectEditorQuestions() {
+  return [...root.querySelectorAll('.question-editor-card')].map((card, index) => ({
+    id: editorQuestions[index]?.id || `q${String(index + 1).padStart(2, '0')}`,
+    prompt: card.querySelector('[data-field="prompt"]')?.value.trim() || '',
+    options: Object.fromEntries(['A', 'B', 'C', 'D'].map((answer) => [answer, card.querySelector(`[data-field="option-${answer}"]`)?.value.trim() || ''])),
+    correctOption: card.querySelector('[data-field="correctOption"]')?.value || 'A',
+    explanation: card.querySelector('[data-field="explanation"]')?.value.trim() || ''
+  }));
+}
+
+function openQuestionSetEditor(mode = 'create', set = null) {
+  if (!questionSetModal || !questionSetEditorForm) return;
+  editorMode = mode;
+  questionSetEditorForm.elements.namedItem('questionSetName').value = mode === 'edit' && set ? set.name : '';
+  editorSetId = mode === 'edit' && set ? set.id : null;
+  editorQuestions = (set?.questions || [blankQuestion()]).map((question, index) => ({
+    id: question.id || `q${String(index + 1).padStart(2, '0')}`,
+    prompt: question.prompt || '',
+    options: { A: question.options?.A || '', B: question.options?.B || '', C: question.options?.C || '', D: question.options?.D || '' },
+    correctOption: question.correctOption || 'A',
+    explanation: question.explanation || ''
+  }));
+  const title = $('[data-role="question-set-modal"] h2');
+  if (title) title.textContent = mode === 'edit' ? 'Chỉnh bộ câu hỏi' : 'Tạo bộ câu hỏi mới';
+  renderQuestionEditor();
+  setEditorStatus('');
+  questionSetModal.hidden = false;
+  document.body.classList.add('modal-open');
+  questionSetEditorForm.elements.namedItem('questionSetName')?.focus();
+}
+
+function closeQuestionSetEditor() {
+  if (!questionSetModal) return;
+  questionSetModal.hidden = true;
+  document.body.classList.remove('modal-open');
+}
+
+function parseQuestionSetDraft(nameValue, questions, existingId = null) {
   const name = String(nameValue || '').trim();
   if (!name) throw new Error('Hãy nhập tên bộ câu hỏi.');
-  let parsed;
-  try {
-    parsed = JSON.parse(jsonValue);
-  } catch {
-    throw new Error('JSON bộ câu hỏi không hợp lệ.');
-  }
-  const questions = Array.isArray(parsed) ? parsed : parsed?.questions;
   if (!Array.isArray(questions) || questions.length !== 20) throw new Error('Bộ câu hỏi phải có đúng 20 câu.');
+  const seenIds = new Set();
   for (const [index, question] of questions.entries()) {
     if (!question?.prompt || !question?.explanation || !/^[ABCD]$/u.test(String(question.correctOption || '').toUpperCase())) {
       throw new Error(`Câu ${index + 1} thiếu nội dung, đáp án đúng hoặc giải thích.`);
     }
+    if (seenIds.has(question.id)) throw new Error(`ID câu ${index + 1} bị trùng.`);
+    seenIds.add(question.id);
     for (const answer of ['A', 'B', 'C', 'D']) {
       if (!question.options?.[answer]) throw new Error(`Câu ${index + 1} thiếu đáp án ${answer}.`);
     }
   }
-  const id = `set-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const id = existingId || `set-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   return {
     id,
     name,
@@ -217,6 +336,152 @@ function parseQuestionSetDraft(nameValue, jsonValue) {
       explanation: String(question.explanation).trim()
     }))
   };
+}
+
+function normalizedHeader(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/gu, '').toLowerCase().replace(/[^a-z0-9]+/gu, '');
+}
+
+function parseDelimited(text) {
+  const source = String(text || '').replace(/^\uFEFF/u, '');
+  const delimiter = source.split(/\r?\n/u)[0].includes('\t') ? '\t' : source.split(/\r?\n/u)[0].includes(';') ? ';' : ',';
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let quoted = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+    if (character === '"' && quoted && next === '"') { cell += '"'; index += 1; continue; }
+    if (character === '"') { quoted = !quoted; continue; }
+    if (character === delimiter && !quoted) { row.push(cell.trim()); cell = ''; continue; }
+    if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && next === '\n') index += 1;
+      row.push(cell.trim()); cell = '';
+      if (row.some((value) => value !== '')) rows.push(row);
+      row = [];
+      continue;
+    }
+    cell += character;
+  }
+  if (cell || row.length) { row.push(cell.trim()); if (row.some((value) => value !== '')) rows.push(row); }
+  return rows;
+}
+
+function u16(view, offset) { return view.getUint16(offset, true); }
+function u32(view, offset) { return view.getUint32(offset, true); }
+
+async function readXlsxEntries(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+  let end = -1;
+  for (let offset = bytes.length - 22; offset >= Math.max(0, bytes.length - 65_557); offset -= 1) {
+    if (u32(view, offset) === 0x06054b50) { end = offset; break; }
+  }
+  if (end < 0) throw new Error('File Excel không có cấu trúc XLSX hợp lệ.');
+  const total = u16(view, end + 10);
+  const directoryOffset = u32(view, end + 16);
+  const entries = new Map();
+  for (let index = 0, offset = directoryOffset; index < total; index += 1) {
+    if (u32(view, offset) !== 0x02014b50) throw new Error('Không đọc được danh sách file trong Excel.');
+    const method = u16(view, offset + 10);
+    const compressedSize = u32(view, offset + 20);
+    const nameLength = u16(view, offset + 28);
+    const extraLength = u16(view, offset + 30);
+    const commentLength = u16(view, offset + 32);
+    const localOffset = u32(view, offset + 42);
+    const name = new TextDecoder().decode(bytes.slice(offset + 46, offset + 46 + nameLength));
+    const localNameLength = u16(view, localOffset + 26);
+    const localExtraLength = u16(view, localOffset + 28);
+    const compressed = bytes.slice(localOffset + 30 + localNameLength + localExtraLength, localOffset + 30 + localNameLength + localExtraLength + compressedSize);
+    if (method !== 0 && method !== 8) throw new Error('Excel dùng kiểu nén chưa được hỗ trợ.');
+    const content = method === 8
+      ? new Uint8Array(await new Response(new Blob([compressed]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())
+      : compressed;
+    entries.set(name, content);
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+  return entries;
+}
+
+function xmlText(bytes) { return new TextDecoder().decode(bytes); }
+
+async function readXlsxRows(file) {
+  const entries = await readXlsxEntries(await file.arrayBuffer());
+  const workbook = new DOMParser().parseFromString(xmlText(entries.get('xl/workbook.xml')), 'application/xml');
+  const relationships = new DOMParser().parseFromString(xmlText(entries.get('xl/_rels/workbook.xml.rels')), 'application/xml');
+  const sheet = workbook.getElementsByTagName('sheet')[0];
+  const relationshipId = sheet?.getAttribute('r:id');
+  const relationship = [...relationships.getElementsByTagName('Relationship')].find((item) => item.getAttribute('Id') === relationshipId);
+  const target = relationship?.getAttribute('Target') || 'worksheets/sheet1.xml';
+  const sheetPath = target.startsWith('/') ? target.slice(1) : `xl/${target.replace(/^\.\//u, '')}`;
+  const sheetXml = new DOMParser().parseFromString(xmlText(entries.get(sheetPath)), 'application/xml');
+  const shared = entries.get('xl/sharedStrings.xml');
+  const sharedStrings = shared ? [...new DOMParser().parseFromString(xmlText(shared), 'application/xml').getElementsByTagName('si')].map((item) => item.textContent || '') : [];
+  const rows = [];
+  for (const row of sheetXml.getElementsByTagName('row')) {
+    const values = [];
+    for (const cell of row.getElementsByTagName('c')) {
+      const reference = cell.getAttribute('r') || '';
+      const letters = reference.replace(/\d+/gu, '');
+      let column = 0;
+      for (const character of letters) column = column * 26 + character.charCodeAt(0) - 64;
+      column -= 1;
+      let value = cell.getElementsByTagName('v')[0]?.textContent || '';
+      if (cell.getAttribute('t') === 's') value = sharedStrings[Number(value)] || '';
+      if (cell.getAttribute('t') === 'inlineStr') value = cell.getElementsByTagName('is')[0]?.textContent || '';
+      values[column] = value;
+    }
+    rows.push(values.map((value) => String(value ?? '').trim()));
+  }
+  return rows;
+}
+
+function rowsToQuestions(rows) {
+  if (!rows.length) throw new Error('File không có dữ liệu.');
+  const headers = rows[0].map(normalizedHeader);
+  const findColumn = (aliases) => headers.findIndex((header) => aliases.includes(header));
+  const columns = {
+    id: findColumn(['id', 'macauhoi', 'cauid']),
+    prompt: findColumn(['prompt', 'question', 'cauhoi', 'noidung', 'noidungcauhoi']),
+    A: findColumn(['a', 'dapana', 'optiona', 'answera']),
+    B: findColumn(['b', 'dapanb', 'optionb', 'answerb']),
+    C: findColumn(['c', 'dapanc', 'optionc', 'answerc']),
+    D: findColumn(['d', 'dapand', 'optiond', 'answerd']),
+    correctOption: findColumn(['correctoption', 'correct', 'answer', 'dapandung', 'dapandung', 'dapandung']),
+    explanation: findColumn(['explanation', 'giaithich', 'giainhap'])
+  };
+  if (columns.prompt < 0 || columns.A < 0 || columns.B < 0 || columns.C < 0 || columns.D < 0 || columns.correctOption < 0 || columns.explanation < 0) {
+    throw new Error('Thiếu cột bắt buộc. Cần có Câu hỏi, A, B, C, D, Đáp án đúng và Giải thích.');
+  }
+  const dataRows = rows.slice(1).filter((row) => row.some((value) => value));
+  if (!dataRows.length) throw new Error('File không có dòng câu hỏi.');
+  if (dataRows.length > 20) throw new Error(`File có ${dataRows.length} câu, tối đa là 20 câu.`);
+  return dataRows.map((row, index) => {
+    let correct = String(row[columns.correctOption] || '').trim().toUpperCase();
+    if (!/^[ABCD]$/u.test(correct)) {
+      const answerIndex = ['A', 'B', 'C', 'D'].findIndex((answer) => String(row[columns[answer]] || '').trim() === String(row[columns.correctOption] || '').trim());
+      correct = answerIndex >= 0 ? ['A', 'B', 'C', 'D'][answerIndex] : correct;
+    }
+    return {
+      id: String(row[columns.id] || `q${String(index + 1).padStart(2, '0')}`).trim(),
+      prompt: String(row[columns.prompt] || '').trim(),
+      options: { A: String(row[columns.A] || '').trim(), B: String(row[columns.B] || '').trim(), C: String(row[columns.C] || '').trim(), D: String(row[columns.D] || '').trim() },
+      correctOption: correct,
+      explanation: String(columns.explanation >= 0 ? row[columns.explanation] || '' : '').trim()
+    };
+  });
+}
+
+async function importQuestionSetFile(file) {
+  const extension = file.name.toLowerCase().split('.').pop();
+  const rows = extension === 'xlsx' ? await readXlsxRows(file) : parseDelimited(await file.text());
+  editorQuestions = rowsToQuestions(rows);
+  renderQuestionEditor();
+  if (!questionSetEditorForm.elements.namedItem('questionSetName').value.trim()) {
+    questionSetEditorForm.elements.namedItem('questionSetName').value = file.name.replace(/\.[^.]+$/u, '');
+  }
+  setEditorStatus(`Đã nhập ${editorQuestions.length}/20 câu từ ${file.name}.${editorQuestions.length === 20 ? '' : ' Hãy thêm đủ 20 câu trước khi lưu.'}`, editorQuestions.length === 20 ? 'ok' : 'error');
 }
 
 async function persistQuizSettings(successMessage) {
@@ -436,16 +701,19 @@ async function saveQuizSettings(event) {
 async function createQuestionSet(event) {
   event.preventDefault();
   try {
-    const draft = parseQuestionSetDraft(
-      new FormData(questionSetForm).get('questionSetName'),
-      new FormData(questionSetForm).get('questionSetJson')
-    );
-    questionSets = [...questionSets, draft];
+    const formData = new FormData(questionSetEditorForm);
+    const draft = parseQuestionSetDraft(formData.get('questionSetName'), collectEditorQuestions(), editorMode === 'edit' ? editorSetId : null);
+    if (editorMode === 'edit') {
+      questionSets = questionSets.map((set) => set.id === draft.id ? draft : set);
+    } else {
+      questionSets = [...questionSets, draft];
+    }
     activeQuestionSetSelect.value = draft.id;
-    setStatus('Đang lưu bộ câu hỏi mới…');
-    await persistQuizSettings(`Đã tạo và chọn bộ “${draft.name}”.`);
+    setStatus(`Đang ${editorMode === 'edit' ? 'lưu thay đổi bộ câu hỏi' : 'tạo bộ câu hỏi mới'}…`);
+    await persistQuizSettings(`${editorMode === 'edit' ? 'Đã cập nhật' : 'Đã tạo và chọn'} bộ “${draft.name}”.`);
+    closeQuestionSetEditor();
   } catch (error) {
-    setStatus(error.message || 'Không tạo được bộ câu hỏi.', 'error');
+    setEditorStatus(error.message || 'Không lưu được bộ câu hỏi.', 'error');
   }
 }
 
@@ -479,7 +747,7 @@ settingsForm?.elements.namedItem('engine')?.addEventListener('change', (event) =
   updateEngineSettings(event.target.value);
 });
 quizSettingsForm?.addEventListener('submit', saveQuizSettings);
-questionSetForm?.addEventListener('submit', createQuestionSet);
+questionSetEditorForm?.addEventListener('submit', createQuestionSet);
 activeQuestionSetSelect?.addEventListener('change', () => renderQuestionSets(activeQuestionSetSelect.value));
 questionSetList?.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-question-set-id]');
@@ -495,7 +763,38 @@ $('[data-action="save-question-set-selection"]')?.addEventListener('click', asyn
   try { await persistQuizSettings('Đã lưu bộ câu hỏi đang dùng. Áp dụng cho phòng tạo mới.'); }
   catch (error) { setStatus(error.message || 'Không lưu được bộ câu hỏi.', 'error'); }
 });
-$('[data-action="load-question-set-editor"]')?.addEventListener('click', loadQuestionSetEditor);
+$('[data-action="open-question-set-editor"]')?.addEventListener('click', () => openQuestionSetEditor());
+$('[data-action="edit-question-set"]')?.addEventListener('click', () => {
+  const selected = selectedQuestionSet();
+  if (!selected) return;
+  openQuestionSetEditor(selected.id === 'default' ? 'create' : 'edit', selected.id === 'default' ? { ...selected, name: '' } : selected);
+  if (selected.id === 'default') setEditorStatus('Bộ mặc định chỉ dùng làm mẫu. Hãy đặt tên mới để tạo bộ riêng.', '');
+});
+questionSetEditorForm?.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-action]')?.dataset.action;
+  if (action === 'close-question-set-editor') closeQuestionSetEditor();
+  if (action === 'add-question') {
+    if (editorQuestions.length >= 20) { setEditorStatus('Bộ đã đủ 20 câu.', 'error'); return; }
+    editorQuestions.push(blankQuestion());
+    renderQuestionEditor();
+  }
+  if (action === 'remove-question') {
+    const index = Number(event.target.closest('[data-question-index]')?.dataset.questionIndex);
+    if (Number.isInteger(index)) { editorQuestions.splice(index, 1); renderQuestionEditor(); }
+  }
+  if (action === 'import-question-set') questionSetFile?.click();
+});
+questionSetModal?.addEventListener('click', (event) => {
+  if (event.target.matches('.question-set-modal-backdrop')) closeQuestionSetEditor();
+});
+questionSetModal?.querySelectorAll('[data-action="close-question-set-editor"]').forEach((button) => button.addEventListener('click', closeQuestionSetEditor));
+questionSetFile?.addEventListener('change', async () => {
+  const file = questionSetFile.files?.[0];
+  questionSetFile.value = '';
+  if (!file) return;
+  try { await importQuestionSetFile(file); }
+  catch (error) { setEditorStatus(error.message || 'Không đọc được file Excel.', 'error'); }
+});
 previewForm?.addEventListener('submit', preview);
 for (const input of root.querySelectorAll('[data-volume-input]')) {
   input.addEventListener('input', () => {

@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/presentation/admin/style.css?v=admin-question-sets-20260930-1">
-    <script type="module" src="/presentation/admin/app.js?v=admin-question-sets-20260930-1"></script>
+    <link rel="stylesheet" href="/presentation/admin/style.css?v=question-set-editor-20260930-1">
+    <script type="module" src="/presentation/admin/app.js?v=question-set-editor-20260930-1"></script>
   </head>
   <body>
     <main class="admin-shell">
@@ -123,14 +123,32 @@
           <label>Bộ đang dùng<select data-role="active-question-set" aria-label="Bộ câu hỏi đang dùng"></select></label>
           <button class="secondary-button" type="button" data-action="save-question-set-selection">Lưu bộ đang dùng</button>
         </div>
-        <form class="question-set-form" data-role="question-set-form">
-          <label>Tên bộ câu hỏi mới<input name="questionSetName" maxlength="80" placeholder="Ví dụ: Ôn tập chương 2" required></label>
-          <label>20 câu hỏi (JSON)<textarea name="questionSetJson" rows="10" spellcheck="false" required></textarea></label>
-          <p class="hint">Mỗi câu cần có <code>id</code>, <code>prompt</code>, <code>options</code> A–D, <code>correctOption</code> và <code>explanation</code>.</p>
-          <div class="form-actions"><button class="primary-button" type="submit">Tạo bộ câu hỏi mới</button><button class="secondary-button" type="button" data-action="load-question-set-editor">Nạp bộ đang chọn</button></div>
-        </form>
+        <div class="question-set-actions">
+          <p class="hint">Tạo bộ mới bằng trình soạn câu hỏi hoặc nhập từ file Excel.</p>
+          <div class="form-actions"><button class="primary-button" type="button" data-action="open-question-set-editor">Tạo bộ câu hỏi mới</button><button class="secondary-button" type="button" data-action="edit-question-set">Chỉnh bộ đang chọn</button></div>
+        </div>
         <ul class="question-set-list" data-role="question-set-list"></ul>
       </section>
+
+      <div class="question-set-modal" data-role="question-set-modal" hidden>
+        <div class="question-set-modal-backdrop" data-action="close-question-set-editor"></div>
+        <section class="question-set-dialog" role="dialog" aria-modal="true" aria-labelledby="question-set-dialog-title">
+          <header class="question-set-dialog-header">
+            <div><p class="eyebrow">QUESTION SET</p><h2 id="question-set-dialog-title">Tạo bộ câu hỏi mới</h2><p class="muted">Mỗi bộ cần đúng 20 câu. Bạn có thể nhập từng câu hoặc nạp file Excel.</p></div>
+            <button class="secondary-button" type="button" data-action="close-question-set-editor">Đóng</button>
+          </header>
+          <form class="question-set-editor-form" data-role="question-set-editor-form">
+            <label>Tên bộ câu hỏi<input name="questionSetName" maxlength="80" placeholder="Ví dụ: Ôn tập chương 2" required></label>
+            <div class="question-set-import-row">
+              <div><strong>Nhập từ Excel</strong><p class="hint">Cột cần có: Câu hỏi, A, B, C, D, Đáp án đúng, Giải thích. Có thể thêm cột ID.</p></div>
+              <div class="form-actions"><input data-role="question-set-file" type="file" accept=".xlsx,.csv,.tsv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values" hidden><button class="secondary-button" type="button" data-action="import-question-set">Chọn file Excel</button><button class="secondary-button" type="button" data-action="add-question">Thêm câu mới</button></div>
+            </div>
+            <p class="question-set-editor-status" data-role="question-set-editor-status" role="status" aria-live="polite"></p>
+            <div class="question-editor-list" data-role="question-editor-list"></div>
+            <footer class="question-set-dialog-footer"><span class="question-set-count" data-role="question-set-count">0/20 câu</span><div class="form-actions"><button class="secondary-button" type="button" data-action="close-question-set-editor">Hủy</button><button class="primary-button" type="submit">Lưu bộ câu hỏi</button></div></footer>
+          </form>
+        </section>
+      </div>
 
       <section class="info-grid">
         <div><span class="info-label">Reference</span><strong data-role="reference-state">—</strong></div>
