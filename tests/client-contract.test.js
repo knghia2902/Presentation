@@ -24,7 +24,7 @@ describe('semantic quiz client contract', () => {
   it('contains the mobile-first visual and safety contract', () => {
     expect(html).toContain('<link rel="stylesheet" href="style.css">');
     expect(html).toContain('<link rel="icon" href="/presentation/quiz/favicon.svg"');
-    expect(html).toContain('src="app.js?v=audio-volume-20260929-5"');
+    expect(html).toContain('src="app.js?v=question-duration-settings-20260930-1"');
     expect(html).toContain('viewport-fit=cover');
     expect(html).toContain('data-role="timer"');
     expect(html).toContain('data-role="pause-banner"');

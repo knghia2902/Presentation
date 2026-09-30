@@ -1,5 +1,8 @@
 const ANSWERS = ['A', 'B', 'C', 'D'];
 const QUESTION_COUNT = 20;
+export const DEFAULT_QUESTION_DURATION_SEC = 30;
+const MIN_QUESTION_DURATION_SEC = 5;
+const MAX_QUESTION_DURATION_SEC = 300;
 export const QUIZ_SESSION_STORAGE_KEY = 'quiz_room_session';
 export const QUIZ_RESULT_STORAGE_PREFIX = 'quiz_room_result:';
 export const QUIZ_HISTORY_STORAGE_KEY = 'quiz_room_history';
@@ -38,6 +41,12 @@ export const QUIZ_AUDIO_VOLUME_DEFAULTS = Object.freeze({
 });
 const QUIZ_AUDIO_GAIN = Object.freeze({ music: 0.16, sfx: 0.45, voice: 0.8, master: 1, duckedMusic: 0.05 });
 const FINISHED_SYNC_DELAY_MS = 800;
+
+function normalizeQuestionDurationSec(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds)) return DEFAULT_QUESTION_DURATION_SEC;
+  return Math.min(MAX_QUESTION_DURATION_SEC, Math.max(MIN_QUESTION_DURATION_SEC, Math.round(seconds)));
+}
 
 function normalizeAudioVolumes(values = {}) {
   return Object.fromEntries(Object.entries(QUIZ_AUDIO_VOLUME_DEFAULTS).map(([key, fallback]) => {
@@ -579,7 +588,7 @@ export function createQuizController(options = {}) {
     previousFocus: null,
     history: [],
     welcomePending: false,
-    questionDurationSec: 30
+    questionDurationSec: DEFAULT_QUESTION_DURATION_SEC
   };
   state.audioEnabled = typeof options.audioEnabled === 'boolean' ? options.audioEnabled : preferredAudio();
   const audioManager = options.audioManager || createQuizAudioManager({
@@ -615,11 +624,11 @@ export function createQuizController(options = {}) {
       if (!response?.ok || typeof response.json !== 'function') return;
       const payload = await response.json();
       const seconds = Number(payload?.settings?.questionDurationSec);
-      if (Number.isFinite(seconds) && seconds >= 5 && seconds <= 300) {
-        state.questionDurationSec = Math.round(seconds);
+      if (Number.isFinite(seconds) && seconds >= MIN_QUESTION_DURATION_SEC && seconds <= MAX_QUESTION_DURATION_SEC) {
+        state.questionDurationSec = normalizeQuestionDurationSec(seconds);
       }
     } catch {
-      // Keep the 30-second fallback when the settings endpoint is unavailable.
+      // Keep the safe default when the settings endpoint is unavailable.
     }
   }
 
@@ -1029,7 +1038,8 @@ export function createQuizController(options = {}) {
     const progress = byRole('timer-progress');
     if (progress) {
       if (!progress.style) progress.style = {};
-      progress.style.transform = `scaleX(${Math.max(0, Math.min(1, seconds / 30))})`;
+      const duration = normalizeQuestionDurationSec(state.questionDurationSec);
+      progress.style.transform = `scaleX(${Math.max(0, Math.min(1, seconds / duration))})`;
     }
     if (!paused && (seconds === 10 || seconds === 5) && !state.warned.has(seconds)) {
       state.warned.add(seconds);
@@ -1114,9 +1124,15 @@ export function createQuizController(options = {}) {
   }
 
   function render() {
-    const duration = Math.max(1, Math.round(Number(state.questionDurationSec) || 30));
-    text(byRole('entry-duration-label'), `${duration} GIÂY / CÂU`);
-    text(byRole('entry-duration-value'), `${duration}s`);
+    const duration = normalizeQuestionDurationSec(state.questionDurationSec);
+    state.questionDurationSec = duration;
+    const snapshotDuration = Number(state.snapshot?.questionDurationSec);
+    if (Number.isFinite(snapshotDuration) && snapshotDuration >= MIN_QUESTION_DURATION_SEC && snapshotDuration <= MAX_QUESTION_DURATION_SEC) {
+      state.questionDurationSec = normalizeQuestionDurationSec(snapshotDuration);
+    }
+    const effectiveDuration = state.questionDurationSec;
+    text(byRole('entry-duration-label'), `${effectiveDuration} GIÂY / CÂU`);
+    text(byRole('entry-duration-value'), `${effectiveDuration}s`);
     const snapshot = state.snapshot;
     if (!snapshot) {
       showScreen(state.phase === 'entry' ? 'entry' : state.phase);

@@ -117,6 +117,18 @@ function controllerWithHooks(options = {}) {
 }
 
 describe('authoritative client result events', () => {
+  it('uses the room duration from settings for the timer and progress bar', () => {
+    const { controller, root } = controllerWithHooks();
+    controller.applyMessage({
+      event: 'question',
+      snapshot: snapshot({ questionDurationSec: 15, remainingMs: 15_000 })
+    });
+
+    expect(controller.state.questionDurationSec).toBe(15);
+    expect(root.roles.get('timer-value').textContent).toBe('15');
+    expect(root.roles.get('timer-progress').style.transform).toBe('scaleX(1)');
+  });
+
   it('does not show a result before acknowledgement, then maps correct to state/effects', () => {
     const { controller, root, effects, audio } = controllerWithHooks();
     controller.state.snapshot = snapshot();
