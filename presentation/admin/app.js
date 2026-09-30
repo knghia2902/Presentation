@@ -16,6 +16,7 @@ const VOLUME_KEYS = ['master', 'music', 'correct', 'incorrect', 'welcome', 'room
 
 function setStatus(message, state = '') {
   if (!status) return;
+  status.hidden = !message;
   status.textContent = message;
   status.dataset.state = state;
 }
@@ -74,7 +75,7 @@ async function loadSettings() {
     fillSettings(result.settings);
     settingsPanel.hidden = false;
     settingsForm.removeAttribute('aria-busy');
-    setStatus(`Đã kết nối service TTS local · ${result.settings.model_label || result.settings.engine}.`, 'ok');
+    setStatus('');
   } catch (error) {
     settingsPanel.hidden = true;
     setStatus(error.status === 401 ? 'Launcher chưa kết nối quyền quản trị. Hãy chạy start-quiz.ps1.' : (error.message || 'Không đọc được cấu hình.'), 'error');

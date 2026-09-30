@@ -55,6 +55,7 @@ input[type="range"]:focus { box-shadow: 0 0 0 3px rgba(166,99,36,.14); }
 .elevenlabs-status-heading h2 { margin: 0; font-size: 18px; line-height: 1.15; }
 .elevenlabs-status-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .elevenlabs-status-meta { min-width: 0; }
+.elevenlabs-status-card > * { min-width: 0; }
 .elevenlabs-status-meta .muted { margin: 0; font-size: 13px; line-height: 1.45; }
 .elevenlabs-status-meta .elevenlabs-account-error { margin-top: 5px; }
 .elevenlabs-credit-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; }
@@ -72,7 +73,7 @@ input[type="range"]:focus { box-shadow: 0 0 0 3px rgba(166,99,36,.14); }
 .account-delete-button:hover, .account-delete-button:focus-visible { border-color: #aa3c31; background: #f4d8d3; }
 .service-pill[data-state="ok"] { color: #2b745d; border-color: #c8dfd2; background: #edf8f1; }
 .service-pill[data-state="error"] { color: #aa3c31; border-color: #e8b8ae; background: #fbe9e5; }
-.elevenlabs-account-error { margin: 0; color: #aa3c31; font-size: 12px; line-height: 1.45; }
+.elevenlabs-account-error { max-width: 100%; margin: 0; color: #aa3c31; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; word-break: break-word; }
 .hint { margin: 9px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .settings-card > .form-actions { gap: 16px; margin-top: 18px; }
 .admin-side-stack > .preview-card { min-height: 0; }
